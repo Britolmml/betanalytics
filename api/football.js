@@ -19,17 +19,30 @@ export default async function handler(req, res) {
   const qs = new URLSearchParams(queryParams).toString();
   const url = `https://v3.football.api-sports.io${path}${qs ? "?" + qs : ""}`;
 
+  // Verifica que la key esté configurada
+  if (!process.env.API_FOOTBALL_KEY) {
+    return res.status(500).json({
+      error: "API_FOOTBALL_KEY no está configurada en las variables de entorno de Vercel"
+    });
+  }
+
   try {
     const apiRes = await fetch(url, {
       headers: {
-        // La key viene de una variable de entorno de Vercel (nunca del cliente)
         "x-apisports-key": process.env.API_FOOTBALL_KEY,
+        "Accept": "application/json",
       },
     });
 
     const data = await apiRes.json();
-    return res.status(apiRes.status).json(data);
+
+    // Si la API devuelve errores de autenticación, los mostramos claros
+    if (data?.errors?.token || data?.errors?.requests) {
+      return res.status(401).json({ error: Object.values(data.errors)[0] });
+    }
+
+    return res.status(200).json(data);
   } catch (e) {
-    return res.status(500).json({ error: "Error al contactar API-Football: " + e.message });
+    return res.status(500).json({ error: "Error contactando API-Football: " + e.message });
   }
 }

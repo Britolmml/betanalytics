@@ -116,25 +116,28 @@ export default function App() {
   // Headers — la API key la inyecta NGINX, el cliente no necesita enviarla
   const headers = useCallback(() => ({ "Content-Type": "application/json" }), []);
 
-  // Probar conexión al proxy NGINX
+  // Probar conexión al proxy Vercel
   const testAPI = async () => {
-    setApiStatus("testing"); setApiMsg("⏳ Probando conexión al proxy...");
+    setApiStatus("testing"); setApiMsg("⏳ Probando conexión...");
     try {
-      const res  = await fetch(`${API_BASE}/status`);
+      const res  = await fetch(`${API_BASE}?path=/status`);
       const data = await res.json();
-      const req  = data?.response?.requests;
-      if (req || data?.response?.account) {
-        setApiStatus("ok");
-        setApiMsg(`✅ Proxy NGINX conectado · ${req?.current ?? 0}/${req?.limit_day ?? 100} requests usados hoy`);
-        return true;
+
+      // Error explícito del proxy (key no configurada, auth fallida, etc.)
+      if (data?.error) {
+        setApiStatus("error");
+        setApiMsg(`❌ ${data.error}`);
+        return false;
       }
-      const err = data?.errors ? Object.values(data.errors)[0] : "Respuesta inesperada";
-      setApiStatus("error");
-      setApiMsg(`❌ ${err}`);
-      return false;
+
+      // Cualquier respuesta válida de API-Football = conexión exitosa
+      const req = data?.response?.requests;
+      setApiStatus("ok");
+      setApiMsg(`✅ Conectado · ${req ? `${req.current}/${req.limit_day} requests usados hoy` : "API respondiendo correctamente"}`);
+      return true;
     } catch(e) {
       setApiStatus("error");
-      setApiMsg(`❌ No se pudo conectar al proxy: ${e.message}`);
+      setApiMsg(`❌ No se pudo conectar: ${e.message}`);
       return false;
     }
   };
