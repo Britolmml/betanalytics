@@ -12,16 +12,15 @@ const SEASON = 2024;
 
 // Intenta obtener fixtures con el plan gratuito (sin parámetro "last")
 async function fetchFixturesFree(apiFetch, teamId) {
-  for (const season of [2024, 2023]) {
+  for (const season of [2025, 2024, 2023]) {
     try {
       const d = await apiFetch(`/fixtures?team=${teamId}&season=${season}`);
       const items = d.response || [];
       if (items.length > 0) {
-        // Ordena por fecha descendente y toma los últimos 8 jugados
         const played = items
-          .filter(f => f.fixture?.status?.short === "FT" || f.fixture?.status?.short === "AET" || f.fixture?.status?.short === "PEN")
+          .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
           .sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date))
-          .slice(0, 8);
+          .slice(0, 5);
         if (played.length > 0) return played;
       }
     } catch(e) { console.warn("Error season", season, e.message); }
