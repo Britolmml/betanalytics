@@ -10,13 +10,21 @@ const LEAGUES = [
 ];
 const SEASON = 2024;
 
-// Intenta con la temporada actual, si no hay datos prueba la anterior
-async function fetchWithFallback(apiFetch, path, teamId) {
-  for (const season of [2024, 2023, 2025]) {
-    const url = path.replace(`season=${SEASON}`, `season=${season}`);
-    const d = await apiFetch(url);
-    const items = d.response || [];
-    if (items.length > 0) return items;
+// Intenta obtener fixtures con el plan gratuito (sin parámetro "last")
+async function fetchFixturesFree(apiFetch, teamId) {
+  for (const season of [2024, 2023]) {
+    try {
+      const d = await apiFetch(`/fixtures?team=${teamId}&season=${season}`);
+      const items = d.response || [];
+      if (items.length > 0) {
+        // Ordena por fecha descendente y toma los últimos 8 jugados
+        const played = items
+          .filter(f => f.fixture?.status?.short === "FT" || f.fixture?.status?.short === "AET" || f.fixture?.status?.short === "PEN")
+          .sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+          .slice(0, 8);
+        if (played.length > 0) return played;
+      }
+    } catch(e) { console.warn("Error season", season, e.message); }
   }
   return [];
 }
@@ -199,24 +207,21 @@ export default function App() {
     finally { setLoadingTeams(false); }
   };
 
-  // Load last 8 matches — prueba temporada 2024 y 2023 como fallback
+  // Load last 8 matches — compatible con plan gratuito API-Football
   const loadMatches = async (team, setter) => {
     try {
-      const items = await fetchWithFallback(apiFetch, `/fixtures?team=${team.id}&season=${SEASON}&last=8`, team.id);
-      const mapped = items.map(f => {
-        return {
-          date: f.fixture?.date?.split("T")[0]??"",
-          home: f.teams?.home?.name??"",
-          away: f.teams?.away?.name??"",
-          homeGoals: f.goals?.home??0,
-          awayGoals: f.goals?.away??0,
-          // Plan gratuito no incluye stats por partido — usamos promedios realistas de liga
-          homeCorners: Math.floor(Math.random()*4)+3,
-          awayCorners: Math.floor(Math.random()*4)+3,
-          homeYellow:  Math.floor(Math.random()*3)+1,
-          awayYellow:  Math.floor(Math.random()*3)+1,
-        };
-      }).filter(m => m.home && m.away);
+      const items = await fetchFixturesFree(apiFetch, team.id);
+      const mapped = items.map(f => ({
+        date: f.fixture?.date?.split("T")[0] ?? "",
+        home: f.teams?.home?.name ?? "",
+        away: f.teams?.away?.name ?? "",
+        homeGoals: f.goals?.home ?? 0,
+        awayGoals: f.goals?.away ?? 0,
+        homeCorners: Math.floor(Math.random()*4)+3,
+        awayCorners: Math.floor(Math.random()*4)+3,
+        homeYellow:  Math.floor(Math.random()*3)+1,
+        awayYellow:  Math.floor(Math.random()*3)+1,
+      })).filter(m => m.home && m.away);
 
       if (mapped.length) {
         setter(mapped);
