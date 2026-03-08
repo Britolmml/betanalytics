@@ -233,13 +233,14 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 {"resumen":"...","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":82},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":74},{"tipo":"BTTS","pick":"Sí","odds_sugerido":"1.75","confianza":70},{"tipo":"Corners","pick":"Más 9.5","odds_sugerido":"1.85","confianza":65},{"tipo":"Tarjetas","pick":"Más 3.5","odds_sugerido":"1.80","confianza":60}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":85,"razonamiento":"..."}],"alertas":["...","..."],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4}}`;
 
     try {
-      const res  = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1200, messages:[{role:"user",content:prompt}] })
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
-      const text = (data.content||[]).map(b=>b.text||"").join("").replace(/```json|```/g,"").trim();
-      const parsed = JSON.parse(text);
+      if (data.error) throw new Error(data.error);
+      const parsed = JSON.parse(data.result);
       setAnalysis({...parsed, hStats:hS, aStats:aS});
       setView("analysis");
     } catch(e) { setAiErr("Error: "+e.message); }
