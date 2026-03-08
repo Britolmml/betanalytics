@@ -63,6 +63,14 @@ function genFake(teamName, count=8) {
 const confColor = c => c>=80?"#10b981":c>=65?"#f59e0b":"#ef4444";
 const confLabel = c => c>=80?"ALTA":c>=65?"MEDIA":"BAJA";
 
+const DEMO_TEAMS = [
+  {id:529,name:"FC Barcelona"},{id:541,name:"Real Madrid"},{id:530,name:"Atlético Madrid"},
+  {id:723,name:"Club América"},{id:724,name:"Guadalajara"},{id:726,name:"Cruz Azul"},
+  {id:727,name:"Pumas UNAM"},{id:50,name:"Man City"},{id:33,name:"Man United"},
+  {id:40,name:"Liverpool"},{id:42,name:"Arsenal"},{id:157,name:"Bayern Munich"},
+  {id:165,name:"Dortmund"},{id:489,name:"AC Milan"},{id:496,name:"Juventus"},{id:505,name:"Inter Milan"},
+];
+
 const C = {
   card:  { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:16, padding:20 },
   cardG: { background:"rgba(16,185,129,0.07)",  border:"1px solid rgba(16,185,129,0.22)",  borderRadius:16, padding:20 },
@@ -158,38 +166,37 @@ export default function App() {
     return res.json();
   }, []);
 
-  // Load teams for a league
+  // Load teams for a league — siempre usa el proxy Vercel
   const loadTeams = async (lg) => {
     setLeague(lg); setTeams([]); setHomeTeam(null); setAwayTeam(null);
     setHomeMatches([]); setAwayMatches([]); setAnalysis(null);
-    if (!apiKey) {
-      setTeams([
-        {id:529,name:"FC Barcelona"},{id:541,name:"Real Madrid"},{id:530,name:"Atlético Madrid"},
-        {id:548,name:"Real Betis"},{id:532,name:"Valencia"},{id:536,name:"Sevilla"},
-        {id:723,name:"Club América"},{id:724,name:"Guadalajara"},{id:726,name:"Cruz Azul"},
-        {id:727,name:"Pumas UNAM"},{id:50,name:"Man City"},{id:33,name:"Man United"},
-        {id:40,name:"Liverpool"},{id:42,name:"Arsenal"},{id:157,name:"Bayern Munich"},
-        {id:165,name:"Dortmund"},{id:489,name:"AC Milan"},{id:496,name:"Juventus"},{id:505,name:"Inter Milan"},
-      ]);
-      return;
-    }
     setLoadingTeams(true);
     try {
       const d = await apiFetch(`/teams?league=${lg.id}&season=${SEASON}`);
-      setTeams((d.response||[]).map(t=>({id:t.team.id, name:t.team.name})));
-    } catch(e) { alert("Error cargando equipos: "+e.message); }
+      const list = (d.response||[]).map(t=>({id:t.team.id, name:t.team.name}));
+      if (list.length) {
+        setTeams(list);
+      } else {
+        // Solo usa demo si la API no devuelve nada (plan expirado, etc.)
+        setTeams(DEMO_TEAMS);
+        console.warn("API sin datos, usando equipos demo");
+      }
+    } catch(e) {
+      setTeams(DEMO_TEAMS);
+      console.warn("Error cargando equipos, usando demo:", e.message);
+    }
     finally { setLoadingTeams(false); }
   };
 
-  // Load last 8 matches for a team
+  // Load last 8 matches — siempre usa el proxy Vercel
   const loadMatches = async (team, setter) => {
-    if (!apiKey) { setter(genFake(team.name)); return; }
     try {
       const d = await apiFetch(`/fixtures?team=${team.id}&season=${SEASON}&last=8`);
       const mapped = (d.response||[]).map(f => {
         const getStat = (tid, type) => {
           const ts = (f.statistics||[]).find(s=>s.team?.id===tid);
-          return ts?.statistics?.find(s=>s.type===type)?.value ?? Math.floor(Math.random()*6)+2;
+          const val = ts?.statistics?.find(s=>s.type===type)?.value;
+          return typeof val === "number" ? val : null;
         };
         return {
           date: f.fixture?.date?.split("T")[0]??"",
@@ -200,9 +207,17 @@ export default function App() {
           homeYellow:  getStat(f.teams?.home?.id,"Yellow Cards"),
           awayYellow:  getStat(f.teams?.away?.id,"Yellow Cards"),
         };
-      });
-      setter(mapped.length ? mapped : genFake(team.name));
-    } catch(e) { setter(genFake(team.name)); }
+      }).filter(m => m.home && m.away); // descarta partidos incompletos
+      if (mapped.length) {
+        setter(mapped);
+      } else {
+        setter(genFake(team.name));
+        console.warn("Sin partidos reales, usando datos demo para", team.name);
+      }
+    } catch(e) {
+      setter(genFake(team.name));
+      console.warn("Error cargando partidos:", e.message);
+    }
   };
 
   const selectTeam = async (team, side) => {
