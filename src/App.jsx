@@ -2,21 +2,40 @@ import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, getPredictions, updateResult } from "./supabase";
 
 const FEATURED_LEAGUES = [
-  { id: 39,  name: "Premier League",   country: "England",    flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  { id: 140, name: "La Liga",          country: "Spain",      flag: "🇪🇸" },
-  { id: 78,  name: "Bundesliga",       country: "Germany",    flag: "🇩🇪" },
-  { id: 135, name: "Serie A",          country: "Italy",      flag: "🇮🇹" },
-  { id: 61,  name: "Ligue 1",          country: "France",     flag: "🇫🇷" },
-  { id: 2,   name: "Champions League", country: "World",      flag: "🌍" },
-  { id: 3,   name: "Europa League",    country: "World",      flag: "🌍" },
-  { id: 262, name: "Liga MX",          country: "Mexico",     flag: "🇲🇽" },
-  { id: 253, name: "MLS",              country: "USA",        flag: "🇺🇸" },
-  { id: 71,  name: "Brasileirao",      country: "Brazil",     flag: "🇧🇷" },
-  { id: 128, name: "Liga Profesional", country: "Argentina",  flag: "🇦🇷" },
-  { id: 88,  name: "Eredivisie",       country: "Netherlands",flag: "🇳🇱" },
-  { id: 94,  name: "Primeira Liga",    country: "Portugal",   flag: "🇵🇹" },
-  { id: 203, name: "Super Lig",        country: "Turkey",     flag: "🇹🇷" },
-  { id: 169, name: "Liga BetPlay",     country: "Colombia",   flag: "🇨🇴" },
+  // Europa top
+  { id: 39,  name: "Premier League",   country: "Inglaterra",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  { id: 140, name: "La Liga",          country: "España",      flag: "🇪🇸" },
+  { id: 78,  name: "Bundesliga",       country: "Alemania",    flag: "🇩🇪" },
+  { id: 135, name: "Serie A",          country: "Italia",      flag: "🇮🇹" },
+  { id: 61,  name: "Ligue 1",          country: "Francia",     flag: "🇫🇷" },
+  { id: 2,   name: "Champions League", country: "Europa",      flag: "🇪🇺" },
+  { id: 3,   name: "Europa League",    country: "Europa",      flag: "🇪🇺" },
+  { id: 88,  name: "Eredivisie",       country: "Holanda",     flag: "🇳🇱" },
+  { id: 94,  name: "Primeira Liga",    country: "Portugal",    flag: "🇵🇹" },
+  { id: 203, name: "Süper Lig",        country: "Turquía",     flag: "🇹🇷" },
+  // Norteamérica
+  { id: 262, name: "Liga MX",          country: "México",      flag: "🇲🇽" },
+  { id: 253, name: "MLS",              country: "USA",         flag: "🇺🇸" },
+  // Sudamérica
+  { id: 71,  name: "Brasileirao A",    country: "Brasil",      flag: "🇧🇷" },
+  { id: 72,  name: "Brasileirao B",    country: "Brasil",      flag: "🇧🇷" },
+  { id: 128, name: "Liga Profesional", country: "Argentina",   flag: "🇦🇷" },
+  { id: 131, name: "Primera Nacional", country: "Argentina",   flag: "🇦🇷" },
+  { id: 169, name: "Liga BetPlay",     country: "Colombia",    flag: "🇨🇴" },
+  { id: 265, name: "Liga 1",           country: "Perú",        flag: "🇵🇪" },
+  { id: 239, name: "Primera División", country: "Chile",       flag: "🇨🇱" },
+  { id: 268, name: "Primera División", country: "Uruguay",     flag: "🇺🇾" },
+  { id: 300, name: "División Mayor",   country: "Bolivia",     flag: "🇧🇴" },
+  { id: 314, name: "LigaPro",          country: "Ecuador",     flag: "🇪🇨" },
+  { id: 283, name: "División Mayor",   country: "Paraguay",    flag: "🇵🇾" },
+  { id: 332, name: "Primera División", country: "Venezuela",   flag: "🇻🇪" },
+  // Copas Sudamericanas
+  { id: 13,  name: "Copa Libertadores",country: "Sudamérica",  flag: "🌎" },
+  { id: 14,  name: "Copa Sudamericana",country: "Sudamérica",  flag: "🌎" },
+  // Fáciles de predecir ⭐
+  { id: 188, name: "A-League",         country: "Australia",      flag: "🇦🇺" },
+  { id: 307, name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦" },
+  { id: 98,  name: "J1 League",        country: "Japón",          flag: "🇯🇵" },
 ];
 const SEASON = 2024;
 
@@ -272,12 +291,17 @@ export default function App() {
     setHomeMatches([]); setAwayMatches([]); setAnalysis(null);
     setStandings([]); setH2h([]); setNextMatches({home:[],away:[]});
     setActiveTab("stats");
+    // Cargar equipos intentando varias temporadas
     setLoadingTeams(true);
     try {
-      const d = await apiFetch(`/teams?league=${lg.id}&season=${SEASON}`);
-      const list = (d.response||[]).map(t=>({id:t.team.id, name:t.team.name}));
-      if (list.length) { setTeams(list); }
-      else { setTeams(DEMO_TEAMS); }
+      let list = [];
+      for (const season of [2025, 2024, 2023]) {
+        const d = await apiFetch(`/teams?league=${lg.id}&season=${season}`);
+        list = (d.response||[]).map(t=>({id:t.team.id, name:t.team.name}));
+        if (list.length >= 5) break;
+      }
+      if (list.length) setTeams(list);
+      else setTeams(DEMO_TEAMS);
     } catch(e) { setTeams(DEMO_TEAMS); }
     finally { setLoadingTeams(false); }
 
@@ -871,22 +895,34 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                   🔍 Buscar todas las ligas
                 </button>
               </div>
-              <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                {FEATURED_LEAGUES.map(l=>(
-                  <button key={l.id} onClick={()=>loadTeams(l)}
-                    style={{background:league?.id===l.id?"rgba(16,185,129,0.16)":"rgba(255,255,255,0.03)",
-                            border:`1px solid ${league?.id===l.id?"rgba(16,185,129,0.45)":"rgba(255,255,255,0.07)"}`,
-                            borderRadius:10,padding:"8px 13px",color:league?.id===l.id?"#10b981":"#888",
-                            cursor:"pointer",fontWeight:600,fontSize:11,display:"flex",alignItems:"center",gap:6,
-                            transition:"all 0.15s"}}>
-                    <span style={{fontSize:14}}>{l.flag}</span>
-                    <div style={{textAlign:"left"}}>
-                      <div style={{fontSize:11}}>{l.name}</div>
-                      <div style={{fontSize:9,color:league?.id===l.id?"rgba(16,185,129,0.6)":"#333",marginTop:1}}>{l.country}</div>
+              {[
+                { label:"🌍 Europa", ids:[39,140,78,135,61,2,3,88,94,203] },
+                { label:"🌎 América del Norte", ids:[262,253] },
+                { label:"🌎 Sudamérica", ids:[71,72,128,131,169,265,239,268,300,314,283,332,13,14] },
+                { label:"⭐ Fáciles de predecir", ids:[188,307,98] },
+              ].map(({label,ids})=>{
+                const ligas = FEATURED_LEAGUES.filter(l=>ids.includes(l.id));
+                return (
+                  <div key={label} style={{marginBottom:12}}>
+                    <div style={{fontSize:9,color:"#444",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>{label}</div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {ligas.map(l=>(
+                        <button key={l.id} onClick={()=>loadTeams(l)}
+                          style={{background:league?.id===l.id?"rgba(16,185,129,0.16)":"rgba(255,255,255,0.03)",
+                                  border:`1px solid ${league?.id===l.id?"rgba(16,185,129,0.45)":"rgba(255,255,255,0.07)"}`,
+                                  borderRadius:10,padding:"7px 12px",color:league?.id===l.id?"#10b981":"#888",
+                                  cursor:"pointer",fontWeight:600,fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:13}}>{l.flag}</span>
+                          <div style={{textAlign:"left"}}>
+                            <div style={{fontSize:11}}>{l.name}</div>
+                            <div style={{fontSize:9,color:league?.id===l.id?"rgba(16,185,129,0.6)":"#333",marginTop:1}}>{l.country}</div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  </button>
-                ))}
-              </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Teams */}
