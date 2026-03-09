@@ -903,22 +903,29 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               ].map(({label,ids})=>{
                 const ligas = FEATURED_LEAGUES.filter(l=>ids.includes(l.id));
                 return (
-                  <div key={label} style={{marginBottom:12}}>
-                    <div style={{fontSize:9,color:"#444",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>{label}</div>
+                  <div key={label} style={{marginBottom:14}}>
+                    <div style={{fontSize:9,color:"#555",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:7,paddingLeft:2}}>{label}</div>
                     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                      {ligas.map(l=>(
-                        <button key={l.id} onClick={()=>loadTeams(l)}
-                          style={{background:league?.id===l.id?"rgba(16,185,129,0.16)":"rgba(255,255,255,0.03)",
-                                  border:`1px solid ${league?.id===l.id?"rgba(16,185,129,0.45)":"rgba(255,255,255,0.07)"}`,
-                                  borderRadius:10,padding:"7px 12px",color:league?.id===l.id?"#10b981":"#888",
-                                  cursor:"pointer",fontWeight:600,fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-                          <span style={{fontSize:13}}>{l.flag}</span>
-                          <div style={{textAlign:"left"}}>
-                            <div style={{fontSize:11}}>{l.name}</div>
-                            <div style={{fontSize:9,color:league?.id===l.id?"rgba(16,185,129,0.6)":"#333",marginTop:1}}>{l.country}</div>
-                          </div>
-                        </button>
-                      ))}
+                      {ligas.map(l=>{
+                        const active = league?.id===l.id;
+                        return (
+                          <button key={l.id} onClick={()=>loadTeams(l)}
+                            style={{
+                              background: active ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.05)",
+                              border: `1px solid ${active ? "rgba(16,185,129,0.5)" : "rgba(255,255,255,0.1)"}`,
+                              borderRadius:10, padding:"8px 14px",
+                              cursor:"pointer", fontWeight:600,
+                              display:"flex", alignItems:"center", gap:7,
+                              transition:"all 0.15s",
+                            }}>
+                            <span style={{fontSize:15, lineHeight:1}}>{l.flag}</span>
+                            <div style={{textAlign:"left"}}>
+                              <div style={{fontSize:12, color: active ? "#10b981" : "#ddd", fontWeight:700}}>{l.name}</div>
+                              <div style={{fontSize:9, color: active ? "rgba(16,185,129,0.7)" : "#666", marginTop:1}}>{l.country}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );
