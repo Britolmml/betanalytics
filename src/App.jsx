@@ -138,6 +138,11 @@ export default function App() {
   const [loadingAI,     setLoadingAI]     = useState(false);
   const [aiErr,         setAiErr]         = useState("");
   const [view,          setView]          = useState("setup");
+  const [standings,     setStandings]     = useState([]);
+  const [loadingStand,  setLoadingStand]  = useState(false);
+  const [h2h,           setH2h]           = useState([]);
+  const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
+  const [activeTab,     setActiveTab]     = useState("stats");
 
   // Headers — la API key la inyecta NGINX, el cliente no necesita enviarla
   const headers = useCallback(() => ({ "Content-Type": "application/json" }), []);
@@ -188,26 +193,31 @@ export default function App() {
   const loadTeams = async (lg) => {
     setLeague(lg); setTeams([]); setHomeTeam(null); setAwayTeam(null);
     setHomeMatches([]); setAwayMatches([]); setAnalysis(null);
+    setStandings([]); setH2h([]); setNextMatches({home:[],away:[]});
+    setActiveTab("stats");
     setLoadingTeams(true);
     try {
       const d = await apiFetch(`/teams?league=${lg.id}&season=${SEASON}`);
       const list = (d.response||[]).map(t=>({id:t.team.id, name:t.team.name}));
-      if (list.length) {
-        setTeams(list);
-      } else {
-        // Solo usa demo si la API no devuelve nada (plan expirado, etc.)
-        setTeams(DEMO_TEAMS);
-        console.warn("API sin datos, usando equipos demo");
-      }
-    } catch(e) {
-      setTeams(DEMO_TEAMS);
-      console.warn("Error cargando equipos, usando demo:", e.message);
-    }
+      if (list.length) { setTeams(list); }
+      else { setTeams(DEMO_TEAMS); }
+    } catch(e) { setTeams(DEMO_TEAMS); }
     finally { setLoadingTeams(false); }
+
+    // Cargar tabla de posiciones
+    setLoadingStand(true);
+    try {
+      for (const season of [2025, 2024]) {
+        const sd = await apiFetch(`/standings?league=${lg.id}&season=${season}`);
+        const rows = sd.response?.[0]?.league?.standings?.[0] || [];
+        if (rows.length) { setStandings(rows); break; }
+      }
+    } catch(e) { console.warn("No se pudo cargar tabla", e.message); }
+    finally { setLoadingStand(false); }
   };
 
-  // Load last 8 matches — compatible con plan gratuito API-Football
-  const loadMatches = async (team, setter) => {
+  // Load last 5 matches + next 3 upcoming
+  const loadMatches = async (team, setter, side) => {
     try {
       const items = await fetchFixturesFree(apiFetch, team.id);
       const mapped = items.map(f => ({
@@ -221,23 +231,63 @@ export default function App() {
         homeYellow:  Math.floor(Math.random()*3)+1,
         awayYellow:  Math.floor(Math.random()*3)+1,
       })).filter(m => m.home && m.away);
+      if (mapped.length) setter(mapped);
+      else { setter(genFake(team.name)); }
 
-      if (mapped.length) {
-        setter(mapped);
-      } else {
-        setter(genFake(team.name));
-        console.warn("Sin partidos reales para", team.name);
+      // Cargar próximos partidos
+      try {
+        for (const season of [2025, 2024]) {
+          const nd = await apiFetch(`/fixtures?team=${team.id}&season=${season}`);
+          const upcoming = (nd.response||[])
+            .filter(f => f.fixture?.status?.short === "NS" && new Date(f.fixture.date) > new Date())
+            .sort((a,b) => new Date(a.fixture.date) - new Date(b.fixture.date))
+            .slice(0,3)
+            .map(f => ({
+              date: f.fixture?.date?.split("T")[0] ?? "",
+              home: f.teams?.home?.name ?? "",
+              away: f.teams?.away?.name ?? "",
+              league: f.league?.name ?? "",
+            }));
+          if (upcoming.length) {
+            setNextMatches(prev => ({...prev, [side]: upcoming}));
+            break;
+          }
+        }
+      } catch(e) { console.warn("No próximos partidos:", e.message); }
+
+    } catch(e) { setter(genFake(team.name)); }
+  };
+
+  // Load H2H when both teams selected
+  const loadH2H = async (hId, aId) => {
+    try {
+      for (const season of [2025, 2024, 2023]) {
+        const d = await apiFetch(`/fixtures?h2h=${hId}-${aId}&season=${season}`);
+        const items = (d.response||[])
+          .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+          .slice(0,5);
+        if (items.length) {
+          setH2h(items.map(f => ({
+            date: f.fixture?.date?.split("T")[0] ?? "",
+            home: f.teams?.home?.name ?? "",
+            away: f.teams?.away?.name ?? "",
+            homeGoals: f.goals?.home ?? 0,
+            awayGoals: f.goals?.away ?? 0,
+          })));
+          return;
+        }
       }
-    } catch(e) {
-      setter(genFake(team.name));
-      console.warn("Error cargando partidos:", e.message);
-    }
+    } catch(e) { console.warn("No H2H:", e.message); }
   };
 
   const selectTeam = async (team, side) => {
     setLoadingM(true); setAnalysis(null);
-    if (side==="home") { setHomeTeam(team); await loadMatches(team, setHomeMatches); }
-    else               { setAwayTeam(team); await loadMatches(team, setAwayMatches); }
+    const newHome = side==="home" ? team : homeTeam;
+    const newAway = side==="away" ? team : awayTeam;
+    if (side==="home") { setHomeTeam(team); await loadMatches(team, setHomeMatches, "home"); }
+    else               { setAwayTeam(team); await loadMatches(team, setAwayMatches, "away"); }
+    if (newHome && newAway) await loadH2H(newHome.id, newAway.id);
     setLoadingM(false);
   };
 
@@ -391,50 +441,207 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               </div>
             )}
 
-            {/* Stats */}
-            {(hStats||aStats) && (
+            {/* Tabs */}
+            {(hStats||aStats||standings.length>0) && (
               <div style={{marginBottom:20}}>
                 <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>
-                  3 · Estadísticas · últimos 5 partidos {!apiKey&&<span style={{color:"#333",fontWeight:400}}>(demo)</span>}
+                  3 · Análisis
                 </div>
-                {loadingM && <div style={{color:"#555",fontSize:12,marginBottom:8}}>⏳ Cargando datos...</div>}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                  {[{team:homeTeam,stats:hStats,color:"#10b981",matches:homeMatches},
-                    {team:awayTeam,stats:aStats,color:"#f59e0b",matches:awayMatches}]
-                    .filter(x=>x.stats&&x.team)
-                    .map(({team,stats,color,matches})=>(
-                    <div key={team.id} style={C.card}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:19,color}}>{team.name}</div>
-                        <div style={{display:"flex",gap:3}}>{stats.results.map((r,i)=><RBadge key={i} r={r}/>)}</div>
+
+                {/* Tab buttons */}
+                <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+                  {[
+                    {id:"stats",   label:"📊 Estadísticas"},
+                    {id:"h2h",     label:"⚔️ H2H",       show: homeTeam&&awayTeam},
+                    {id:"next",    label:"📅 Próximos",   show: homeTeam||awayTeam},
+                    {id:"standings",label:"🏆 Tabla",     show: standings.length>0},
+                  ].filter(t=>t.show!==false).map(t=>(
+                    <button key={t.id} onClick={()=>setActiveTab(t.id)}
+                      style={{background:activeTab===t.id?"rgba(16,185,129,0.18)":"rgba(255,255,255,0.04)",
+                              border:`1px solid ${activeTab===t.id?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.08)"}`,
+                              borderRadius:8,padding:"7px 14px",color:activeTab===t.id?"#10b981":"#666",
+                              cursor:"pointer",fontSize:12,fontWeight:600}}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* TAB: Estadísticas */}
+                {activeTab==="stats" && (
+                  <>
+                    {loadingM && <div style={{color:"#555",fontSize:12,marginBottom:8}}>⏳ Cargando datos...</div>}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                      {[{team:homeTeam,stats:hStats,color:"#10b981",matches:homeMatches},
+                        {team:awayTeam,stats:aStats,color:"#f59e0b",matches:awayMatches}]
+                        .filter(x=>x.stats&&x.team)
+                        .map(({team,stats,color,matches})=>(
+                        <div key={team.id} style={C.card}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:19,color}}>{team.name}</div>
+                            <div style={{display:"flex",gap:3}}>{stats.results.map((r,i)=><RBadge key={i} r={r}/>)}</div>
+                          </div>
+                          <SBar label="Goles anotados (prom)" val={stats.avgScored} max={4} color={color}/>
+                          <SBar label="Goles recibidos (prom)" val={stats.avgConceded} max={4} color="#ef4444"/>
+                          <SBar label="Corners (prom)" val={stats.avgCorners} max={10} color="#8b5cf6"/>
+                          <SBar label="Tarjetas amarillas (prom)" val={stats.avgCards} max={5} color="#f59e0b"/>
+                          <div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
+                            <Pill rgb="16,185,129">BTTS {stats.btts}/5</Pill>
+                            <Pill rgb="139,92,246">+2.5 {stats.over25}/5</Pill>
+                            <Pill rgb="59,130,246">CS {stats.cleanSheets}/5</Pill>
+                          </div>
+                          <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:9}}>
+                            {matches.slice(0,5).map((m,i)=>{
+                              const iH=m.home===team.name;
+                              const r=iH?(m.homeGoals>m.awayGoals?"W":m.homeGoals===m.awayGoals?"D":"L"):(m.awayGoals>m.homeGoals?"W":m.awayGoals===m.homeGoals?"D":"L");
+                              return (
+                                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:11,color:"#555",marginBottom:4}}>
+                                  <span style={{minWidth:78}}>{m.date}</span>
+                                  <span style={{flex:1,textAlign:"center",color:"#777"}}>
+                                    {m.home.split(" ").slice(-1)[0]} <b style={{color:"#bbb"}}>{m.homeGoals}–{m.awayGoals}</b> {m.away.split(" ").slice(-1)[0]}
+                                  </span>
+                                  <RBadge r={r}/>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* TAB: H2H */}
+                {activeTab==="h2h" && (
+                  <div style={C.card}>
+                    <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
+                      ⚔️ Enfrentamientos directos — {homeTeam?.name} vs {awayTeam?.name}
+                    </div>
+                    {h2h.length===0 ? (
+                      <div style={{color:"#555",fontSize:13,textAlign:"center",padding:"20px 0"}}>
+                        {homeTeam&&awayTeam ? "Sin historial de enfrentamientos disponible" : "Selecciona ambos equipos para ver el H2H"}
                       </div>
-                      <SBar label="Goles anotados (prom)" val={stats.avgScored} max={4} color={color}/>
-                      <SBar label="Goles recibidos (prom)" val={stats.avgConceded} max={4} color="#ef4444"/>
-                      <SBar label="Corners (prom)" val={stats.avgCorners} max={10} color="#8b5cf6"/>
-                      <SBar label="Tarjetas amarillas (prom)" val={stats.avgCards} max={5} color="#f59e0b"/>
-                      <div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
-                        <Pill rgb="16,185,129">BTTS {stats.btts}/5</Pill>
-                        <Pill rgb="139,92,246">+2.5 {stats.over25}/5</Pill>
-                        <Pill rgb="59,130,246">CS {stats.cleanSheets}/5</Pill>
-                      </div>
-                      <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:9}}>
-                        {matches.slice(0,5).map((m,i)=>{
-                          const iH=m.home===team.name;
-                          const r=iH?(m.homeGoals>m.awayGoals?"W":m.homeGoals===m.awayGoals?"D":"L"):(m.awayGoals>m.homeGoals?"W":m.awayGoals===m.homeGoals?"D":"L");
+                    ) : (
+                      <>
+                        {/* Resumen H2H */}
+                        {(()=>{
+                          const hw = h2h.filter(m=>(m.home===homeTeam?.name&&m.homeGoals>m.awayGoals)||(m.away===homeTeam?.name&&m.awayGoals>m.homeGoals)).length;
+                          const aw = h2h.filter(m=>(m.home===awayTeam?.name&&m.homeGoals>m.awayGoals)||(m.away===awayTeam?.name&&m.awayGoals>m.homeGoals)).length;
+                          const dr = h2h.length - hw - aw;
                           return (
-                            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:11,color:"#555",marginBottom:4}}>
-                              <span style={{minWidth:78}}>{m.date}</span>
-                              <span style={{flex:1,textAlign:"center",color:"#777"}}>
-                                {m.home.split(" ").slice(-1)[0]} <b style={{color:"#bbb"}}>{m.homeGoals}–{m.awayGoals}</b> {m.away.split(" ").slice(-1)[0]}
+                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+                              {[{l:homeTeam?.name?.split(" ").slice(-1)[0],v:hw,c:"#10b981"},
+                                {l:"Empates",v:dr,c:"#f59e0b"},
+                                {l:awayTeam?.name?.split(" ").slice(-1)[0],v:aw,c:"#3b82f6"}].map(({l,v,c})=>(
+                                <div key={l} style={{textAlign:"center",padding:"10px 6px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:c}}>{v}</div>
+                                  <div style={{fontSize:10,color:"#555"}}>{l}</div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        {h2h.map((m,i)=>{
+                          const hG = m.home===homeTeam?.name?m.homeGoals:m.awayGoals;
+                          const aG = m.home===awayTeam?.name?m.homeGoals:m.awayGoals;
+                          const winner = hG>aG?homeTeam?.name:aG>hG?awayTeam?.name:null;
+                          return (
+                            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                              <span style={{color:"#444",minWidth:80}}>{m.date}</span>
+                              <span style={{flex:1,textAlign:"center"}}>
+                                <span style={{color:m.home===homeTeam?.name?"#10b981":"#f59e0b"}}>{m.home}</span>
+                                <b style={{color:"#bbb",margin:"0 8px"}}>{m.homeGoals}–{m.awayGoals}</b>
+                                <span style={{color:m.away===awayTeam?.name?"#f59e0b":"#10b981"}}>{m.away}</span>
                               </span>
-                              <RBadge r={r}/>
+                              <span style={{fontSize:10,color:winner===homeTeam?.name?"#10b981":winner===awayTeam?.name?"#f59e0b":"#888",fontWeight:700,minWidth:40,textAlign:"right"}}>
+                                {winner?`${winner.split(" ").slice(-1)[0]} ✓`:"E"}
+                              </span>
                             </div>
                           );
                         })}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB: Próximos partidos */}
+                {activeTab==="next" && (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                    {[{team:homeTeam,next:nextMatches.home,color:"#10b981"},
+                      {team:awayTeam,next:nextMatches.away,color:"#f59e0b"}]
+                      .filter(x=>x.team)
+                      .map(({team,next,color})=>(
+                      <div key={team.id} style={C.card}>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:17,color,marginBottom:10}}>{team.name}</div>
+                        {next.length===0 ? (
+                          <div style={{color:"#444",fontSize:12}}>Sin próximos partidos disponibles</div>
+                        ) : next.map((m,i)=>(
+                          <div key={i} style={{marginBottom:10,padding:"8px 10px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                            <div style={{fontSize:10,color:"#444",marginBottom:4}}>{m.date} · {m.league}</div>
+                            <div style={{fontSize:12,color:"#bbb"}}>
+                              <span style={{color:m.home===team.name?color:"#777"}}>{m.home}</span>
+                              <span style={{color:"#555",margin:"0 8px"}}>vs</span>
+                              <span style={{color:m.away===team.name?color:"#777"}}>{m.away}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* TAB: Tabla de posiciones */}
+                {activeTab==="standings" && (
+                  <div style={C.card}>
+                    <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
+                      🏆 Tabla · {league?.name}
                     </div>
-                  ))}
-                </div>
+                    {loadingStand ? (
+                      <div style={{color:"#555",fontSize:13}}>⏳ Cargando tabla...</div>
+                    ) : standings.length===0 ? (
+                      <div style={{color:"#555",fontSize:13}}>Tabla no disponible para esta liga</div>
+                    ) : (
+                      <div style={{overflowX:"auto"}}>
+                        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                          <thead>
+                            <tr style={{color:"#444",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+                              <th style={{textAlign:"left",padding:"4px 6px",fontWeight:600}}>#</th>
+                              <th style={{textAlign:"left",padding:"4px 6px",fontWeight:600}}>Equipo</th>
+                              <th style={{padding:"4px 6px",fontWeight:600}}>PJ</th>
+                              <th style={{padding:"4px 6px",fontWeight:600}}>G</th>
+                              <th style={{padding:"4px 6px",fontWeight:600}}>E</th>
+                              <th style={{padding:"4px 6px",fontWeight:600}}>P</th>
+                              <th style={{padding:"4px 6px",fontWeight:600}}>GF</th>
+                              <th style={{padding:"4px 6px",fontWeight:600}}>GC</th>
+                              <th style={{padding:"4px 6px",fontWeight:600,color:"#10b981"}}>Pts</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {standings.map((s,i)=>{
+                              const isH = s.team?.name===homeTeam?.name;
+                              const isA = s.team?.name===awayTeam?.name;
+                              return (
+                                <tr key={i} style={{
+                                  borderBottom:"1px solid rgba(255,255,255,0.03)",
+                                  background:isH?"rgba(16,185,129,0.08)":isA?"rgba(245,158,11,0.08)":"transparent"
+                                }}>
+                                  <td style={{padding:"5px 6px",color:i<4?"#10b981":i>=standings.length-3?"#ef4444":"#555",fontWeight:700}}>{s.rank}</td>
+                                  <td style={{padding:"5px 6px",color:isH?"#10b981":isA?"#f59e0b":"#ccc",fontWeight:isH||isA?700:400}}>{s.team?.name}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#666"}}>{s.all?.played}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#10b981"}}>{s.all?.win}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#f59e0b"}}>{s.all?.draw}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#ef4444"}}>{s.all?.lose}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#888"}}>{s.all?.goals?.for}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#888"}}>{s.all?.goals?.against}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",fontFamily:"'Bebas Neue',cursive",fontSize:15,color:"#10b981"}}>{s.points}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
