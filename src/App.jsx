@@ -139,13 +139,14 @@ const RBadge = ({r}) => {
   return <span style={{background:bg,color:fg,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{r==="W"?"V":r==="D"?"E":"D"}</span>;
 };
 
-const SBar = ({label,val,max,color}) => (
-  <div style={{marginBottom:9}}>
+const SBar = ({label,val,max,color,dimmed}) => (
+  <div style={{marginBottom:9,opacity:dimmed?0.4:1}}>
     <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
-      <span style={{color:"#666"}}>{label}</span><span style={{fontWeight:700,color}}>{val}</span>
+      <span style={{color:"#666"}}>{label}</span>
+      <span style={{fontWeight:700,color}}>{dimmed ? "N/D" : val}</span>
     </div>
     <div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}>
-      <div style={{width:`${Math.min((val/(max||1))*100,100)}%`,height:"100%",background:color,borderRadius:2}}/>
+      <div style={{width:dimmed?"0%":`${Math.min((val/(max||1))*100,100)}%`,height:"100%",background:color,borderRadius:2}}/>
     </div>
   </div>
 );
@@ -560,7 +561,7 @@ PARTIDO A ANALIZAR: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name
 TABLA: ${standingBlock(homeTeam.name, homeStanding)}
 FORMA GENERAL últimos 5: ${hS.results.join("-")} | Goles anotados prom: ${hS.avgScored} | Goles recibidos prom: ${hS.avgConceded}
 ${formBlock(homeTeam.name, homeFormLocal, "local")}
-Corners prom: ${hS.avgCorners} | Amarillas prom: ${hS.avgCards}${hS.avgShotsOn !== null ? ` | Tiros a puerta prom: ${hS.avgShotsOn} | Tiros totales prom: ${hS.avgShotsTotal}` : ""}
+Corners prom: ${hS.avgCorners} | Amarillas prom: ${hS.avgCards} | Tiros a puerta prom: ${hS.avgShotsOn !== null ? hS.avgShotsOn : "N/D"} | Tiros totales prom: ${hS.avgShotsTotal !== null ? hS.avgShotsTotal : "N/D"}
 BTTS: ${hS.btts}/5 | Over 2.5: ${hS.over25}/5 | Clean Sheets: ${hS.cleanSheets}/5
 ${injuryBlock(homeTeam.name, homeInjuries)}
 JUGADORES CLAVE: ${playersBlock(homePlayers)}
@@ -569,7 +570,7 @@ JUGADORES CLAVE: ${playersBlock(homePlayers)}
 TABLA: ${standingBlock(awayTeam.name, awayStanding)}
 FORMA GENERAL últimos 5: ${aS.results.join("-")} | Goles anotados prom: ${aS.avgScored} | Goles recibidos prom: ${aS.avgConceded}
 ${formBlock(awayTeam.name, awayFormVisita, "visitante")}
-Corners prom: ${aS.avgCorners} | Amarillas prom: ${aS.avgCards}${aS.avgShotsOn !== null ? ` | Tiros a puerta prom: ${aS.avgShotsOn} | Tiros totales prom: ${aS.avgShotsTotal}` : ""}
+Corners prom: ${aS.avgCorners} | Amarillas prom: ${aS.avgCards} | Tiros a puerta prom: ${aS.avgShotsOn !== null ? aS.avgShotsOn : "N/D"} | Tiros totales prom: ${aS.avgShotsTotal !== null ? aS.avgShotsTotal : "N/D"}
 BTTS: ${aS.btts}/5 | Over 2.5: ${aS.over25}/5 | Clean Sheets: ${aS.cleanSheets}/5
 ${injuryBlock(awayTeam.name, awayInjuries)}
 JUGADORES CLAVE: ${playersBlock(awayPlayers)}
@@ -1013,13 +1014,13 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           <SBar label="Goles recibidos (prom)" val={stats.avgConceded} max={4} color="#ef4444"/>
                           <SBar label="Corners (prom)" val={stats.avgCorners} max={10} color="#8b5cf6"/>
                           <SBar label="Tarjetas amarillas (prom)" val={stats.avgCards} max={5} color="#f59e0b"/>
-                          {stats.avgShotsOn !== null && <SBar label="Tiros a puerta (prom)" val={stats.avgShotsOn} max={12} color="#60a5fa"/>}
-                          {stats.avgShotsTotal !== null && <SBar label="Tiros totales (prom)" val={stats.avgShotsTotal} max={20} color="#94a3b8"/>}
+                          <SBar label="Tiros a puerta (prom)" val={stats.avgShotsOn ?? 0} max={12} color="#60a5fa" dimmed={stats.avgShotsOn === null}/>
+                          <SBar label="Tiros totales (prom)" val={stats.avgShotsTotal ?? 0} max={20} color="#94a3b8" dimmed={stats.avgShotsTotal === null}/>
                           <div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
                             <Pill rgb="16,185,129">BTTS {stats.btts}/5</Pill>
                             <Pill rgb="139,92,246">+2.5 {stats.over25}/5</Pill>
                             <Pill rgb="59,130,246">CS {stats.cleanSheets}/5</Pill>
-                            {stats.avgShotsOn !== null && <Pill rgb="96,165,250">🎯 {stats.avgShotsOn} tiros/partido</Pill>}
+                            <Pill rgb="96,165,250">🎯 {stats.avgShotsOn !== null ? `${stats.avgShotsOn} tiros/partido` : "Tiros: N/D"}</Pill>
                           </div>
                           <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:9}}>
                             {matches.slice(0,5).map((m,i)=>{
