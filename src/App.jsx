@@ -37,7 +37,8 @@ const FEATURED_LEAGUES = [
   { id: 307, name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦" },
   { id: 98,  name: "J1 League",        country: "Japón",          flag: "🇯🇵" },
 ];
-const SEASON = 2024;
+const SEASON = 2026;
+const SEASONS_TO_TRY = [2026, 2025, 2024, 2023];
 
 // Intenta obtener fixtures con el plan gratuito (sin parámetro "last")
 async function fetchFixturesFree(apiFetch, teamId) {
@@ -431,13 +432,22 @@ export default function App() {
     let homeStanding = null, awayStanding = null;
     let homeFormLocal = null, awayFormVisita = null;
 
+    // Detectar temporada activa de la liga
+    let activeSeason = SEASON;
+    for (const s of SEASONS_TO_TRY) {
+      try {
+        const sd = await apiFetch(`/standings?league=${league?.id}&season=${s}`);
+        if (sd.response?.[0]?.league?.standings?.[0]?.length > 0) { activeSeason = s; break; }
+      } catch(e) {}
+    }
+
     try {
       const [injH, injA, standingsData, fixturesH, fixturesA] = await Promise.allSettled([
-        apiFetch(`/injuries?team=${homeTeam.id}&season=${SEASON}&league=${league?.id}`),
-        apiFetch(`/injuries?team=${awayTeam.id}&season=${SEASON}&league=${league?.id}`),
-        apiFetch(`/standings?league=${league?.id}&season=${SEASON}`),
-        apiFetch(`/fixtures?team=${homeTeam.id}&season=${SEASON}&venue=home`),
-        apiFetch(`/fixtures?team=${awayTeam.id}&season=${SEASON}&venue=away`),
+        apiFetch(`/injuries?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
+        apiFetch(`/injuries?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
+        apiFetch(`/standings?league=${league?.id}&season=${activeSeason}`),
+        apiFetch(`/fixtures?team=${homeTeam.id}&season=${activeSeason}&venue=home`),
+        apiFetch(`/fixtures?team=${awayTeam.id}&season=${activeSeason}&venue=away`),
       ]);
 
       // Lesiones
@@ -511,8 +521,8 @@ export default function App() {
     let homePlayers = [], awayPlayers = [];
     try {
       const [playersH, playersA] = await Promise.allSettled([
-        apiFetch(`/players?team=${homeTeam.id}&season=${SEASON}&league=${league?.id}`),
-        apiFetch(`/players?team=${awayTeam.id}&season=${SEASON}&league=${league?.id}`),
+        apiFetch(`/players?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
+        apiFetch(`/players?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
       ]);
 
       const extractPlayers = (data) => {
