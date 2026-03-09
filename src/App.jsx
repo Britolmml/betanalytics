@@ -348,6 +348,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const parsed = JSON.parse(data.result);
       setAnalysis({...parsed, hStats:hS, aStats:aS});
       setView("analysis");
+      loadOdds(); // cargar momios automáticamente
     } catch(e) { setAiErr("Error: "+e.message); }
     finally { setLoadingAI(false); }
   };
@@ -898,6 +899,49 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                 </div>
               </div>
 
+              {/* Momios reales */}
+              {(()=>{
+                const key1 = `${homeTeam?.name}|${awayTeam?.name}`;
+                const key2 = `${awayTeam?.name}|${homeTeam?.name}`;
+                const gameOdds = odds[key1] || odds[key2];
+                const h2hMarket = gameOdds?.find(m=>m.key==="h2h");
+                const totalsMarket = gameOdds?.find(m=>m.key==="totals");
+                if (!h2hMarket && !totalsMarket) return (
+                  <div style={{...C.card,marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontSize:12,color:"#555"}}>💰 Momios en vivo no disponibles para este partido</div>
+                    <button onClick={loadOdds} disabled={loadingOdds}
+                      style={{background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"6px 12px",color:"#f59e0b",cursor:"pointer",fontSize:11,fontWeight:700}}>
+                      {loadingOdds?"⏳ Cargando...":"🔄 Cargar momios"}
+                    </button>
+                  </div>
+                );
+                const outcomes = h2hMarket?.outcomes || [];
+                const homeOdd = outcomes.find(o=>o.name===homeTeam?.name)?.price;
+                const awayOdd = outcomes.find(o=>o.name===awayTeam?.name)?.price;
+                const drawOdd = outcomes.find(o=>o.name==="Draw")?.price;
+                const overOdd = totalsMarket?.outcomes?.find(o=>o.name==="Over")?.price;
+                const underOdd = totalsMarket?.outcomes?.find(o=>o.name==="Under")?.price;
+                return (
+                  <div style={{...C.card,marginBottom:14}}>
+                    <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>💰 Momios reales — Bet365/Pinnacle</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+                      {[
+                        {l:homeTeam?.name?.split(" ").slice(-1)[0],v:homeOdd,highlight:p.local>p.visitante},
+                        {l:"Empate",v:drawOdd,highlight:false},
+                        {l:awayTeam?.name?.split(" ").slice(-1)[0],v:awayOdd,highlight:p.visitante>p.local},
+                        {l:"Over 2.5",v:overOdd,highlight:false},
+                        {l:"Under 2.5",v:underOdd,highlight:false},
+                      ].map(({l,v,highlight})=>v?(
+                        <div key={l} style={{textAlign:"center",padding:"10px 6px",background:highlight?"rgba(245,158,11,0.1)":"rgba(255,255,255,0.03)",borderRadius:8,border:highlight?"1px solid rgba(245,158,11,0.3)":"1px solid transparent"}}>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:highlight?"#f59e0b":"#bbb",lineHeight:1}}>{v?.toFixed(2)}</div>
+                          <div style={{fontSize:9,color:"#555",marginTop:2}}>{l}</div>
+                        </div>
+                      ):null)}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Apuestas */}
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>🎯 Apuestas recomendadas</div>
@@ -1028,16 +1072,51 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       {/* Modal: Predicciones guardadas */}
       {showSaved && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowSaved(false)}>
-          <div style={{...C.card,width:620,maxHeight:"80vh",overflow:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
+          <div style={{...C.card,width:680,maxHeight:"85vh",overflow:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#60a5fa"}}>📁 Mis predicciones</div>
               <button onClick={()=>setShowSaved(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
             </div>
+
+            {/* Estadísticas de rendimiento */}
+            {savedPreds.length>0 && (()=>{
+              const resolved = savedPreds.filter(p=>p.result!=="pending");
+              const won = savedPreds.filter(p=>p.result==="won").length;
+              const lost = savedPreds.filter(p=>p.result==="lost").length;
+              const pending = savedPreds.filter(p=>p.result==="pending").length;
+              const winRate = resolved.length ? Math.round((won/resolved.length)*100) : 0;
+              const avgOdds = savedPreds.filter(p=>p.odds).reduce((s,p)=>s+parseFloat(p.odds||0),0) / (savedPreds.filter(p=>p.odds).length||1);
+              const roi = resolved.length ? (((won * avgOdds) - resolved.length) / resolved.length * 100).toFixed(1) : 0;
+              return (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:18,padding:16,background:"rgba(255,255,255,0.03)",borderRadius:12}}>
+                  {[
+                    {l:"Total",v:savedPreds.length,c:"#e8eaf0"},
+                    {l:"Ganadas ✅",v:won,c:"#10b981"},
+                    {l:"Perdidas ❌",v:lost,c:"#ef4444"},
+                    {l:"Pendientes ⏳",v:pending,c:"#f59e0b"},
+                    {l:"Acierto",v:`${winRate}%`,c:winRate>=60?"#10b981":winRate>=45?"#f59e0b":"#ef4444"},
+                  ].map(({l,v,c})=>(
+                    <div key={l} style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:c,lineHeight:1}}>{v}</div>
+                      <div style={{fontSize:9,color:"#555",marginTop:3}}>{l}</div>
+                    </div>
+                  ))}
+                  {resolved.length>0 && (
+                    <div style={{gridColumn:"1/-1",marginTop:8,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:16,justifyContent:"center"}}>
+                      <span style={{fontSize:11,color:"#666"}}>Cuota prom: <b style={{color:"#f59e0b"}}>{avgOdds.toFixed(2)}</b></span>
+                      <span style={{fontSize:11,color:"#666"}}>ROI estimado: <b style={{color:roi>0?"#10b981":"#ef4444"}}>{roi>0?"+":""}{roi}%</b></span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Lista de predicciones */}
             {savedPreds.length===0 ? (
               <div style={{color:"#555",textAlign:"center",padding:"30px 0"}}>No tienes predicciones guardadas aún</div>
             ) : savedPreds.map(p=>(
-              <div key={p.id} style={{...C.card,marginBottom:10,padding:14}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <div key={p.id} style={{...C.card,marginBottom:8,padding:12,borderColor:p.result==="won"?"rgba(16,185,129,0.2)":p.result==="lost"?"rgba(239,68,68,0.2)":"rgba(255,255,255,0.06)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                   <div>
                     <span style={{fontWeight:700,fontSize:13}}>{p.home_team} vs {p.away_team}</span>
                     <span style={{fontSize:10,color:"#555",marginLeft:8}}>{p.league}</span>
@@ -1045,16 +1124,17 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                   <span style={{fontSize:10,color:"#444"}}>{p.created_at?.split("T")[0]}</span>
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  <span style={{fontSize:12,color:"#bbb"}}>Pick: <b style={{color:"#10b981"}}>{p.pick}</b></span>
-                  <span style={{fontSize:12,color:"#bbb"}}>Cuota: <b style={{color:"#f59e0b"}}>{p.odds}</b></span>
-                  <span style={{fontSize:12,color:"#bbb"}}>Conf: <b style={{color:"#10b981"}}>{p.confidence}%</b></span>
+                  <span style={{fontSize:11,color:"#bbb"}}>🎯 <b style={{color:"#60a5fa"}}>{p.pick}</b></span>
+                  <span style={{fontSize:11,color:"#bbb"}}>Cuota: <b style={{color:"#f59e0b"}}>{p.odds}</b></span>
+                  <span style={{fontSize:11,color:"#bbb"}}>Conf: <b style={{color:"#10b981"}}>{p.confidence}%</b></span>
+                  <span style={{fontSize:11,color:"#bbb"}}>Marcador: <b style={{color:"#888"}}>{p.predicted_score}</b></span>
                   <div style={{marginLeft:"auto",display:"flex",gap:5}}>
-                    {["pending","won","lost"].map(r=>(
+                    {[{r:"won",label:"✅ Ganó"},{r:"lost",label:"❌ Perdió"},{r:"pending",label:"⏳"}].map(({r,label})=>(
                       <button key={r} onClick={()=>handleUpdateResult(p.id,r)}
                         style={{background:p.result===r?(r==="won"?"rgba(16,185,129,0.25)":r==="lost"?"rgba(239,68,68,0.25)":"rgba(245,158,11,0.2)"):"rgba(255,255,255,0.04)",
                                 border:`1px solid ${p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"rgba(255,255,255,0.08)"}`,
-                                borderRadius:6,padding:"3px 8px",color:p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
-                        {r==="pending"?"⏳":r==="won"?"✅":"❌"}
+                                borderRadius:6,padding:"3px 9px",color:p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
+                        {label}
                       </button>
                     ))}
                   </div>
