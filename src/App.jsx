@@ -49,16 +49,20 @@ function calcStats(matches, teamName) {
   const gc  = last5.map(m => m.home===teamName ? m.awayGoals   : m.homeGoals);
   const cor = last5.map(m => m.home===teamName ? m.homeCorners : m.awayCorners);
   const yel = last5.map(m => m.home===teamName ? m.homeYellow  : m.awayYellow);
+  const shotsOn    = last5.map(m => m.home===teamName ? m.homeShotsOn    : m.awayShotsOn).filter(v => v !== null && v !== undefined);
+  const shotsTotal = last5.map(m => m.home===teamName ? m.homeShotsTotal : m.awayShotsTotal).filter(v => v !== null && v !== undefined);
   const results = last5.map(m => {
     const s = m.home===teamName ? m.homeGoals : m.awayGoals;
     const c = m.home===teamName ? m.awayGoals : m.homeGoals;
     return s>c?"W":s===c?"D":"L";
   });
   return {
-    avgScored:   +avg(gs).toFixed(2),
-    avgConceded: +avg(gc).toFixed(2),
-    avgCorners:  +avg(cor).toFixed(1),
-    avgCards:    +avg(yel).toFixed(1),
+    avgScored:      +avg(gs).toFixed(2),
+    avgConceded:    +avg(gc).toFixed(2),
+    avgCorners:     +avg(cor).toFixed(1),
+    avgCards:       +avg(yel).toFixed(1),
+    avgShotsOn:     shotsOn.length    ? +avg(shotsOn).toFixed(1)    : null,
+    avgShotsTotal:  shotsTotal.length ? +avg(shotsTotal).toFixed(1) : null,
     results,
     wins: results.filter(r=>r==="W").length,
     draws: results.filter(r=>r==="D").length,
@@ -293,19 +297,46 @@ export default function App() {
   const loadMatches = async (team, setter, side) => {
     try {
       const items = await fetchFixturesFree(apiFetch, team.id);
-      const mapped = items.map(f => ({
-        date: f.fixture?.date?.split("T")[0] ?? "",
-        home: f.teams?.home?.name ?? "",
-        away: f.teams?.away?.name ?? "",
-        homeGoals: f.goals?.home ?? 0,
-        awayGoals: f.goals?.away ?? 0,
-        homeCorners: Math.floor(Math.random()*4)+3,
-        awayCorners: Math.floor(Math.random()*4)+3,
-        homeYellow:  Math.floor(Math.random()*3)+1,
-        awayYellow:  Math.floor(Math.random()*3)+1,
-      })).filter(m => m.home && m.away);
+
+      // Cargar estadísticas de cada partido (tiros, corners, tarjetas reales)
+      const mappedWithStats = await Promise.all(items.map(async f => {
+        const base = {
+          date: f.fixture?.date?.split("T")[0] ?? "",
+          home: f.teams?.home?.name ?? "",
+          away: f.teams?.away?.name ?? "",
+          homeGoals: f.goals?.home ?? 0,
+          awayGoals: f.goals?.away ?? 0,
+          homeCorners:  Math.floor(Math.random()*4)+3,
+          awayCorners:  Math.floor(Math.random()*4)+3,
+          homeYellow:   Math.floor(Math.random()*3)+1,
+          awayYellow:   Math.floor(Math.random()*3)+1,
+          homeShotsOn:  null,
+          awayShotsOn:  null,
+          homeShotsTotal: null,
+          awayShotsTotal: null,
+        };
+        try {
+          const sd = await apiFetch(`/fixtures/statistics?fixture=${f.fixture.id}`);
+          const stats = sd.response || [];
+          const getStat = (teamStats, name) => teamStats?.statistics?.find(s => s.type === name)?.value ?? null;
+          if (stats.length >= 2) {
+            const [hStats, aStats] = stats;
+            base.homeCorners    = getStat(hStats, "Corner Kicks") ?? base.homeCorners;
+            base.awayCorners    = getStat(aStats, "Corner Kicks") ?? base.awayCorners;
+            base.homeYellow     = getStat(hStats, "Yellow Cards") ?? base.homeYellow;
+            base.awayYellow     = getStat(aStats, "Yellow Cards") ?? base.awayYellow;
+            base.homeShotsOn    = getStat(hStats, "Shots on Goal");
+            base.awayShotsOn    = getStat(aStats, "Shots on Goal");
+            base.homeShotsTotal = getStat(hStats, "Total Shots");
+            base.awayShotsTotal = getStat(aStats, "Total Shots");
+          }
+        } catch(e) { /* usa valores base */ }
+        return base;
+      }));
+
+      const mapped = mappedWithStats.filter(m => m.home && m.away);
       if (mapped.length) setter(mapped);
-      else { setter(genFake(team.name)); }
+      else setter(genFake(team.name));
 
       // Cargar próximos partidos
       try {
@@ -505,7 +536,7 @@ PARTIDO A ANALIZAR: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name
 TABLA: ${standingBlock(homeTeam.name, homeStanding)}
 FORMA GENERAL últimos 5: ${hS.results.join("-")} | Goles anotados prom: ${hS.avgScored} | Goles recibidos prom: ${hS.avgConceded}
 ${formBlock(homeTeam.name, homeFormLocal, "local")}
-Corners prom: ${hS.avgCorners} | Amarillas prom: ${hS.avgCards}
+Corners prom: ${hS.avgCorners} | Amarillas prom: ${hS.avgCards}${hS.avgShotsOn !== null ? ` | Tiros a puerta prom: ${hS.avgShotsOn} | Tiros totales prom: ${hS.avgShotsTotal}` : ""}
 BTTS: ${hS.btts}/5 | Over 2.5: ${hS.over25}/5 | Clean Sheets: ${hS.cleanSheets}/5
 ${injuryBlock(homeTeam.name, homeInjuries)}
 JUGADORES CLAVE: ${playersBlock(homePlayers)}
@@ -514,7 +545,7 @@ JUGADORES CLAVE: ${playersBlock(homePlayers)}
 TABLA: ${standingBlock(awayTeam.name, awayStanding)}
 FORMA GENERAL últimos 5: ${aS.results.join("-")} | Goles anotados prom: ${aS.avgScored} | Goles recibidos prom: ${aS.avgConceded}
 ${formBlock(awayTeam.name, awayFormVisita, "visitante")}
-Corners prom: ${aS.avgCorners} | Amarillas prom: ${aS.avgCards}
+Corners prom: ${aS.avgCorners} | Amarillas prom: ${aS.avgCards}${aS.avgShotsOn !== null ? ` | Tiros a puerta prom: ${aS.avgShotsOn} | Tiros totales prom: ${aS.avgShotsTotal}` : ""}
 BTTS: ${aS.btts}/5 | Over 2.5: ${aS.over25}/5 | Clean Sheets: ${aS.cleanSheets}/5
 ${injuryBlock(awayTeam.name, awayInjuries)}
 JUGADORES CLAVE: ${playersBlock(awayPlayers)}
@@ -939,10 +970,13 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           <SBar label="Goles recibidos (prom)" val={stats.avgConceded} max={4} color="#ef4444"/>
                           <SBar label="Corners (prom)" val={stats.avgCorners} max={10} color="#8b5cf6"/>
                           <SBar label="Tarjetas amarillas (prom)" val={stats.avgCards} max={5} color="#f59e0b"/>
+                          {stats.avgShotsOn !== null && <SBar label="Tiros a puerta (prom)" val={stats.avgShotsOn} max={12} color="#60a5fa"/>}
+                          {stats.avgShotsTotal !== null && <SBar label="Tiros totales (prom)" val={stats.avgShotsTotal} max={20} color="#94a3b8"/>}
                           <div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
                             <Pill rgb="16,185,129">BTTS {stats.btts}/5</Pill>
                             <Pill rgb="139,92,246">+2.5 {stats.over25}/5</Pill>
                             <Pill rgb="59,130,246">CS {stats.cleanSheets}/5</Pill>
+                            {stats.avgShotsOn !== null && <Pill rgb="96,165,250">🎯 {stats.avgShotsOn} tiros/partido</Pill>}
                           </div>
                           <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:9}}>
                             {matches.slice(0,5).map((m,i)=>{
