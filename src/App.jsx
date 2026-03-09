@@ -41,7 +41,7 @@ const SEASON = 2024;
 
 // Intenta obtener fixtures con el plan gratuito (sin parámetro "last")
 async function fetchFixturesFree(apiFetch, teamId) {
-  for (const season of [2025, 2024, 2023]) {
+  for (const season of [2026, 2025, 2024, 2023]) {
     try {
       const d = await apiFetch(`/fixtures?team=${teamId}&season=${season}`);
       const items = d.response || [];
@@ -295,7 +295,7 @@ export default function App() {
     setLoadingTeams(true);
     try {
       let list = [];
-      for (const season of [2025, 2024, 2023]) {
+      for (const season of [2026, 2025, 2024, 2023]) {
         const d = await apiFetch(`/teams?league=${lg.id}&season=${season}`);
         list = (d.response||[]).map(t=>({id:t.team.id, name:t.team.name}));
         if (list.length >= 5) break;
@@ -308,7 +308,7 @@ export default function App() {
     // Cargar tabla de posiciones
     setLoadingStand(true);
     try {
-      for (const season of [2025, 2024]) {
+      for (const season of [2026, 2025, 2024]) {
         const sd = await apiFetch(`/standings?league=${lg.id}&season=${season}`);
         const rows = sd.response?.[0]?.league?.standings?.[0] || [];
         if (rows.length) { setStandings(rows); break; }
@@ -364,7 +364,7 @@ export default function App() {
 
       // Cargar próximos partidos
       try {
-        for (const season of [2025, 2024]) {
+        for (const season of [2026, 2025, 2024]) {
           const nd = await apiFetch(`/fixtures?team=${team.id}&season=${season}`);
           const upcoming = (nd.response||[])
             .filter(f => f.fixture?.status?.short === "NS" && new Date(f.fixture.date) > new Date())
@@ -389,7 +389,7 @@ export default function App() {
   // Load H2H when both teams selected
   const loadH2H = async (hId, aId) => {
     try {
-      for (const season of [2025, 2024, 2023]) {
+      for (const season of [2026, 2025, 2024, 2023]) {
         const d = await apiFetch(`/fixtures?h2h=${hId}-${aId}&season=${season}`);
         const items = (d.response||[])
           .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
@@ -723,7 +723,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     try {
       // Obtener próximos partidos de la liga
       let fixtures = [];
-      for (const season of [2025, 2024]) {
+      for (const season of [2026, 2025, 2024]) {
         const d = await apiFetch(`/fixtures?league=${league.id}&season=${season}&next=10`);
         fixtures = d.response || [];
         if (fixtures.length) break;
