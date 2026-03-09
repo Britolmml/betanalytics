@@ -1,26 +1,22 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, getPredictions, updateResult } from "./supabase";
 
-const LEAGUES = [
-  // Top ligas
-  { id: 39,  name: "Premier League",   country: "Inglaterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", tier: 1 },
-  { id: 140, name: "La Liga",          country: "España",     flag: "🇪🇸", tier: 1 },
-  { id: 78,  name: "Bundesliga",       country: "Alemania",   flag: "🇩🇪", tier: 1 },
-  { id: 135, name: "Serie A",          country: "Italia",     flag: "🇮🇹", tier: 1 },
-  { id: 61,  name: "Ligue 1",          country: "Francia",    flag: "🇫🇷", tier: 1 },
-  { id: 2,   name: "Champions League", country: "Europa",     flag: "🇪🇺", tier: 1 },
-  // Americas
-  { id: 262, name: "Liga MX",          country: "México",     flag: "🇲🇽", tier: 2 },
-  { id: 253, name: "MLS",              country: "USA",        flag: "🇺🇸", tier: 2 },
-  { id: 71,  name: "Brasileirao",      country: "Brasil",     flag: "🇧🇷", tier: 2 },
-  { id: 128, name: "Liga Argentina",   country: "Argentina",  flag: "🇦🇷", tier: 2 },
-  // Otras europeas
-  { id: 88,  name: "Eredivisie",       country: "Holanda",    flag: "🇳🇱", tier: 2 },
-  { id: 94,  name: "Primeira Liga",    country: "Portugal",   flag: "🇵🇹", tier: 2 },
-  { id: 144, name: "Pro League",       country: "Bélgica",    flag: "🇧🇪", tier: 2 },
-  { id: 203, name: "Süper Lig",        country: "Turquía",    flag: "🇹🇷", tier: 2 },
-  // Copa
-  { id: 3,   name: "Europa League",    country: "Europa",     flag: "🇪🇺", tier: 2 },
+const FEATURED_LEAGUES = [
+  { id: 39,  name: "Premier League",   country: "England",    flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  { id: 140, name: "La Liga",          country: "Spain",      flag: "🇪🇸" },
+  { id: 78,  name: "Bundesliga",       country: "Germany",    flag: "🇩🇪" },
+  { id: 135, name: "Serie A",          country: "Italy",      flag: "🇮🇹" },
+  { id: 61,  name: "Ligue 1",          country: "France",     flag: "🇫🇷" },
+  { id: 2,   name: "Champions League", country: "World",      flag: "🌍" },
+  { id: 3,   name: "Europa League",    country: "World",      flag: "🌍" },
+  { id: 262, name: "Liga MX",          country: "Mexico",     flag: "🇲🇽" },
+  { id: 253, name: "MLS",              country: "USA",        flag: "🇺🇸" },
+  { id: 71,  name: "Brasileirao",      country: "Brazil",     flag: "🇧🇷" },
+  { id: 128, name: "Liga Profesional", country: "Argentina",  flag: "🇦🇷" },
+  { id: 88,  name: "Eredivisie",       country: "Netherlands",flag: "🇳🇱" },
+  { id: 94,  name: "Primeira Liga",    country: "Portugal",   flag: "🇵🇹" },
+  { id: 203, name: "Super Lig",        country: "Turkey",     flag: "🇹🇷" },
+  { id: 169, name: "Liga BetPlay",     country: "Colombia",   flag: "🇨🇴" },
 ];
 const SEASON = 2024;
 
@@ -189,6 +185,12 @@ export default function App() {
   // Liga filter
   const [leagueTier,    setLeagueTier]    = useState(1);
 
+  // Ligas dinámicas desde la API
+  const [allLeagues,    setAllLeagues]    = useState([]);
+  const [loadingLeagues,setLoadingLeagues]= useState(false);
+  const [leagueSearch,  setLeagueSearch]  = useState("");
+  const [showAllLeagues,setShowAllLeagues]= useState(false);
+
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
@@ -240,6 +242,25 @@ export default function App() {
     if (!res.ok) throw new Error("HTTP " + res.status);
     return res.json();
   }, []);
+
+  // Cargar TODAS las ligas disponibles de la API
+  const loadAllLeagues = async () => {
+    if (allLeagues.length > 0) { setShowAllLeagues(true); return; }
+    setLoadingLeagues(true);
+    setShowAllLeagues(true);
+    try {
+      const d = await apiFetch(`/leagues?season=${SEASON}&type=League`);
+      const list = (d.response || []).map(l => ({
+        id: l.league.id,
+        name: l.league.name,
+        country: l.country.name,
+        flag: l.country.flag ? "" : "🌍", // usamos emoji fallback
+        flagUrl: l.country.flag || null,
+      })).sort((a,b) => a.country.localeCompare(b.country) || a.name.localeCompare(b.name));
+      setAllLeagues(list);
+    } catch(e) { console.warn("No se pudieron cargar ligas", e.message); }
+    finally { setLoadingLeagues(false); }
+  };
 
   // Load teams for a league — siempre usa el proxy Vercel
   const loadTeams = async (lg) => {
@@ -343,25 +364,195 @@ export default function App() {
     setLoadingM(false);
   };
 
-  // AI prediction
+  // AI prediction — con datos enriquecidos
   const predict = async () => {
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);
-    const prompt = `Eres un experto analista de fútbol y apuestas deportivas. Analiza este partido.
 
-PARTIDO: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name}
+    // ── Cargar datos extra en paralelo ────────────────────────
+    let homeInjuries = [], awayInjuries = [];
+    let homeStanding = null, awayStanding = null;
+    let homeFormLocal = null, awayFormVisita = null;
 
-${homeTeam.name} (local) — últimos 5 partidos:
-Goles anotados prom: ${hS.avgScored} | recibidos: ${hS.avgConceded} | corners: ${hS.avgCorners} | amarillas: ${hS.avgCards}
-Forma: ${hS.results.join("-")} | BTTS: ${hS.btts}/5 | +2.5: ${hS.over25}/5 | CS: ${hS.cleanSheets}/5
+    try {
+      const [injH, injA, standingsData, fixturesH, fixturesA] = await Promise.allSettled([
+        apiFetch(`/injuries?team=${homeTeam.id}&season=${SEASON}&league=${league?.id}`),
+        apiFetch(`/injuries?team=${awayTeam.id}&season=${SEASON}&league=${league?.id}`),
+        apiFetch(`/standings?league=${league?.id}&season=${SEASON}`),
+        apiFetch(`/fixtures?team=${homeTeam.id}&season=${SEASON}&venue=home`),
+        apiFetch(`/fixtures?team=${awayTeam.id}&season=${SEASON}&venue=away`),
+      ]);
 
-${awayTeam.name} (visitante) — últimos 5 partidos:
-Goles anotados prom: ${aS.avgScored} | recibidos: ${aS.avgConceded} | corners: ${aS.avgCorners} | amarillas: ${aS.avgCards}
-Forma: ${aS.results.join("-")} | BTTS: ${aS.btts}/5 | +2.5: ${aS.over25}/5 | CS: ${aS.cleanSheets}/5
+      // Lesiones
+      if (injH.status === "fulfilled") {
+        homeInjuries = (injH.value?.response || [])
+          .filter(p => p.player?.type === "Missing Fixture" || p.player?.reason)
+          .slice(0, 5)
+          .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
+      }
+      if (injA.status === "fulfilled") {
+        awayInjuries = (injA.value?.response || [])
+          .filter(p => p.player?.type === "Missing Fixture" || p.player?.reason)
+          .slice(0, 5)
+          .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
+      }
+
+      // Posición en tabla
+      if (standingsData.status === "fulfilled") {
+        const table = standingsData.value?.response?.[0]?.league?.standings?.[0] || [];
+        const findTeam = (id) => table.find(t => t.team?.id === id);
+        const hRow = findTeam(homeTeam.id);
+        const aRow = findTeam(awayTeam.id);
+        if (hRow) homeStanding = {
+          pos: hRow.rank, pts: hRow.points,
+          gf: hRow.all?.goals?.for, ga: hRow.all?.goals?.against,
+          played: hRow.all?.played, form: hRow.form,
+        };
+        if (aRow) awayStanding = {
+          pos: aRow.rank, pts: aRow.points,
+          gf: aRow.all?.goals?.for, ga: aRow.all?.goals?.against,
+          played: aRow.all?.played, form: aRow.form,
+        };
+      }
+
+      // Racha solo como local (home) y solo como visitante (away)
+      if (fixturesH.status === "fulfilled") {
+        const played = (fixturesH.value?.response || [])
+          .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+          .slice(0, 5);
+        const results = played.map(f => {
+          const hg = f.goals?.home ?? 0, ag = f.goals?.away ?? 0;
+          return hg > ag ? "W" : hg === ag ? "D" : "L";
+        });
+        const gf = played.map(f => f.goals?.home ?? 0);
+        const gc = played.map(f => f.goals?.away ?? 0);
+        homeFormLocal = {
+          results, wins: results.filter(r=>r==="W").length,
+          avgScored: +avg(gf).toFixed(2), avgConceded: +avg(gc).toFixed(2),
+        };
+      }
+      if (fixturesA.status === "fulfilled") {
+        const played = (fixturesA.value?.response || [])
+          .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+          .slice(0, 5);
+        const results = played.map(f => {
+          const hg = f.goals?.home ?? 0, ag = f.goals?.away ?? 0;
+          return ag > hg ? "W" : ag === hg ? "D" : "L";
+        });
+        const gf = played.map(f => f.goals?.away ?? 0);
+        const gc = played.map(f => f.goals?.home ?? 0);
+        awayFormVisita = {
+          results, wins: results.filter(r=>r==="W").length,
+          avgScored: +avg(gf).toFixed(2), avgConceded: +avg(gc).toFixed(2),
+        };
+      }
+    } catch(e) { console.warn("Error cargando datos extra:", e.message); }
+
+    // ── Jugadores clave ────────────────────────────────────────
+    let homePlayers = [], awayPlayers = [];
+    try {
+      const [playersH, playersA] = await Promise.allSettled([
+        apiFetch(`/players?team=${homeTeam.id}&season=${SEASON}&league=${league?.id}`),
+        apiFetch(`/players?team=${awayTeam.id}&season=${SEASON}&league=${league?.id}`),
+      ]);
+
+      const extractPlayers = (data) => {
+        const list = data?.response || [];
+        // Ordenar por goles + asistencias
+        return list
+          .map(p => ({
+            name: p.player?.name,
+            pos: p.statistics?.[0]?.games?.position,
+            goals: p.statistics?.[0]?.goals?.total || 0,
+            assists: p.statistics?.[0]?.goals?.assists || 0,
+            rating: p.statistics?.[0]?.games?.rating ? parseFloat(p.statistics[0].games.rating).toFixed(1) : null,
+            injured: p.player?.injured,
+          }))
+          .filter(p => p.name && (p.goals > 0 || p.assists > 0))
+          .sort((a, b) => (b.goals + b.assists) - (a.goals + a.assists))
+          .slice(0, 6);
+      };
+
+      if (playersH.status === "fulfilled") homePlayers = extractPlayers(playersH.value);
+      if (playersA.status === "fulfilled") awayPlayers = extractPlayers(playersA.value);
+    } catch(e) { console.warn("Error cargando jugadores:", e.message); }
+
+    // ── Construir prompt enriquecido ───────────────────────────
+    const standingBlock = (name, s) => s
+      ? `Posición: ${s.pos}° | Puntos: ${s.pts} | PJ: ${s.played} | GF: ${s.gf} | GC: ${s.ga} | Forma reciente (oficial): ${s.form}`
+      : "Posición en tabla no disponible";
+
+    const formBlock = (name, f, role) => f
+      ? `Como ${role} (últimos 5): ${f.results.join("-")} | Victorias: ${f.wins}/5 | Goles/partido: ${f.avgScored} anotados, ${f.avgConceded} recibidos`
+      : `Racha como ${role} no disponible`;
+
+    const injuryBlock = (name, inj) => inj.length
+      ? `BAJAS confirmadas: ${inj.join(", ")}`
+      : "Sin bajas confirmadas";
+
+    const playersBlock = (players) => players.length
+      ? players.map(p => `${p.name} (${p.pos||"?"}) — ${p.goals}G ${p.assists}A${p.rating ? ` rating:${p.rating}` : ""}${p.injured ? " ⚠️LESIONADO" : ""}`).join(" | ")
+      : "Sin datos de jugadores";
+
+    const prompt = `Eres un tipster profesional con 15 años de experiencia y un ROI demostrado del 12% anual. Tu especialidad es encontrar VALUE BETS — apuestas donde la probabilidad real es mayor a la que implica la cuota del mercado. Nunca fuerzas una predicción cuando los datos son ambiguos: en esos casos recomiendas "PASO" en el resultado 1X2 y buscas valor en mercados secundarios.
+
+PARTIDO A ANALIZAR: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name} · Temporada ${SEASON}
+
+════ DATOS ${homeTeam.name} (LOCAL) ════
+TABLA: ${standingBlock(homeTeam.name, homeStanding)}
+FORMA GENERAL últimos 5: ${hS.results.join("-")} | Goles anotados prom: ${hS.avgScored} | Goles recibidos prom: ${hS.avgConceded}
+${formBlock(homeTeam.name, homeFormLocal, "local")}
+Corners prom: ${hS.avgCorners} | Amarillas prom: ${hS.avgCards}
+BTTS: ${hS.btts}/5 | Over 2.5: ${hS.over25}/5 | Clean Sheets: ${hS.cleanSheets}/5
+${injuryBlock(homeTeam.name, homeInjuries)}
+JUGADORES CLAVE: ${playersBlock(homePlayers)}
+
+════ DATOS ${awayTeam.name} (VISITANTE) ════
+TABLA: ${standingBlock(awayTeam.name, awayStanding)}
+FORMA GENERAL últimos 5: ${aS.results.join("-")} | Goles anotados prom: ${aS.avgScored} | Goles recibidos prom: ${aS.avgConceded}
+${formBlock(awayTeam.name, awayFormVisita, "visitante")}
+Corners prom: ${aS.avgCorners} | Amarillas prom: ${aS.avgCards}
+BTTS: ${aS.btts}/5 | Over 2.5: ${aS.over25}/5 | Clean Sheets: ${aS.cleanSheets}/5
+${injuryBlock(awayTeam.name, awayInjuries)}
+JUGADORES CLAVE: ${playersBlock(awayPlayers)}
+
+════ INSTRUCCIONES DE RAZONAMIENTO ════
+Antes de generar el JSON, razona internamente siguiendo ESTOS PASOS en orden:
+
+PASO 1 — Analiza ${homeTeam.name} como local:
+  · ¿Su forma como local es consistente o irregular?
+  · ¿Sus goleadores clave están disponibles?
+  · ¿Su defensa en casa es sólida (clean sheets, goles recibidos)?
+
+PASO 2 — Analiza ${awayTeam.name} como visitante:
+  · ¿Rinde bien fuera de casa o cae significativamente?
+  · ¿Tiene bajas importantes que afecten su ataque o defensa?
+  · ¿Su forma general es ascendente o descendente?
+
+PASO 3 — Compara y encuentra desequilibrios:
+  · ¿Hay una diferencia clara de nivel entre ambos equipos?
+  · ¿Algún factor cambia el balance (bajas importantes, diferencia en tabla)?
+  · ¿Los datos de corners y tarjetas son consistentes para apostar en esos mercados?
+
+PASO 4 — Identifica value bets:
+  · Si el resultado 1X2 es muy parejo (menos de 10% de diferencia entre las 3 opciones), marca ese mercado como bajo valor y busca mercados alternativos.
+  · Solo asigna confianza 80%+ cuando AL MENOS 3 factores apuntan en la misma dirección.
+  · Confianza 90%+ solo si hay 4+ factores alineados Y no hay factores en contra.
+  · Si hay incertidumbre alta, baja la confianza honestamente aunque la pick sea válida.
+
+PASO 5 — Genera el JSON final con tus conclusiones.
+
+════ REGLAS DE CONFIANZA (MUY IMPORTANTE) ════
+- 90-95%: 4+ factores alineados, sin bajas clave, forma consistente → apuesta segura
+- 75-89%: 2-3 factores alineados, alguna incertidumbre menor → apuesta recomendada  
+- 60-74%: datos mixtos, partido equilibrado → apostar con precaución
+- <60%: demasiada incertidumbre → mejor "PASO" en ese mercado
 
 Responde SOLO con JSON válido sin texto extra ni backticks markdown:
-{"resumen":"...","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":82},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":74},{"tipo":"BTTS","pick":"Sí","odds_sugerido":"1.75","confianza":70},{"tipo":"Corners","pick":"Más 9.5","odds_sugerido":"1.85","confianza":65},{"tipo":"Tarjetas","pick":"Más 3.5","odds_sugerido":"1.80","confianza":60}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":85,"razonamiento":"..."}],"alertas":["...","..."],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4}}`;
+{"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":82,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":74,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":70,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":65,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":60,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":85,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"ALTO/MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]}}`;
 
     try {
       const res = await fetch("/api/predict", {
@@ -372,9 +563,16 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       const parsed = JSON.parse(data.result);
-      setAnalysis({...parsed, hStats:hS, aStats:aS});
+      setAnalysis({
+        ...parsed,
+        hStats: hS, aStats: aS,
+        homeInjuries, awayInjuries,
+        homeStanding, awayStanding,
+        homeFormLocal, awayFormVisita,
+        homePlayers, awayPlayers,
+      });
       setView("analysis");
-      loadOdds(); // cargar momios automáticamente
+      loadOdds();
     } catch(e) { setAiErr("Error: "+e.message); }
     finally { setLoadingAI(false); }
   };
@@ -637,19 +835,13 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
             <div style={{marginBottom:20}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                 <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>1 · Liga</div>
-                <div style={{display:"flex",gap:4}}>
-                  {[{v:1,l:"Top 6"},{v:2,l:"Más ligas"}].map(({v,l})=>(
-                    <button key={v} onClick={()=>setLeagueTier(v)}
-                      style={{background:leagueTier===v?"rgba(16,185,129,0.15)":"rgba(255,255,255,0.04)",
-                              border:`1px solid ${leagueTier===v?"rgba(16,185,129,0.4)":"rgba(255,255,255,0.07)"}`,
-                              borderRadius:6,padding:"4px 10px",color:leagueTier===v?"#10b981":"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
+                <button onClick={loadAllLeagues}
+                  style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:7,padding:"4px 12px",color:"#10b981",cursor:"pointer",fontSize:10,fontWeight:700}}>
+                  🔍 Buscar todas las ligas
+                </button>
               </div>
               <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                {LEAGUES.filter(l=>leagueTier===2||l.tier===1).map(l=>(
+                {FEATURED_LEAGUES.map(l=>(
                   <button key={l.id} onClick={()=>loadTeams(l)}
                     style={{background:league?.id===l.id?"rgba(16,185,129,0.16)":"rgba(255,255,255,0.03)",
                             border:`1px solid ${league?.id===l.id?"rgba(16,185,129,0.45)":"rgba(255,255,255,0.07)"}`,
@@ -949,6 +1141,32 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                   </div>
                 </div>
                 <div style={{fontSize:12,color:"#888",maxWidth:520,margin:"12px auto 0",lineHeight:1.6}}>{analysis.resumen}</div>
+
+                {/* Nivel de confianza general */}
+                {analysis.contextoExtra?.nivelConfianzaGeneral && (
+                  <div style={{marginTop:14,display:"inline-flex",alignItems:"center",gap:8,
+                    padding:"6px 16px",borderRadius:20,
+                    background:analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"rgba(16,185,129,0.12)":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"rgba(245,158,11,0.12)":"rgba(239,68,68,0.12)",
+                    border:`1px solid ${analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"rgba(16,185,129,0.3)":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"rgba(245,158,11,0.3)":"rgba(239,68,68,0.3)"}`}}>
+                    <span style={{fontSize:13}}>
+                      {analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"🟢":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"🟡":"🔴"}
+                    </span>
+                    <span style={{fontSize:11,fontWeight:700,color:analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"#10b981":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"#f59e0b":"#ef4444"}}>
+                      CONFIANZA {analysis.contextoExtra.nivelConfianzaGeneral}
+                    </span>
+                    {analysis.contextoExtra.razonNivelConfianza && (
+                      <span style={{fontSize:10,color:"#555"}}>· {analysis.contextoExtra.razonNivelConfianza}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Value Bet highlight */}
+                {analysis.valueBet?.existe && (
+                  <div style={{marginTop:10,padding:"8px 16px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:10,display:"inline-block"}}>
+                    <span style={{fontSize:10,color:"#a78bfa",fontWeight:700}}>💎 VALUE BET · {analysis.valueBet.mercado}</span>
+                    {analysis.valueBet.explicacion && <div style={{fontSize:10,color:"#666",marginTop:2}}>{analysis.valueBet.explicacion}</div>}
+                  </div>
+                )}
               </div>
 
               {/* Probabilidades */}
@@ -969,6 +1187,124 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                   ))}
                 </div>
               </div>
+
+              {/* Contexto extra — lesiones, posición, forma local/visita */}
+              {(analysis.homeInjuries?.length>0 || analysis.awayInjuries?.length>0 || analysis.homeStanding || analysis.awayStanding || analysis.homeFormLocal || analysis.awayFormVisita) && (
+                <div style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🔍 Contexto del partido</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                    {[
+                      {team:homeTeam,color:"#10b981",standing:analysis.homeStanding,form:analysis.homeFormLocal,injuries:analysis.homeInjuries,role:"Local"},
+                      {team:awayTeam,color:"#f59e0b",standing:analysis.awayStanding,form:analysis.awayFormVisita,injuries:analysis.awayInjuries,role:"Visitante"},
+                    ].map(({team,color,standing,form,injuries,role})=>(
+                      <div key={team?.id} style={{padding:12,background:"rgba(255,255,255,0.02)",borderRadius:10,border:`1px solid rgba(255,255,255,0.05)`}}>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:15,color,marginBottom:8}}>{team?.name} <span style={{fontSize:10,color:"#444",fontFamily:"DM Sans,sans-serif"}}>· {role}</span></div>
+
+                        {standing && (
+                          <div style={{marginBottom:8}}>
+                            <div style={{fontSize:10,color:"#555",marginBottom:3}}>📊 Tabla</div>
+                            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                              <span style={{fontSize:12,fontWeight:700,color}}>{standing.pos}°</span>
+                              <span style={{fontSize:11,color:"#666"}}>{standing.pts} pts</span>
+                              <span style={{fontSize:11,color:"#666"}}>GF:{standing.gf} GC:{standing.ga}</span>
+                            </div>
+                            {standing.form && (
+                              <div style={{display:"flex",gap:3,marginTop:4}}>
+                                {standing.form.split("").map((r,i)=><RBadge key={i} r={r==="W"?"W":r==="D"?"D":"L"}/>)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {form && (
+                          <div style={{marginBottom:8}}>
+                            <div style={{fontSize:10,color:"#555",marginBottom:3}}>🏠 Como {role.toLowerCase()} (5 partidos)</div>
+                            <div style={{display:"flex",gap:3,marginBottom:3}}>
+                              {form.results.map((r,i)=><RBadge key={i} r={r}/>)}
+                            </div>
+                            <div style={{fontSize:11,color:"#666"}}>{form.avgScored} goles/partido anotados · {form.avgConceded} recibidos</div>
+                          </div>
+                        )}
+
+                        {injuries?.length>0 && (
+                          <div>
+                            <div style={{fontSize:10,color:"#ef4444",marginBottom:3}}>🏥 Bajas</div>
+                            {injuries.map((inj,i)=>(
+                              <div key={i} style={{fontSize:10,color:"#ef4444",opacity:0.8,marginBottom:2}}>• {inj}</div>
+                            ))}
+                          </div>
+                        )}
+                        {(!injuries||injuries.length===0) && (
+                          <div style={{fontSize:10,color:"#333"}}>🏥 Sin bajas confirmadas</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {analysis.contextoExtra?.impactoBajas && (
+                    <div style={{marginTop:10,fontSize:11,color:"#888",padding:"8px 10px",background:"rgba(245,158,11,0.05)",borderRadius:7,borderLeft:"2px solid rgba(245,158,11,0.3)"}}>
+                      ⚡ {analysis.contextoExtra.impactoBajas}
+                    </div>
+                  )}
+                  {analysis.contextoExtra?.jugadorClave && (
+                    <div style={{marginTop:6,fontSize:11,color:"#a78bfa",padding:"8px 10px",background:"rgba(139,92,246,0.05)",borderRadius:7,borderLeft:"2px solid rgba(139,92,246,0.3)"}}>
+                      ⭐ {analysis.contextoExtra.jugadorClave}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Jugadores clave */}
+              {((analysis.homePlayers?.length>0)||(analysis.awayPlayers?.length>0)) && (
+                <div style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>⭐ Jugadores clave</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                    {[
+                      {team:homeTeam,color:"#10b981",players:analysis.homePlayers},
+                      {team:awayTeam,color:"#f59e0b",players:analysis.awayPlayers},
+                    ].map(({team,color,players})=>(
+                      <div key={team?.id}>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:14,color,marginBottom:8}}>{team?.name}</div>
+                        {(players||[]).length===0 ? (
+                          <div style={{fontSize:11,color:"#333"}}>Sin datos disponibles</div>
+                        ) : (players||[]).map((p,i)=>(
+                          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                            padding:"6px 8px",marginBottom:4,borderRadius:7,
+                            background:p.injured?"rgba(239,68,68,0.07)":"rgba(255,255,255,0.02)",
+                            border:`1px solid ${p.injured?"rgba(239,68,68,0.15)":"rgba(255,255,255,0.04)"}`}}>
+                            <div>
+                              <div style={{fontSize:11,color:p.injured?"#ef4444":"#ccc",fontWeight:600}}>
+                                {p.injured?"⚠️ ":""}{p.name}
+                              </div>
+                              <div style={{fontSize:9,color:"#444"}}>{p.pos||"Jugador"}</div>
+                            </div>
+                            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                              {p.goals>0 && <span style={{background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#10b981",fontWeight:700}}>⚽ {p.goals}</span>}
+                              {p.assists>0 && <span style={{background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#a78bfa",fontWeight:700}}>🅰️ {p.assists}</span>}
+                              {p.rating && <span style={{fontSize:10,color:"#555"}}>★{p.rating}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Jugadores destacados según Claude */}
+                  {(analysis.jugadoresDestacados?.local?.length>0 || analysis.jugadoresDestacados?.visitante?.length>0) && (
+                    <div style={{marginTop:12,padding:"10px 12px",background:"rgba(139,92,246,0.05)",borderRadius:8,border:"1px solid rgba(139,92,246,0.12)"}}>
+                      <div style={{fontSize:10,color:"#a78bfa",fontWeight:700,marginBottom:6}}>🧠 Análisis IA — jugadores a vigilar</div>
+                      <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                        {[...(analysis.jugadoresDestacados?.local||[]).map(p=>({...p,equipo:homeTeam?.name,color:"#10b981"})),
+                          ...(analysis.jugadoresDestacados?.visitante||[]).map(p=>({...p,equipo:awayTeam?.name,color:"#f59e0b"}))]
+                          .map((p,i)=>(
+                          <div key={i} style={{fontSize:11}}>
+                            <span style={{color:p.color,fontWeight:700}}>{p.nombre}</span>
+                            <span style={{color:"#555"}}> · {p.rol} · {p.dato}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Momios reales */}
               {(()=>{
@@ -1034,6 +1370,13 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                       <div style={{height:2,background:"rgba(255,255,255,0.05)",borderRadius:1,marginTop:9,overflow:"hidden"}}>
                         <div style={{width:`${a.confianza}%`,height:"100%",background:confColor(a.confianza)}}/>
                       </div>
+                      {a.factores?.length>0 && (
+                        <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:3}}>
+                          {a.factores.map((f,j)=>(
+                            <span key={j} style={{fontSize:9,color:"#555",background:"rgba(255,255,255,0.04)",borderRadius:4,padding:"2px 6px"}}>✓ {f}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1288,6 +1631,84 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                   </div>
                 )}
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Todas las ligas */}
+      {showAllLeagues && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>setShowAllLeagues(false)}>
+          <div style={{...C.card,width:"100%",maxWidth:760,padding:24}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#10b981"}}>
+                🌍 Todas las ligas {allLeagues.length>0?`· ${allLeagues.length} disponibles`:""}
+              </div>
+              <button onClick={()=>setShowAllLeagues(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
+            </div>
+
+            <input
+              placeholder="Buscar por liga o país..."
+              value={leagueSearch}
+              onChange={e=>setLeagueSearch(e.target.value)}
+              style={{...C.inp, marginBottom:16, fontSize:13}}
+              autoFocus
+            />
+
+            {loadingLeagues && (
+              <div style={{textAlign:"center",padding:"30px 0",color:"#444"}}>⏳ Cargando ligas desde la API...</div>
+            )}
+
+            {!loadingLeagues && allLeagues.length>0 && (
+              <div style={{maxHeight:"60vh",overflowY:"auto"}}>
+                {(()=>{
+                  const filtered = leagueSearch.length>1
+                    ? allLeagues.filter(l=>
+                        l.name.toLowerCase().includes(leagueSearch.toLowerCase()) ||
+                        l.country.toLowerCase().includes(leagueSearch.toLowerCase())
+                      )
+                    : allLeagues;
+
+                  // Agrupar por país
+                  const byCountry = {};
+                  filtered.forEach(l=>{
+                    if(!byCountry[l.country]) byCountry[l.country]=[];
+                    byCountry[l.country].push(l);
+                  });
+
+                  if(filtered.length===0) return <div style={{color:"#444",textAlign:"center",padding:"20px 0"}}>Sin resultados para "{leagueSearch}"</div>;
+
+                  return Object.entries(byCountry).map(([country, leagues])=>(
+                    <div key={country} style={{marginBottom:14}}>
+                      <div style={{fontSize:10,color:"#444",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:6,paddingBottom:4,borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                        {country}
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                        {leagues.map(l=>(
+                          <button key={l.id}
+                            onClick={()=>{ loadTeams(l); setShowAllLeagues(false); setLeagueSearch(""); }}
+                            style={{background:league?.id===l.id?"rgba(16,185,129,0.15)":"rgba(255,255,255,0.04)",
+                                    border:`1px solid ${league?.id===l.id?"rgba(16,185,129,0.4)":"rgba(255,255,255,0.07)"}`,
+                                    borderRadius:8,padding:"5px 11px",color:league?.id===l.id?"#10b981":"#888",
+                                    cursor:"pointer",fontSize:11,fontWeight:600,display:"flex",alignItems:"center",gap:5}}>
+                            {l.flagUrl
+                              ? <img src={l.flagUrl} style={{width:14,height:10,objectFit:"cover",borderRadius:1}} onError={e=>e.target.style.display="none"}/>
+                              : <span style={{fontSize:12}}>🌍</span>
+                            }
+                            {l.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
+
+            {!loadingLeagues && allLeagues.length===0 && (
+              <div style={{textAlign:"center",padding:"20px 0",color:"#ef4444",fontSize:12}}>
+                No se pudieron cargar las ligas. Verifica que la API key esté configurada en Vercel.
+              </div>
             )}
           </div>
         </div>
