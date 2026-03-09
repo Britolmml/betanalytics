@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { supabase, savePrediction, getPredictions, updateResult } from "./supabase";
 
 const LEAGUES = [
   { id: 140, name: "La Liga",          country: "España",     flag: "🇪🇸" },
@@ -144,7 +145,32 @@ export default function App() {
   const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
   const [activeTab,     setActiveTab]     = useState("stats");
 
-  // Headers — la API key la inyecta NGINX, el cliente no necesita enviarla
+  // Auth
+  const [user,          setUser]          = useState(null);
+  const [authView,      setAuthView]      = useState("login");
+  const [authEmail,     setAuthEmail]     = useState("");
+  const [authPass,      setAuthPass]      = useState("");
+  const [authErr,       setAuthErr]       = useState("");
+  const [authLoading,   setAuthLoading]   = useState(false);
+  const [showAuth,      setShowAuth]      = useState(false);
+  const [savedPreds,    setSavedPreds]    = useState([]);
+  const [showSaved,     setShowSaved]     = useState(false);
+  const [showJornada,   setShowJornada]   = useState(false);
+  const [jornadaMatches,setJornadaMatches]= useState([]);
+  const [jornadaResult, setJornadaResult] = useState(null);
+  const [loadingJornada,setLoadingJornada]= useState(false);
+  const [jornadaErr,    setJornadaErr]    = useState("");
+  const [odds,          setOdds]          = useState({});
+  const [loadingOdds,   setLoadingOdds]   = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
   const headers = useCallback(() => ({ "Content-Type": "application/json" }), []);
 
   // Probar conexión al proxy Vercel
@@ -329,6 +355,152 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
   const hStats = homeMatches.length && homeTeam ? calcStats(homeMatches, homeTeam.name) : null;
   const aStats = awayMatches.length && awayTeam ? calcStats(awayMatches, awayTeam.name) : null;
 
+  // Auth functions
+  const handleAuth = async () => {
+    setAuthLoading(true); setAuthErr("");
+    try {
+      if (authView === "register") {
+        const { error } = await supabase.auth.signUp({ email: authEmail, password: authPass });
+        if (error) throw error;
+        setAuthErr("✅ Revisa tu email para confirmar tu cuenta");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPass });
+        if (error) throw error;
+        setShowAuth(false);
+      }
+    } catch(e) { setAuthErr(e.message); }
+    finally { setAuthLoading(false); }
+  };
+
+  const handleLogout = async () => {
+    await supabase?.auth.signOut();
+    setUser(null); setSavedPreds([]); setShowSaved(false);
+  };
+
+  const loadSaved = async () => {
+    if (!user) { setShowAuth(true); return; }
+    const { data } = await getPredictions(user.id);
+    setSavedPreds(data || []);
+    setShowSaved(true);
+  };
+
+  const handleSavePrediction = async () => {
+    if (!user) { setShowAuth(true); return; }
+    if (!analysis) return;
+    const best = (analysis.apuestasDestacadas || []).sort((a,b) => b.confianza - a.confianza)[0];
+    await savePrediction(user.id, {
+      league: league?.name,
+      homeTeam: homeTeam?.name,
+      awayTeam: awayTeam?.name,
+      score: analysis.prediccionMarcador,
+      pick: best?.pick,
+      odds: best?.odds_sugerido,
+      confidence: best?.confianza,
+      analysis,
+    });
+    alert("✅ Predicción guardada");
+  };
+
+  const handleUpdateResult = async (id, result) => {
+    await updateResult(id, result);
+    setSavedPreds(prev => prev.map(p => p.id === id ? {...p, result} : p));
+  };
+
+  // Odds API
+  const LEAGUE_SPORT_MAP = {
+    39:  "soccer_england_league1",
+    140: "soccer_spain_la_liga",
+    78:  "soccer_germany_bundesliga",
+    135: "soccer_italy_serie_a",
+    2:   "soccer_uefa_champs_league",
+    262: "soccer_mexico_ligamx",
+  };
+
+  const loadOdds = async () => {
+    if (!league) return;
+    const sport = LEAGUE_SPORT_MAP[league.id];
+    if (!sport) return;
+    setLoadingOdds(true);
+    try {
+      const res = await fetch(`/api/odds?sport=${sport}&markets=h2h,totals&regions=eu`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const map = {};
+        data.forEach(g => {
+          const key = `${g.home_team}|${g.away_team}`;
+          map[key] = g.bookmakers?.[0]?.markets || [];
+        });
+        setOdds(map);
+      }
+    } catch(e) { console.warn("Odds error:", e.message); }
+    finally { setLoadingOdds(false); }
+  };
+
+  // Análisis de jornada completa
+  const analyzeJornada = async () => {
+    if (!league) return;
+    setLoadingJornada(true); setJornadaErr(""); setJornadaResult(null);
+    try {
+      // Obtener próximos partidos de la liga
+      let fixtures = [];
+      for (const season of [2025, 2024]) {
+        const d = await apiFetch(`/fixtures?league=${league.id}&season=${season}&next=10`);
+        fixtures = d.response || [];
+        if (fixtures.length) break;
+      }
+      if (!fixtures.length) { setJornadaErr("No se encontraron partidos próximos para esta liga"); setLoadingJornada(false); return; }
+
+      // Para cada partido obtener estadísticas básicas
+      const matchData = await Promise.all(fixtures.slice(0,8).map(async f => {
+        const hId = f.teams?.home?.id;
+        const aId = f.teams?.away?.id;
+        const hName = f.teams?.home?.name;
+        const aName = f.teams?.away?.name;
+        try {
+          const [hFix, aFix] = await Promise.all([
+            fetchFixturesFree(apiFetch, hId),
+            fetchFixturesFree(apiFetch, aId),
+          ]);
+          const hS = calcStats(hFix.map(fx => ({
+            date: fx.fixture?.date?.split("T")[0]??"",
+            home: fx.teams?.home?.name??"", away: fx.teams?.away?.name??"",
+            homeGoals: fx.goals?.home??0, awayGoals: fx.goals?.away??0,
+            homeCorners: 5, awayCorners: 5, homeYellow: 2, awayYellow: 2,
+          })).filter(m=>m.home&&m.away), hName);
+          const aS = calcStats(aFix.map(fx => ({
+            date: fx.fixture?.date?.split("T")[0]??"",
+            home: fx.teams?.home?.name??"", away: fx.teams?.away?.name??"",
+            homeGoals: fx.goals?.home??0, awayGoals: fx.goals?.away??0,
+            homeCorners: 5, awayCorners: 5, homeYellow: 2, awayYellow: 2,
+          })).filter(m=>m.home&&m.away), aName);
+          return {
+            home: hName, away: aName,
+            date: f.fixture?.date?.split("T")[0] ?? "",
+            homeForm: hS?.results?.join("") || "?????",
+            awayForm: aS?.results?.join("") || "?????",
+            homeGoals: hS?.avgScored ?? 0,
+            awayGoals: aS?.avgScored ?? 0,
+          };
+        } catch { return { home: hName, away: aName, date: f.fixture?.date?.split("T")[0]??"", homeForm:"?????", awayForm:"?????", homeGoals:0, awayGoals:0 }; }
+      }));
+
+      setJornadaMatches(matchData);
+
+      // Enviar a Claude para análisis masivo
+      const res = await fetch("/api/jornada", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matches: matchData, league: league.name }),
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      // Ordenar por confianza descendente
+      result.partidos = (result.partidos || []).sort((a,b) => b.confianza - a.confianza);
+      setJornadaResult(result);
+    } catch(e) { setJornadaErr("Error: " + e.message); }
+    finally { setLoadingJornada(false); }
+  };
+
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
     <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
@@ -344,8 +516,27 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               ← Nuevo análisis
             </button>
           )}
+          {league && (
+            <button onClick={()=>{setShowJornada(true); analyzeJornada();}}
+              style={{background:"rgba(139,92,246,0.15)",border:"1px solid rgba(139,92,246,0.4)",borderRadius:8,padding:"6px 12px",color:"#a78bfa",cursor:"pointer",fontSize:11,fontWeight:700}}>
+              📋 JORNADA
+            </button>
+          )}
+          <button onClick={loadSaved}
+            style={{background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            📁 GUARDADAS
+          </button>
+          {user ? (
+            <button onClick={handleLogout} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"6px 12px",color:"#666",cursor:"pointer",fontSize:11}}>
+              👤 {user.email?.split("@")[0]} · Salir
+            </button>
+          ) : (
+            <button onClick={()=>setShowAuth(true)} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:8,padding:"6px 12px",color:"#10b981",cursor:"pointer",fontSize:11,fontWeight:700}}>
+              🔐 ENTRAR
+            </button>
+          )}
           <button onClick={()=>setShowPanel(p=>!p)} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${apiKey?"rgba(16,185,129,0.35)":"rgba(245,158,11,0.3)"}`,borderRadius:8,padding:"6px 12px",color:apiKey?"#10b981":"#f59e0b",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            {apiKey?"🔑 API CONECTADA":"🎮 MODO DEMO"}
+            {apiKey?"🔑 API":"🎮 DEMO"}
           </button>
         </div>
       </div>
@@ -794,11 +985,154 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                 </div>
               </div>
 
-              <div style={{textAlign:"center",fontSize:10,color:"#222",paddingBottom:16}}>⚠️ Análisis orientativo — apuesta siempre con responsabilidad</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:16}}>
+                <div style={{fontSize:10,color:"#222"}}>⚠️ Análisis orientativo — apuesta siempre con responsabilidad</div>
+                <button onClick={handleSavePrediction}
+                  style={{background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.35)",borderRadius:8,padding:"7px 14px",color:"#60a5fa",cursor:"pointer",fontSize:12,fontWeight:700}}>
+                  💾 Guardar predicción
+                </button>
+              </div>
             </div>
           );
         })()}
       </div>
+
+      {/* Modal: Auth */}
+      {showAuth && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowAuth(false)}>
+          <div style={{...C.card,width:340,padding:28}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,marginBottom:4,color:"#10b981"}}>
+              {authView==="login"?"🔐 Iniciar sesión":"📝 Crear cuenta"}
+            </div>
+            <div style={{fontSize:11,color:"#555",marginBottom:18}}>Para guardar y revisar tus predicciones</div>
+            <input placeholder="Email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)}
+              style={{...C.inp,marginBottom:10}} type="email"/>
+            <input placeholder="Contraseña" value={authPass} onChange={e=>setAuthPass(e.target.value)}
+              style={{...C.inp,marginBottom:14}} type="password"/>
+            {authErr && <div style={{fontSize:12,color:authErr.startsWith("✅")?"#10b981":"#ef4444",marginBottom:10}}>{authErr}</div>}
+            <button onClick={handleAuth} disabled={authLoading}
+              style={{width:"100%",background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:8,padding:"10px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,marginBottom:10}}>
+              {authLoading?"⏳ ...":authView==="login"?"Entrar":"Crear cuenta"}
+            </button>
+            <div style={{textAlign:"center",fontSize:12,color:"#555"}}>
+              {authView==="login"?(
+                <>¿Sin cuenta? <span style={{color:"#10b981",cursor:"pointer"}} onClick={()=>setAuthView("register")}>Regístrate</span></>
+              ):(
+                <>¿Ya tienes cuenta? <span style={{color:"#10b981",cursor:"pointer"}} onClick={()=>setAuthView("login")}>Entra</span></>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Predicciones guardadas */}
+      {showSaved && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowSaved(false)}>
+          <div style={{...C.card,width:620,maxHeight:"80vh",overflow:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#60a5fa"}}>📁 Mis predicciones</div>
+              <button onClick={()=>setShowSaved(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
+            </div>
+            {savedPreds.length===0 ? (
+              <div style={{color:"#555",textAlign:"center",padding:"30px 0"}}>No tienes predicciones guardadas aún</div>
+            ) : savedPreds.map(p=>(
+              <div key={p.id} style={{...C.card,marginBottom:10,padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                  <div>
+                    <span style={{fontWeight:700,fontSize:13}}>{p.home_team} vs {p.away_team}</span>
+                    <span style={{fontSize:10,color:"#555",marginLeft:8}}>{p.league}</span>
+                  </div>
+                  <span style={{fontSize:10,color:"#444"}}>{p.created_at?.split("T")[0]}</span>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  <span style={{fontSize:12,color:"#bbb"}}>Pick: <b style={{color:"#10b981"}}>{p.pick}</b></span>
+                  <span style={{fontSize:12,color:"#bbb"}}>Cuota: <b style={{color:"#f59e0b"}}>{p.odds}</b></span>
+                  <span style={{fontSize:12,color:"#bbb"}}>Conf: <b style={{color:"#10b981"}}>{p.confidence}%</b></span>
+                  <div style={{marginLeft:"auto",display:"flex",gap:5}}>
+                    {["pending","won","lost"].map(r=>(
+                      <button key={r} onClick={()=>handleUpdateResult(p.id,r)}
+                        style={{background:p.result===r?(r==="won"?"rgba(16,185,129,0.25)":r==="lost"?"rgba(239,68,68,0.25)":"rgba(245,158,11,0.2)"):"rgba(255,255,255,0.04)",
+                                border:`1px solid ${p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"rgba(255,255,255,0.08)"}`,
+                                borderRadius:6,padding:"3px 8px",color:p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
+                        {r==="pending"?"⏳":r==="won"?"✅":"❌"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Análisis de Jornada */}
+      {showJornada && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>setShowJornada(false)}>
+          <div style={{...C.card,width:"100%",maxWidth:780,padding:24}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa"}}>📋 Análisis de Jornada · {league?.name}</div>
+              <button onClick={()=>setShowJornada(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
+            </div>
+
+            {loadingJornada && (
+              <div style={{textAlign:"center",padding:"40px 0"}}>
+                <div style={{fontSize:14,color:"#a78bfa",marginBottom:8}}>⏳ Analizando jornada completa con IA...</div>
+                <div style={{fontSize:11,color:"#444"}}>Esto puede tomar 15-30 segundos</div>
+              </div>
+            )}
+
+            {jornadaErr && <div style={{color:"#ef4444",fontSize:13,padding:"12px",background:"rgba(239,68,68,0.08)",borderRadius:8}}>{jornadaErr}</div>}
+
+            {jornadaResult && !loadingJornada && (
+              <>
+                {/* Partidos ordenados por confianza */}
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎯 Apuestas por partido — ordenadas por confianza</div>
+                  {(jornadaResult.partidos||[]).map((p,i)=>(
+                    <div key={i} style={{...C.card,marginBottom:8,padding:14,borderColor:p.confianza>=80?"rgba(16,185,129,0.2)":p.confianza>=65?"rgba(245,158,11,0.2)":"rgba(255,255,255,0.08)"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:12,fontWeight:700,marginBottom:3}}>{p.home} <span style={{color:"#444"}}>vs</span> {p.away}</div>
+                          <div style={{fontSize:11,color:"#60a5fa",marginBottom:2}}>→ {p.pick}</div>
+                          <div style={{fontSize:10,color:"#555"}}>{p.razon}</div>
+                        </div>
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:p.confianza>=80?"#10b981":p.confianza>=65?"#f59e0b":"#ef4444",lineHeight:1}}>{p.confianza}%</div>
+                          <div style={{fontSize:10,color:"#666"}}>Cuota {p.odds_sugerido}</div>
+                          <div style={{fontSize:9,color:"#333",marginTop:2}}>{p.apuesta}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Parlay */}
+                {jornadaResult.parlay && (
+                  <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:14,padding:18}}>
+                    <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎰 Parlay sugerido</div>
+                    <div style={{marginBottom:12}}>
+                      {(jornadaResult.parlay.picks||[]).map((pick,i)=>(
+                        <div key={i} style={{fontSize:12,color:"#c4b5fd",marginBottom:4}}>✓ {pick}</div>
+                      ))}
+                    </div>
+                    <div style={{display:"flex",gap:20,alignItems:"center"}}>
+                      <div>
+                        <div style={{fontSize:10,color:"#666"}}>Cuota combinada</div>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#a78bfa",lineHeight:1}}>{jornadaResult.parlay.odds_combinado}</div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:10,color:"#666"}}>Confianza</div>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#10b981",lineHeight:1}}>{jornadaResult.parlay.confianza}%</div>
+                      </div>
+                      <div style={{flex:1,fontSize:11,color:"#666"}}>{jornadaResult.parlay.descripcion}</div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
