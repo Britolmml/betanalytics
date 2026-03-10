@@ -4,3 +4,4 @@
     { "source": "/api/basketball/:path*", "destination": "/api/basketball" }
   ]
 }
+ 
