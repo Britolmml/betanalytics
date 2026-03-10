@@ -899,42 +899,42 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     setLoadingNbaAI(true); setNbaAiErr(""); setNbaAnalysis(null);
     try {
       const home = game.teams?.home?.name;
-      const away = game.teams?.away?.name;
-      const hScore = game.scores?.home?.total;
-      const aScore = game.scores?.away?.total;
+      const away = game.teams?.visitors?.name;
+      const hScore = game.scores?.home?.points;
+      const aScore = game.scores?.visitors?.points;
       const status = game.status?.long;
 
       // Obtener stats recientes de ambos equipos
       const [hGames, aGames] = await Promise.allSettled([
         nbFetch(`/games?season=2025&team=${game.teams?.home?.id}`),
-        nbFetch(`/games?season=2025&team=${game.teams?.away?.id}`),
+        nbFetch(`/games?season=2025&team=${game.teams?.visitors?.id}`),
       ]);
 
       const getRecentGames = (res, teamId) => {
         const all = res?.response || [];
         return all
-          .filter(g => ["FT","AOT"].includes(g.status?.short))
-          .sort((a,b) => new Date(b.date) - new Date(a.date))
+          .filter(g => g.status?.short === 3)
+          .sort((a,b) => new Date(b.date?.start) - new Date(a.date?.start))
           .slice(0,5);
       };
 
       const hRecent = hGames.status === "fulfilled" ? getRecentGames(hGames.value, game.teams?.home?.id) : [];
-      const aRecent = aGames.status === "fulfilled" ? getRecentGames(aGames.value, game.teams?.away?.id) : [];
+      const aRecent = aGames.status === "fulfilled" ? getRecentGames(aGames.value, game.teams?.visitors?.id) : [];
 
       const gameStats = (recent, teamId) => {
         if (!recent.length) return null;
         const pts = recent.map(g => {
           const isHome = g.teams?.home?.id === teamId;
-          return isHome ? (g.scores?.home?.total||0) : (g.scores?.away?.total||0);
+          return isHome ? (g.scores?.home?.points||0) : (g.scores?.visitors?.points||0);
         });
         const ptsCon = recent.map(g => {
           const isHome = g.teams?.home?.id === teamId;
-          return isHome ? (g.scores?.away?.total||0) : (g.scores?.home?.total||0);
+          return isHome ? (g.scores?.visitors?.points||0) : (g.scores?.home?.points||0);
         });
         const wins = recent.filter(g => {
           const isHome = g.teams?.home?.id === teamId;
-          const scored = isHome ? g.scores?.home?.total : g.scores?.away?.total;
-          const conceded = isHome ? g.scores?.away?.total : g.scores?.home?.total;
+          const scored = isHome ? g.scores?.home?.points : g.scores?.visitors?.points;
+          const conceded = isHome ? g.scores?.visitors?.points : g.scores?.home?.points;
           return (scored||0) > (conceded||0);
         }).length;
         return {
@@ -943,15 +943,15 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           wins, games: recent.length,
           results: recent.map(g => {
             const isHome = g.teams?.home?.id === teamId;
-            const s = isHome ? g.scores?.home?.total : g.scores?.away?.total;
-            const c = isHome ? g.scores?.away?.total : g.scores?.home?.total;
+            const s = isHome ? g.scores?.home?.points : g.scores?.visitors?.points;
+            const c = isHome ? g.scores?.visitors?.points : g.scores?.home?.points;
             return (s||0)>(c||0)?"W":"L";
           }).join("-"),
         };
       };
 
       const hStats = gameStats(hRecent, game.teams?.home?.id);
-      const aStats = gameStats(aRecent, game.teams?.away?.id);
+      const aStats = gameStats(aRecent, game.teams?.visitors?.id);
 
       // Calcular líneas sugeridas basadas en promedios reales
       const hAvg = parseFloat(hStats?.avgPts || 110);
@@ -2216,12 +2216,12 @@ Responde SOLO con JSON válido sin backticks:
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12,marginBottom:20}}>
                   {nbaGames.map((g,i) => {
                     const home = g.teams?.home;
-                    const away = g.teams?.away;
-                    const hScore = g.scores?.home?.total;
-                    const aScore = g.scores?.away?.total;
+                    const away = g.teams?.visitors;
+                    const hScore = g.scores?.home?.points;
+                    const aScore = g.scores?.visitors?.points;
                     const status = g.status?.short;
-                    const isLive = status === "LIVE" || status === "Q1" || status === "Q2" || status === "Q3" || status === "Q4" || status === "OT";
-                    const isDone = status === "FT" || status === "AOT";
+                    const isLive = [1,2,3,4].includes(status) || status === "HT";
+                    const isDone = status === 3 && g.periods?.current === 4;
                     const isSelected = selectedNbaGame?.id === g.id;
                     return (
                       <div key={i} onClick={()=>analyzeNbaGame(g)}
@@ -2232,9 +2232,9 @@ Responde SOLO con JSON válido sin backticks:
                           <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,
                             background:isLive?"rgba(16,185,129,0.15)":isDone?"rgba(255,255,255,0.06)":"rgba(245,158,11,0.1)",
                             color:isLive?"#10b981":isDone?"#555":"#f59e0b"}}>
-                            {isLive?"🔴 EN VIVO":isDone?"FT":g.time||g.date?.split("T")[1]?.slice(0,5)||"Próximo"}
+                            {isLive?"🔴 EN VIVO":isDone?"FT":g.date?.start?.split("T")[1]?.slice(0,5)||"Próximo"}
                           </span>
-                          {g.date && <span style={{fontSize:10,color:"#444"}}>{g.date?.split("T")[0]}</span>}
+                          {g.date?.start && <span style={{fontSize:10,color:"#444"}}>{g.date.start.split("T")[0]}</span>}
                         </div>
                         {/* Teams */}
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
@@ -2259,7 +2259,7 @@ Responde SOLO con JSON válido sin backticks:
                 {/* Análisis IA NBA */}
                 {(loadingNbaAI || nbaAnalysis || nbaAiErr) && (
                   <div style={{...C.card,borderColor:"rgba(239,68,68,0.25)",marginTop:8}}>
-                    <div style={{fontSize:12,color:"#f87171",fontWeight:700,letterSpacing:2,marginBottom:14}}>🤖 PREDICCIÓN IA — {selectedNbaGame?.teams?.home?.name} vs {selectedNbaGame?.teams?.away?.name}</div>
+                    <div style={{fontSize:12,color:"#f87171",fontWeight:700,letterSpacing:2,marginBottom:14}}>🤖 PREDICCIÓN IA — {selectedNbaGame?.teams?.home?.name} vs {selectedNbaGame?.teams?.visitors?.name}</div>
                     {loadingNbaAI && <div style={{textAlign:"center",padding:24,color:"#f87171",fontSize:13}}>Analizando partido...</div>}
                     {nbaAiErr && <div style={{color:"#ef4444",fontSize:12}}>{nbaAiErr}</div>}
                     {nbaAnalysis && (
@@ -2269,7 +2269,7 @@ Responde SOLO con JSON válido sin backticks:
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
                           {[
                             [selectedNbaGame?.teams?.home?.name, nbaAnalysis.probabilidades?.home, "#ef4444"],
-                            [selectedNbaGame?.teams?.away?.name, nbaAnalysis.probabilidades?.away, "#60a5fa"],
+                            [selectedNbaGame?.teams?.visitors?.name, nbaAnalysis.probabilidades?.away, "#60a5fa"],
                           ].map(([name,pct,color])=>(
                             <div key={name} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
                               <div style={{fontSize:11,color:"#555",marginBottom:4}}>{name}</div>
