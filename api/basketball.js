@@ -1,5 +1,5 @@
 // api/basketball.js — Vercel Serverless Function
-// Proxy hacia v1.basketball.api-sports.io (misma key que football)
+// Proxy hacia v2.nba.api-sports.io
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (!path) return res.status(400).json({ error: "Falta el parámetro ?path=" });
 
   const qs = new URLSearchParams(queryParams).toString();
-  const url = `https://v1.basketball.api-sports.io${path}${qs ? "?" + qs : ""}`;
+  const url = `https://v2.nba.api-sports.io${path}${qs ? "?" + qs : ""}`;
 
   if (!process.env.API_FOOTBALL_KEY) {
     return res.status(500).json({ error: "API_FOOTBALL_KEY no configurada en Vercel" });
@@ -26,11 +26,11 @@ export default async function handler(req, res) {
       },
     });
     const data = await apiRes.json();
-    if (data?.errors?.token || data?.errors?.requests) {
+    if (data?.errors && Object.keys(data.errors).length > 0) {
       return res.status(401).json({ error: Object.values(data.errors)[0] });
     }
     return res.status(200).json(data);
   } catch (e) {
-    return res.status(500).json({ error: "Error contactando API-Basketball: " + e.message });
+    return res.status(500).json({ error: "Error contactando API-NBA: " + e.message });
   }
 }
