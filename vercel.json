@@ -1,8 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/api/football/:path*", "destination": "/api/football" },
-    { "source": "/api/basketball/:path*", "destination": "/api/basketball" }
-  ]
+  "functions": {
+    "api/*.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  }
 }
- 
- 
