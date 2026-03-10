@@ -2390,7 +2390,9 @@ Responde SOLO con JSON válido sin backticks:
                         </div>
                         {/* Apuestas */}
                         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
-                          {(nbaAnalysis.apuestasDestacadas||[]).map((a,i)=>(
+                          {(nbaAnalysis.apuestasDestacadas||[]).map((a,i)=>{
+                            const cc=a.confianza>74?"#10b981":a.confianza>59?"#f59e0b":"#ef4444";
+                            return (
                             <div key={i} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                               <div>
                                 <span style={{fontSize:10,color:"#f87171",fontWeight:700}}>{a.tipo} </span>
@@ -2398,11 +2400,12 @@ Responde SOLO con JSON válido sin backticks:
                                 <div style={{fontSize:11,color:"#555",marginTop:2}}>{a.razon}</div>
                               </div>
                               <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                                <div style={{fontSize:14,fontWeight:900,color:a.confianza>=75?"#10b981":a.confianza>=60?"#f59e0b":"#ef4444"}}>{a.confianza}%</div>
+                                <div style={{fontSize:14,fontWeight:900,color:cc}}>{a.confianza}%</div>
                                 <div style={{fontSize:10,color:"#444"}}>odds {a.odds_sugerido}</div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         {/* Value bet */}
                         {nbaAnalysis.valueBet?.existe && (
@@ -2414,10 +2417,9 @@ Responde SOLO con JSON válido sin backticks:
                         {/* Nivel confianza */}
                         <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,
                           background:nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.08)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)",
-                          color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444",
-                          border:`1px solid ${nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.2)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.2)":"rgba(239,68,68,0.2)"}`}}>
+                          color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444"}}>
                           <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>
-                            {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza general: {nbaAnalysis.nivelConfianza}
+                            {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza: {nbaAnalysis.nivelConfianza}
                           </div>
                           {nbaAnalysis.razonConfianza && <div style={{fontSize:11,opacity:0.8}}>{nbaAnalysis.razonConfianza}</div>}
                         </div>
@@ -2448,8 +2450,8 @@ Responde SOLO con JSON válido sin backticks:
                       <tbody>
                         {nbaStandings[conf].map((t,i)=>(
                           <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)"}}>
-                            <td style={{padding:"5px 0",color:i<8?"#f87171":"#555",fontWeight:700}}>{t.position}</td>
-                            <td style={{padding:"5px 0",color:i<8?"#e8eaf0":"#777"}}>{t.team?.name}</td>
+                            <td style={{padding:"5px 0",color:i>7?"#555":"#f87171",fontWeight:700}}>{t.position}</td>
+                            <td style={{padding:"5px 0",color:i>7?"#777":"#e8eaf0"}}>{t.team?.name}</td>
                             <td style={{textAlign:"center",color:"#10b981",fontWeight:700}}>{t.games?.win?.total}</td>
                             <td style={{textAlign:"center",color:"#ef4444"}}>{t.games?.lose?.total}</td>
                             <td style={{textAlign:"center",color:"#aaa"}}>{t.games?.win?.percentage ? (parseFloat(t.games.win.percentage)*100).toFixed(0)+"%" : "-"}</td>
