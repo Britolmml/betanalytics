@@ -875,14 +875,14 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       let games = [];
       for (let i = 0; i <= 4; i++) {
         const dateStr = getESTDate(i);
-        const res = await nbFetch(`/games?season=2024&date=${dateStr}`);
+        const res = await nbFetch(`/games?season=2025&date=${dateStr}`);
         const found = res?.response || [];
         if (found.length > 0) { games = found; break; }
       }
       setNbaGames(games.slice(0, 12));
 
       // Standings — separar East y West
-      const standRes = await nbFetch(`/standings?season=2024&league=standard`);
+      const standRes = await nbFetch(`/standings?season=2025&league=standard`);
       const rows = standRes?.response || [];
       const east = rows.filter(r => r.group?.name === "Eastern Conference").sort((a,b) => a.position - b.position);
       const west = rows.filter(r => r.group?.name === "Western Conference").sort((a,b) => a.position - b.position);
@@ -906,8 +906,8 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
       // Obtener stats recientes de ambos equipos
       const [hGames, aGames] = await Promise.allSettled([
-        nbFetch(`/games?season=2024&team=${game.teams?.home?.id}`),
-        nbFetch(`/games?season=2024&team=${game.teams?.away?.id}`),
+        nbFetch(`/games?season=2025&team=${game.teams?.home?.id}`),
+        nbFetch(`/games?season=2025&team=${game.teams?.away?.id}`),
       ]);
 
       const getRecentGames = (res, teamId) => {
