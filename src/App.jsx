@@ -277,8 +277,10 @@ export default function App() {
 
       // Cualquier respuesta válida de API-Football = conexión exitosa
       const req = data?.response?.requests;
+      const plan = data?.response?.subscription?.plan;
+      const name = data?.response?.account?.firstname;
       setApiStatus("ok");
-      setApiMsg(`✅ Conectado · ${req ? `${req.current}/${req.limit_day} requests usados hoy` : "API respondiendo correctamente"}`);
+      setApiMsg(`✅ Conectado${name ? ` · Hola ${name}` : ""} · Plan ${plan||"Pro"} · ${req ? `${req.current}/${req.limit_day} requests hoy` : "API OK"}`);
       setApiKey("proxy");
       return true;
     } catch(e) {
