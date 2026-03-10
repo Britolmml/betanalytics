@@ -2424,8 +2424,7 @@ Responde SOLO con JSON válido sin backticks:
                   </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
             {/* TAB: Standings */}
             {nbaTab === "standings" && !loadingNBA && (
