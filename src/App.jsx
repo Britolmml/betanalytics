@@ -140,17 +140,19 @@ const RBadge = ({r}) => {
   return <span style={{background:bg,color:fg,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{r==="W"?"V":r==="D"?"E":"D"}</span>;
 };
 
-const SBar = ({label,val,max,color,dimmed}) => (
+const SBar = ({label,val,max,color,dimmed}) => {
+  const bw = dimmed ? "0%" : Math.min((val/(max||1))*100, 100) + "%";
+  return (
   <div style={{marginBottom:9,opacity:dimmed?0.4:1}}>
     <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
       <span style={{color:"#666"}}>{label}</span>
       <span style={{fontWeight:700,color}}>{dimmed ? "N/D" : val}</span>
     </div>
     <div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}>
-      {(()=>{const bw=dimmed?"0%":Math.min((val/(max||1))*100,100)+"%"; return <div style={{width:bw,height:"100%",background:color,borderRadius:2}}/>; })()}
+      <div style={{width:bw,height:"100%",background:color,borderRadius:2}}/>
     </div>
   </div>
-);
+);};
 
 export default function App() {
   // API config
@@ -2321,19 +2323,17 @@ Responde SOLO con JSON válido sin backticks:
                                   {[
                                     ["Puntos/partido", stats.avgPts, 130, "#f97316"],
                                     ["Puntos recibidos", stats.avgPtsCon, 130, "#ef4444"],
-                                  ].map(([label,val,max,color])=>{
-                                    const barW = Math.min((val/max)*100, 100) + "%";
-                                    return (
+                                  ].map(([label,val,max,color])=>(
                                     <div key={label} style={{marginBottom:8}}>
                                       <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
                                         <span style={{color:"#666"}}>{label}</span>
                                         <span style={{fontWeight:800,color}}>{val}</span>
                                       </div>
                                       <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
-                                        <div style={{width:barW,height:"100%",background:color,borderRadius:2}}/>
+                                        <div style={{width:String(Math.min((val/max)*100,100))+"%",height:"100%",background:color,borderRadius:2}}/>
                                       </div>
                                     </div>
-                                  );})}
+                                  ))}
                                   <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11}}>
                                     <span style={{color:"#666"}}>Forma reciente</span>
                                     <span style={{fontWeight:700,color:"#10b981"}}>{stats.results || "N/D"}</span>
