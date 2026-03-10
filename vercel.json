@@ -1,1 +1,6 @@
-{ "rewrites": [ { "source": "/api/football/:path*", "destination": "/api/football" } ], "functions": { "api/*.js": { "memory": 1024, "maxDuration": 30 } } } 
+{
+  "rewrites": [
+    { "source": "/api/football/:path*", "destination": "/api/football" },
+    { "source": "/api/basketball/:path*", "destination": "/api/basketball" }
+  ]
+}

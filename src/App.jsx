@@ -210,6 +210,18 @@ export default function App() {
   // Liga filter
   const [leagueTier,    setLeagueTier]    = useState(1);
 
+  // NBA / Basketball
+  const [showNBA,         setShowNBA]         = useState(false);
+  const [nbaGames,        setNbaGames]         = useState([]);
+  const [nbaStandings,    setNbaStandings]     = useState({east:[], west:[]});
+  const [loadingNBA,      setLoadingNBA]       = useState(false);
+  const [nbaErr,          setNbaErr]           = useState("");
+  const [nbaTab,          setNbaTab]           = useState("games");
+  const [nbaAnalysis,     setNbaAnalysis]      = useState(null);
+  const [loadingNbaAI,    setLoadingNbaAI]     = useState(false);
+  const [nbaAiErr,        setNbaAiErr]         = useState("");
+  const [selectedNbaGame, setSelectedNbaGame]  = useState(null);
+
   // Ligas dinámicas desde la API
   const [allLeagues,    setAllLeagues]    = useState([]);
   const [loadingLeagues,setLoadingLeagues]= useState(false);
@@ -816,6 +828,143 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     setCompareData(prev => prev.filter(d => d.team.id !== teamId));
   };
 
+  const removeFromCompare = (teamId) => {
+    setCompareTeams(prev => prev.filter(t => t.id !== teamId));
+    setCompareData(prev => prev.filter(d => d.team.id !== teamId));
+  };
+
+  /* ─── NBA FUNCTIONS ──────────────────────────────────────── */
+  const nbFetch = async (path) => {
+    const url = `/api/basketball?path=${encodeURIComponent(path)}`;
+    const res = await fetch(url);
+    return res.json();
+  };
+
+  const loadNBA = async () => {
+    setLoadingNBA(true); setNbaErr("");
+    try {
+      // Partidos de hoy y próximos 3 días — NBA league id = 12, season 2024-2025
+      const today = new Date().toISOString().split("T")[0];
+      const [gamesRes, standRes] = await Promise.allSettled([
+        nbFetch(`/games?league=12&season=2024-2025&date=${today}`),
+        nbFetch(`/standings?league=12&season=2024-2025`),
+      ]);
+
+      // Partidos
+      if (gamesRes.status === "fulfilled") {
+        let games = gamesRes.value?.response || [];
+        // Si no hay partidos hoy, buscar próximos
+        if (games.length === 0) {
+          const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+          const next = await nbFetch(`/games?league=12&season=2024-2025&date=${tomorrow}`);
+          games = next?.response || [];
+        }
+        setNbaGames(games.slice(0, 12));
+      }
+
+      // Standings — separar East y West
+      if (standRes.status === "fulfilled") {
+        const rows = standRes.value?.response || [];
+        const east = rows.filter(r => r.group?.name === "Eastern Conference").sort((a,b) => a.position - b.position);
+        const west = rows.filter(r => r.group?.name === "Western Conference").sort((a,b) => a.position - b.position);
+        setNbaStandings({ east, west });
+      }
+    } catch(e) {
+      setNbaErr("Error cargando datos NBA: " + e.message);
+    } finally {
+      setLoadingNBA(false);
+    }
+  };
+
+  const analyzeNbaGame = async (game) => {
+    setSelectedNbaGame(game);
+    setLoadingNbaAI(true); setNbaAiErr(""); setNbaAnalysis(null);
+    try {
+      const home = game.teams?.home?.name;
+      const away = game.teams?.away?.name;
+      const hScore = game.scores?.home?.total;
+      const aScore = game.scores?.away?.total;
+      const status = game.status?.long;
+
+      // Obtener stats recientes de ambos equipos
+      const [hGames, aGames] = await Promise.allSettled([
+        nbFetch(`/games?league=12&season=2024-2025&team=${game.teams?.home?.id}`),
+        nbFetch(`/games?league=12&season=2024-2025&team=${game.teams?.away?.id}`),
+      ]);
+
+      const getRecentGames = (res, teamId) => {
+        const all = res?.response || [];
+        return all
+          .filter(g => ["FT","AOT"].includes(g.status?.short))
+          .sort((a,b) => new Date(b.date) - new Date(a.date))
+          .slice(0,5);
+      };
+
+      const hRecent = hGames.status === "fulfilled" ? getRecentGames(hGames.value, game.teams?.home?.id) : [];
+      const aRecent = aGames.status === "fulfilled" ? getRecentGames(aGames.value, game.teams?.away?.id) : [];
+
+      const gameStats = (recent, teamId) => {
+        if (!recent.length) return null;
+        const pts = recent.map(g => {
+          const isHome = g.teams?.home?.id === teamId;
+          return isHome ? (g.scores?.home?.total||0) : (g.scores?.away?.total||0);
+        });
+        const ptsCon = recent.map(g => {
+          const isHome = g.teams?.home?.id === teamId;
+          return isHome ? (g.scores?.away?.total||0) : (g.scores?.home?.total||0);
+        });
+        const wins = recent.filter(g => {
+          const isHome = g.teams?.home?.id === teamId;
+          const scored = isHome ? g.scores?.home?.total : g.scores?.away?.total;
+          const conceded = isHome ? g.scores?.away?.total : g.scores?.home?.total;
+          return (scored||0) > (conceded||0);
+        }).length;
+        return {
+          avgPts: (pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1),
+          avgPtsCon: (ptsCon.reduce((a,b)=>a+b,0)/ptsCon.length).toFixed(1),
+          wins, games: recent.length,
+          results: recent.map(g => {
+            const isHome = g.teams?.home?.id === teamId;
+            const s = isHome ? g.scores?.home?.total : g.scores?.away?.total;
+            const c = isHome ? g.scores?.away?.total : g.scores?.home?.total;
+            return (s||0)>(c||0)?"W":"L";
+          }).join("-"),
+        };
+      };
+
+      const hStats = gameStats(hRecent, game.teams?.home?.id);
+      const aStats = gameStats(aRecent, game.teams?.away?.id);
+
+      const prompt = `Eres un analista experto de NBA con 15 años de experiencia en apuestas deportivas de basketball. Tu objetivo es encontrar VALUE BETS con alta probabilidad de acierto.
+
+PARTIDO: ${home} vs ${away}
+Estado: ${status}${hScore != null ? ` | Marcador actual: ${hScore}-${aScore}` : ""}
+
+STATS ${home} (últimos 5 partidos):
+${hStats ? `Puntos anotados prom: ${hStats.avgPts} | Puntos recibidos prom: ${hStats.avgPtsCon} | Record: ${hStats.wins}/${hStats.games} | Forma: ${hStats.results}` : "Sin datos disponibles"}
+
+STATS ${away} (últimos 5 partidos):
+${aStats ? `Puntos anotados prom: ${aStats.avgPts} | Puntos recibidos prom: ${aStats.avgPtsCon} | Record: ${aStats.wins}/${aStats.games} | Forma: ${aStats.results}` : "Sin datos disponibles"}
+
+Analiza y responde SOLO con JSON válido sin backticks:
+{"resumen":"Análisis de 2-3 oraciones del partido","ganadorProbable":"${home} o ${away}","probabilidades":{"home":52,"away":48},"apuestasDestacadas":[{"tipo":"Resultado","pick":"${home} o ${away}","odds_sugerido":"1.85","confianza":72,"razon":"Explicación"},{"tipo":"Total puntos","pick":"Más/Menos 220.5","odds_sugerido":"1.90","confianza":68,"razon":"Explicación"},{"tipo":"Hándicap","pick":"${home} -3.5","odds_sugerido":"1.87","confianza":65,"razon":"Explicación"}],"valueBet":{"existe":true,"mercado":"Total puntos","explicacion":"Por qué hay valor"},"alertas":["Alerta relevante"],"nivelConfianza":"ALTO/MEDIO/BAJO"}`;
+
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const parsed = JSON.parse(data.result);
+      setNbaAnalysis(parsed);
+    } catch(e) {
+      setNbaAiErr("Error en análisis IA: " + e.message);
+    } finally {
+      setLoadingNbaAI(false);
+    }
+  };
+
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
     <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
@@ -837,6 +986,10 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               📋 JORNADA
             </button>
           )}
+          <button onClick={()=>{ setShowNBA(true); if(!nbaGames.length) loadNBA(); }}
+            style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            🏀 NBA
+          </button>
           <button onClick={loadSaved}
             style={{background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📁 GUARDADAS
@@ -1971,6 +2124,191 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                 <span>🟩 Ganadas</span><span>🟥 Perdidas</span><span>🟨 Pendientes</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ PANEL NBA ═══ */}
+      {showNBA && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:200,overflowY:"auto",padding:"20px 16px"}}>
+          <div style={{maxWidth:900,margin:"0 auto"}}>
+            {/* Header NBA */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:28}}>🏀</span>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,letterSpacing:3,background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>NBA ANALYTICS</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={loadNBA} style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
+                  🔄 Actualizar
+                </button>
+                <button onClick={()=>{setShowNBA(false);setNbaAnalysis(null);setSelectedNbaGame(null);}} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:22}}>✕</button>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div style={{display:"flex",gap:4,marginBottom:18,background:"rgba(255,255,255,0.03)",borderRadius:10,padding:4}}>
+              {[["games","🏀 Partidos"],["standings","🏆 Tabla"]].map(([t,l])=>(
+                <button key={t} onClick={()=>setNbaTab(t)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
+                  background:nbaTab===t?"rgba(239,68,68,0.2)":"transparent",
+                  color:nbaTab===t?"#f87171":"#555",transition:"all 0.2s"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {loadingNBA && (
+              <div style={{textAlign:"center",padding:40,color:"#f87171"}}>
+                <div style={{fontSize:32,marginBottom:8}}>🏀</div>
+                <div style={{fontSize:13}}>Cargando datos NBA...</div>
+              </div>
+            )}
+            {nbaErr && <div style={{padding:14,background:"rgba(239,68,68,0.1)",borderRadius:8,color:"#f87171",fontSize:13,marginBottom:16}}>{nbaErr}</div>}
+
+            {/* TAB: Partidos */}
+            {nbaTab === "games" && !loadingNBA && (
+              <div>
+                {nbaGames.length === 0 && !loadingNBA && (
+                  <div style={{textAlign:"center",padding:40,color:"#555",fontSize:13}}>No se encontraron partidos para hoy. Intenta actualizar.</div>
+                )}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12,marginBottom:20}}>
+                  {nbaGames.map((g,i) => {
+                    const home = g.teams?.home;
+                    const away = g.teams?.away;
+                    const hScore = g.scores?.home?.total;
+                    const aScore = g.scores?.away?.total;
+                    const status = g.status?.short;
+                    const isLive = status === "LIVE" || status === "Q1" || status === "Q2" || status === "Q3" || status === "Q4" || status === "OT";
+                    const isDone = status === "FT" || status === "AOT";
+                    const isSelected = selectedNbaGame?.id === g.id;
+                    return (
+                      <div key={i} onClick={()=>analyzeNbaGame(g)}
+                        style={{...C.card,cursor:"pointer",borderColor:isSelected?"rgba(239,68,68,0.5)":isLive?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.07)",
+                          background:isSelected?"rgba(239,68,68,0.06)":"#0d1117",transition:"all 0.2s"}}>
+                        {/* Status badge */}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                          <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,
+                            background:isLive?"rgba(16,185,129,0.15)":isDone?"rgba(255,255,255,0.06)":"rgba(245,158,11,0.1)",
+                            color:isLive?"#10b981":isDone?"#555":"#f59e0b"}}>
+                            {isLive?"🔴 EN VIVO":isDone?"FT":g.time||g.date?.split("T")[1]?.slice(0,5)||"Próximo"}
+                          </span>
+                          {g.date && <span style={{fontSize:10,color:"#444"}}>{g.date?.split("T")[0]}</span>}
+                        </div>
+                        {/* Teams */}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                          <div style={{flex:1,textAlign:"center"}}>
+                            <div style={{fontSize:13,fontWeight:700,color:"#e8eaf0",marginBottom:2}}>{home?.name}</div>
+                            {(hScore!=null) && <div style={{fontSize:26,fontWeight:900,color:isDone&&hScore>aScore?"#10b981":"#e8eaf0"}}>{hScore}</div>}
+                          </div>
+                          <div style={{color:"#333",fontWeight:700,fontSize:13}}>VS</div>
+                          <div style={{flex:1,textAlign:"center"}}>
+                            <div style={{fontSize:13,fontWeight:700,color:"#e8eaf0",marginBottom:2}}>{away?.name}</div>
+                            {(aScore!=null) && <div style={{fontSize:26,fontWeight:900,color:isDone&&aScore>hScore?"#10b981":"#e8eaf0"}}>{aScore}</div>}
+                          </div>
+                        </div>
+                        <div style={{marginTop:10,textAlign:"center",fontSize:10,color:"#f87171",fontWeight:700}}>
+                          {isSelected ? "✓ Analizando..." : "Tap para predecir IA →"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Análisis IA NBA */}
+                {(loadingNbaAI || nbaAnalysis || nbaAiErr) && (
+                  <div style={{...C.card,borderColor:"rgba(239,68,68,0.25)",marginTop:8}}>
+                    <div style={{fontSize:12,color:"#f87171",fontWeight:700,letterSpacing:2,marginBottom:14}}>🤖 PREDICCIÓN IA — {selectedNbaGame?.teams?.home?.name} vs {selectedNbaGame?.teams?.away?.name}</div>
+                    {loadingNbaAI && <div style={{textAlign:"center",padding:24,color:"#f87171",fontSize:13}}>Analizando partido...</div>}
+                    {nbaAiErr && <div style={{color:"#ef4444",fontSize:12}}>{nbaAiErr}</div>}
+                    {nbaAnalysis && (
+                      <div>
+                        <p style={{color:"#aaa",fontSize:13,lineHeight:1.7,marginBottom:16}}>{nbaAnalysis.resumen}</p>
+                        {/* Probabilidades */}
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                          {[
+                            [selectedNbaGame?.teams?.home?.name, nbaAnalysis.probabilidades?.home, "#ef4444"],
+                            [selectedNbaGame?.teams?.away?.name, nbaAnalysis.probabilidades?.away, "#60a5fa"],
+                          ].map(([name,pct,color])=>(
+                            <div key={name} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                              <div style={{fontSize:11,color:"#555",marginBottom:4}}>{name}</div>
+                              <div style={{fontSize:28,fontWeight:900,color}}>{pct}%</div>
+                              <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:6,overflow:"hidden"}}>
+                                <div style={{width:`${pct}%`,height:"100%",background:color}}/>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Apuestas */}
+                        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+                          {(nbaAnalysis.apuestasDestacadas||[]).map((a,i)=>(
+                            <div key={i} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <div>
+                                <span style={{fontSize:10,color:"#f87171",fontWeight:700}}>{a.tipo} </span>
+                                <span style={{fontSize:13,color:"#e8eaf0",fontWeight:700}}>{a.pick}</span>
+                                <div style={{fontSize:11,color:"#555",marginTop:2}}>{a.razon}</div>
+                              </div>
+                              <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                                <div style={{fontSize:14,fontWeight:900,color:a.confianza>=75?"#10b981":a.confianza>=60?"#f59e0b":"#ef4444"}}>{a.confianza}%</div>
+                                <div style={{fontSize:10,color:"#444"}}>odds {a.odds_sugerido}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Value bet */}
+                        {nbaAnalysis.valueBet?.existe && (
+                          <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:12}}>
+                            <div style={{fontSize:10,color:"#f59e0b",fontWeight:700,marginBottom:4}}>💰 VALUE BET — {nbaAnalysis.valueBet.mercado}</div>
+                            <div style={{fontSize:12,color:"#aaa"}}>{nbaAnalysis.valueBet.explicacion}</div>
+                          </div>
+                        )}
+                        {/* Nivel confianza */}
+                        <div style={{textAlign:"center",padding:"8px",borderRadius:8,
+                          background:nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.08)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)",
+                          color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444",
+                          fontSize:12,fontWeight:700}}>
+                          {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza general: {nbaAnalysis.nivelConfianza}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: Standings */}
+            {nbaTab === "standings" && !loadingNBA && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                {[["east","🔵 Conferencia Este"],["west","🔴 Conferencia Oeste"]].map(([conf,label])=>(
+                  <div key={conf} style={C.card}>
+                    <div style={{fontSize:11,color:"#f87171",fontWeight:700,letterSpacing:2,marginBottom:12}}>{label}</div>
+                    {nbaStandings[conf].length === 0 && <div style={{color:"#444",fontSize:12,textAlign:"center",padding:20}}>Sin datos</div>}
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                      <thead>
+                        <tr style={{color:"#444"}}>
+                          <th style={{textAlign:"left",paddingBottom:6,fontWeight:600}}>#</th>
+                          <th style={{textAlign:"left",paddingBottom:6,fontWeight:600}}>Equipo</th>
+                          <th style={{textAlign:"center",paddingBottom:6,fontWeight:600}}>W</th>
+                          <th style={{textAlign:"center",paddingBottom:6,fontWeight:600}}>L</th>
+                          <th style={{textAlign:"center",paddingBottom:6,fontWeight:600}}>%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {nbaStandings[conf].map((t,i)=>(
+                          <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)"}}>
+                            <td style={{padding:"5px 0",color:i<8?"#f87171":"#555",fontWeight:700}}>{t.position}</td>
+                            <td style={{padding:"5px 0",color:i<8?"#e8eaf0":"#777"}}>{t.team?.name}</td>
+                            <td style={{textAlign:"center",color:"#10b981",fontWeight:700}}>{t.games?.win?.total}</td>
+                            <td style={{textAlign:"center",color:"#ef4444"}}>{t.games?.lose?.total}</td>
+                            <td style={{textAlign:"center",color:"#aaa"}}>{t.games?.win?.percentage ? (parseFloat(t.games.win.percentage)*100).toFixed(0)+"%" : "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {nbaStandings[conf].length > 0 && <div style={{fontSize:9,color:"#333",marginTop:8}}>🔴 Top 8 = Playoffs</div>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
