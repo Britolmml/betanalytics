@@ -147,7 +147,7 @@ const SBar = ({label,val,max,color,dimmed}) => (
       <span style={{fontWeight:700,color}}>{dimmed ? "N/D" : val}</span>
     </div>
     <div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}>
-      <div style={{width:dimmed?"0%":`${Math.min((val/(max||1))*100,100)}%`,height:"100%",background:color,borderRadius:2}}/>
+      {(()=>{const bw=dimmed?"0%":Math.min((val/(max||1))*100,100)+"%"; return <div style={{width:bw,height:"100%",background:color,borderRadius:2}}/>; })()}
     </div>
   </div>
 );
@@ -2131,9 +2131,9 @@ Responde SOLO con JSON válido sin backticks:
                         <span style={{color:"#555"}}>{d.won}G · {d.lost}P · {d.pending}⏳ {rate!==null?`· ${rate}% acierto`:""}</span>
                       </div>
                       <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden",display:"flex"}}>
-                        <div style={{width:`${(d.won/total)*100}%`,background:"#10b981",transition:"width 0.5s"}}/>
-                        <div style={{width:`${(d.lost/total)*100}%`,background:"#ef4444",transition:"width 0.5s"}}/>
-                        <div style={{width:`${(d.pending/total)*100}%`,background:"rgba(245,158,11,0.4)",transition:"width 0.5s"}}/>
+                        <div style={{width:(d.won/total*100).toFixed(1)+"%",background:"#10b981",transition:"width 0.5s"}}/>
+                        <div style={{width:(d.lost/total*100).toFixed(1)+"%",background:"#ef4444",transition:"width 0.5s"}}/>
+                        <div style={{width:(d.pending/total*100).toFixed(1)+"%",background:"rgba(245,158,11,0.4)",transition:"width 0.5s"}}/>
                       </div>
                     </div>
                   );
@@ -2158,13 +2158,13 @@ Responde SOLO con JSON válido sin backticks:
                     <div key={m} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                       <span style={{fontSize:11,color:"#555",minWidth:65}}>{m}</span>
                       <div style={{flex:1,height:20,background:"rgba(255,255,255,0.04)",borderRadius:4,overflow:"hidden",display:"flex"}}>
-                        <div style={{width:`${(d.won/maxTotal)*100}%`,background:"rgba(16,185,129,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <div style={{width:(d.won/maxTotal*100).toFixed(1)+"%",background:"rgba(16,185,129,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
                           {d.won>0&&<span style={{fontSize:9,color:"#fff",fontWeight:700}}>{d.won}</span>}
                         </div>
-                        <div style={{width:`${(d.lost/maxTotal)*100}%`,background:"rgba(239,68,68,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <div style={{width:(d.lost/maxTotal*100).toFixed(1)+"%",background:"rgba(239,68,68,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
                           {d.lost>0&&<span style={{fontSize:9,color:"#fff",fontWeight:700}}>{d.lost}</span>}
                         </div>
-                        <div style={{width:`${(d.pending/maxTotal)*100}%`,background:"rgba(245,158,11,0.4)"}}/>
+                        <div style={{width:(d.pending/maxTotal*100).toFixed(1)+"%",background:"rgba(245,158,11,0.4)"}}/>
                       </div>
                       <span style={{fontSize:10,color:"#444",minWidth:30}}>{total} total</span>
                     </div>
@@ -2321,17 +2321,19 @@ Responde SOLO con JSON válido sin backticks:
                                   {[
                                     ["Puntos/partido", stats.avgPts, 130, "#f97316"],
                                     ["Puntos recibidos", stats.avgPtsCon, 130, "#ef4444"],
-                                  ].map(([label,val,max,color])=>(
+                                  ].map(([label,val,max,color])=>{
+                                    const barW = Math.min((val/max)*100, 100) + "%";
+                                    return (
                                     <div key={label} style={{marginBottom:8}}>
                                       <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
                                         <span style={{color:"#666"}}>{label}</span>
                                         <span style={{fontWeight:800,color}}>{val}</span>
                                       </div>
                                       <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
-                                        <div style={{width:`${Math.min((val/max)*100,100)}%`,height:"100%",background:color,borderRadius:2}}/>
+                                        <div style={{width:barW,height:"100%",background:color,borderRadius:2}}/>
                                       </div>
                                     </div>
-                                  ))}
+                                  );})}
                                   <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11}}>
                                     <span style={{color:"#666"}}>Forma reciente</span>
                                     <span style={{fontWeight:700,color:"#10b981"}}>{stats.results || "N/D"}</span>
