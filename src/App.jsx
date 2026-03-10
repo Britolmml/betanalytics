@@ -864,32 +864,29 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
   const loadNBA = async () => {
     setLoadingNBA(true); setNbaErr("");
     try {
-      // Partidos de hoy y próximos 3 días — NBA league id = 12, season 2024-2025
-      const today = new Date().toISOString().split("T")[0];
-      const [gamesRes, standRes] = await Promise.allSettled([
-        nbFetch(`/games?league=12&season=2024-2025&date=${today}`),
-        nbFetch(`/standings?league=12&season=2024-2025`),
-      ]);
+      // Buscar partidos — usar hora del Este (NBA) en vez de UTC
+      const getESTDate = (offsetDays = 0) => {
+        const d = new Date(Date.now() + offsetDays * 86400000);
+        // Convertir a EST (UTC-5) / EDT (UTC-4)
+        const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
+        return est.toISOString().split("T")[0];
+      };
 
-      // Partidos
-      if (gamesRes.status === "fulfilled") {
-        let games = gamesRes.value?.response || [];
-        // Si no hay partidos hoy, buscar próximos
-        if (games.length === 0) {
-          const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-          const next = await nbFetch(`/games?league=12&season=2024-2025&date=${tomorrow}`);
-          games = next?.response || [];
-        }
-        setNbaGames(games.slice(0, 12));
+      let games = [];
+      for (let i = 0; i <= 4; i++) {
+        const dateStr = getESTDate(i);
+        const res = await nbFetch(`/games?league=12&season=2024-2025&date=${dateStr}`);
+        const found = res?.response || [];
+        if (found.length > 0) { games = found; break; }
       }
+      setNbaGames(games.slice(0, 12));
 
       // Standings — separar East y West
-      if (standRes.status === "fulfilled") {
-        const rows = standRes.value?.response || [];
-        const east = rows.filter(r => r.group?.name === "Eastern Conference").sort((a,b) => a.position - b.position);
-        const west = rows.filter(r => r.group?.name === "Western Conference").sort((a,b) => a.position - b.position);
-        setNbaStandings({ east, west });
-      }
+      const standRes = await nbFetch(`/standings?league=12&season=2024-2025`);
+      const rows = standRes?.response || [];
+      const east = rows.filter(r => r.group?.name === "Eastern Conference").sort((a,b) => a.position - b.position);
+      const west = rows.filter(r => r.group?.name === "Western Conference").sort((a,b) => a.position - b.position);
+      setNbaStandings({ east, west });
     } catch(e) {
       setNbaErr("Error cargando datos NBA: " + e.message);
     } finally {
