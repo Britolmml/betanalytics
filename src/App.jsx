@@ -856,7 +856,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
   /* ─── NBA FUNCTIONS ──────────────────────────────────────── */
   const nbFetch = async (path) => {
-    const url = `/api/basketball?path=${encodeURIComponent(path)}`;
+    const url = `https://nba-proxy-snowy.vercel.app/api/basketball?path=${encodeURIComponent(path)}`;
     const res = await fetch(url);
     return res.json();
   };
