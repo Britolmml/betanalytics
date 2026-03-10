@@ -217,6 +217,7 @@ export default function App() {
   const [loadingNBA,      setLoadingNBA]       = useState(false);
   const [nbaErr,          setNbaErr]           = useState("");
   const [nbaTab,          setNbaTab]           = useState("games");
+  const [nbaGamePreview,  setNbaGamePreview]   = useState(null);
   const [nbaAnalysis,     setNbaAnalysis]      = useState(null);
   const [loadingNbaAI,    setLoadingNbaAI]     = useState(false);
   const [nbaAiErr,        setNbaAiErr]         = useState("");
@@ -894,8 +895,64 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     }
   };
 
+  const getRecentNbaGames = (res, teamId) => {
+    const all = res?.response || [];
+    return all
+      .filter(g => g.status?.short === 3)
+      .sort((a,b) => new Date(b.date?.start) - new Date(a.date?.start))
+      .slice(0,5);
+  };
+
+  const calcNbaStats = (recent, teamId) => {
+    if (!recent.length) return null;
+    const pts = recent.map(g => {
+      const isHome = g.teams?.home?.id === teamId;
+      return isHome ? (g.scores?.home?.points||0) : (g.scores?.visitors?.points||0);
+    });
+    const ptsCon = recent.map(g => {
+      const isHome = g.teams?.home?.id === teamId;
+      return isHome ? (g.scores?.visitors?.points||0) : (g.scores?.home?.points||0);
+    });
+    const wins = recent.filter(g => {
+      const isHome = g.teams?.home?.id === teamId;
+      const s = isHome ? g.scores?.home?.points : g.scores?.visitors?.points;
+      const c = isHome ? g.scores?.visitors?.points : g.scores?.home?.points;
+      return (s||0) > (c||0);
+    }).length;
+    return {
+      avgPts: (pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1),
+      avgPtsCon: (ptsCon.reduce((a,b)=>a+b,0)/ptsCon.length).toFixed(1),
+      wins, games: recent.length,
+      results: recent.map(g => {
+        const isHome = g.teams?.home?.id === teamId;
+        const s = isHome ? g.scores?.home?.points : g.scores?.visitors?.points;
+        const c = isHome ? g.scores?.visitors?.points : g.scores?.home?.points;
+        return (s||0)>(c||0)?"W":"L";
+      }).join("-"),
+    };
+  };
+
   const analyzeNbaGame = async (game) => {
+    if (selectedNbaGame?.id === game.id) return; // ya seleccionado
     setSelectedNbaGame(game);
+    setNbaAnalysis(null); setNbaAiErr(""); setNbaGamePreview(null);
+    setLoadingNbaAI(true);
+    try {
+      const [hGames, aGames] = await Promise.allSettled([
+        nbFetch(`/games?season=2025&team=${game.teams?.home?.id}`),
+        nbFetch(`/games?season=2025&team=${game.teams?.visitors?.id}`),
+      ]);
+      const hStats = calcNbaStats(hGames.status==="fulfilled" ? getRecentNbaGames(hGames.value, game.teams?.home?.id) : [], game.teams?.home?.id);
+      const aStats = calcNbaStats(aGames.status==="fulfilled" ? getRecentNbaGames(aGames.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
+      setNbaGamePreview({ home: hStats, away: aStats });
+    } catch(e) {
+      setNbaAiErr("Error cargando stats: " + e.message);
+    } finally {
+      setLoadingNbaAI(false);
+    }
+  };
+
+  const runNbaAI = async (game, preview) => {
     setLoadingNbaAI(true); setNbaAiErr(""); setNbaAnalysis(null);
     try {
       const home = game.teams?.home?.name;
@@ -903,57 +960,9 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const hScore = game.scores?.home?.points;
       const aScore = game.scores?.visitors?.points;
       const status = game.status?.long;
+      const hStats = preview?.home;
+      const aStats = preview?.away;
 
-      // Obtener stats recientes de ambos equipos
-      const [hGames, aGames] = await Promise.allSettled([
-        nbFetch(`/games?season=2025&team=${game.teams?.home?.id}`),
-        nbFetch(`/games?season=2025&team=${game.teams?.visitors?.id}`),
-      ]);
-
-      const getRecentGames = (res, teamId) => {
-        const all = res?.response || [];
-        return all
-          .filter(g => g.status?.short === 3)
-          .sort((a,b) => new Date(b.date?.start) - new Date(a.date?.start))
-          .slice(0,5);
-      };
-
-      const hRecent = hGames.status === "fulfilled" ? getRecentGames(hGames.value, game.teams?.home?.id) : [];
-      const aRecent = aGames.status === "fulfilled" ? getRecentGames(aGames.value, game.teams?.visitors?.id) : [];
-
-      const gameStats = (recent, teamId) => {
-        if (!recent.length) return null;
-        const pts = recent.map(g => {
-          const isHome = g.teams?.home?.id === teamId;
-          return isHome ? (g.scores?.home?.points||0) : (g.scores?.visitors?.points||0);
-        });
-        const ptsCon = recent.map(g => {
-          const isHome = g.teams?.home?.id === teamId;
-          return isHome ? (g.scores?.visitors?.points||0) : (g.scores?.home?.points||0);
-        });
-        const wins = recent.filter(g => {
-          const isHome = g.teams?.home?.id === teamId;
-          const scored = isHome ? g.scores?.home?.points : g.scores?.visitors?.points;
-          const conceded = isHome ? g.scores?.visitors?.points : g.scores?.home?.points;
-          return (scored||0) > (conceded||0);
-        }).length;
-        return {
-          avgPts: (pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1),
-          avgPtsCon: (ptsCon.reduce((a,b)=>a+b,0)/ptsCon.length).toFixed(1),
-          wins, games: recent.length,
-          results: recent.map(g => {
-            const isHome = g.teams?.home?.id === teamId;
-            const s = isHome ? g.scores?.home?.points : g.scores?.visitors?.points;
-            const c = isHome ? g.scores?.visitors?.points : g.scores?.home?.points;
-            return (s||0)>(c||0)?"W":"L";
-          }).join("-"),
-        };
-      };
-
-      const hStats = gameStats(hRecent, game.teams?.home?.id);
-      const aStats = gameStats(aRecent, game.teams?.visitors?.id);
-
-      // Calcular líneas sugeridas basadas en promedios reales
       const hAvg = parseFloat(hStats?.avgPts || 110);
       const aAvg = parseFloat(aStats?.avgPts || 110);
       const hCon = parseFloat(hStats?.avgPtsCon || 110);
@@ -2213,7 +2222,7 @@ Responde SOLO con JSON válido sin backticks:
                 {nbaGames.length === 0 && !loadingNBA && (
                   <div style={{textAlign:"center",padding:40,color:"#555",fontSize:13}}>No se encontraron partidos para hoy. Intenta actualizar.</div>
                 )}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12,marginBottom:20}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14,marginBottom:20}}>
                   {nbaGames.map((g,i) => {
                     const home = g.teams?.home;
                     const away = g.teams?.visitors;
@@ -2223,44 +2232,141 @@ Responde SOLO con JSON válido sin backticks:
                     const isLive = [1,2,3,4].includes(status) || status === "HT";
                     const isDone = status === 3 && g.periods?.current === 4;
                     const isSelected = selectedNbaGame?.id === g.id;
+                    const hWin = isDone && hScore > aScore;
+                    const aWin = isDone && aScore > hScore;
+                    // Hora local
+                    const timeStr = g.date?.start ? new Date(g.date.start).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}) : "";
                     return (
                       <div key={i} onClick={()=>analyzeNbaGame(g)}
-                        style={{...C.card,cursor:"pointer",borderColor:isSelected?"rgba(239,68,68,0.5)":isLive?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.07)",
-                          background:isSelected?"rgba(239,68,68,0.06)":"#0d1117",transition:"all 0.2s"}}>
-                        {/* Status badge */}
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                          <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,
-                            background:isLive?"rgba(16,185,129,0.15)":isDone?"rgba(255,255,255,0.06)":"rgba(245,158,11,0.1)",
-                            color:isLive?"#10b981":isDone?"#555":"#f59e0b"}}>
-                            {isLive?"🔴 EN VIVO":isDone?"FT":g.date?.start?.split("T")[1]?.slice(0,5)||"Próximo"}
+                        style={{cursor:"pointer", borderRadius:14, overflow:"hidden",
+                          border: isSelected ? "1.5px solid rgba(239,68,68,0.6)" : isLive ? "1.5px solid rgba(16,185,129,0.35)" : "1.5px solid rgba(255,255,255,0.07)",
+                          background: isSelected ? "rgba(239,68,68,0.07)" : "#0d1117",
+                          transition:"all 0.2s", boxShadow: isSelected ? "0 0 20px rgba(239,68,68,0.1)" : "none"}}>
+                        {/* Header status */}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",
+                          background: isLive ? "rgba(16,185,129,0.08)" : isDone ? "rgba(255,255,255,0.03)" : "rgba(245,158,11,0.06)"}}>
+                          <span style={{fontSize:11,fontWeight:800,letterSpacing:1,
+                            color: isLive?"#10b981" : isDone?"#666" : "#f59e0b"}}>
+                            {isLive ? "🔴 EN VIVO" : isDone ? "⏱ FINAL" : `🕐 ${timeStr}`}
                           </span>
-                          {g.date?.start && <span style={{fontSize:10,color:"#444"}}>{g.date.start.split("T")[0]}</span>}
+                          <span style={{fontSize:10,color:"#444"}}>{g.arena?.city || ""}</span>
                         </div>
-                        {/* Teams */}
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                          <div style={{flex:1,textAlign:"center"}}>
-                            <div style={{fontSize:13,fontWeight:700,color:"#e8eaf0",marginBottom:2}}>{home?.name}</div>
-                            {(hScore!=null) && <div style={{fontSize:26,fontWeight:900,color:isDone&&hScore>aScore?"#10b981":"#e8eaf0"}}>{hScore}</div>}
+                        {/* Teams + Score */}
+                        <div style={{padding:"14px 16px"}}>
+                          {/* Home */}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>
+                                {home?.code?.[0] || "?"}
+                              </div>
+                              <div>
+                                <div style={{fontSize:15,fontWeight:800,color: hWin?"#10b981":"#e8eaf0",lineHeight:1.1}}>{home?.name}</div>
+                                <div style={{fontSize:10,color:"#555"}}>{home?.code}</div>
+                              </div>
+                            </div>
+                            <div style={{fontSize: hScore!=null?32:18, fontWeight:900, color: hWin?"#10b981": isLive?"#fff":"#e8eaf0", minWidth:40, textAlign:"right"}}>
+                              {hScore != null ? hScore : (isDone||isLive) ? "—" : ""}
+                            </div>
                           </div>
-                          <div style={{color:"#333",fontWeight:700,fontSize:13}}>VS</div>
-                          <div style={{flex:1,textAlign:"center"}}>
-                            <div style={{fontSize:13,fontWeight:700,color:"#e8eaf0",marginBottom:2}}>{away?.name}</div>
-                            {(aScore!=null) && <div style={{fontSize:26,fontWeight:900,color:isDone&&aScore>hScore?"#10b981":"#e8eaf0"}}>{aScore}</div>}
+                          {/* Divider */}
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                            <div style={{flex:1,height:1,background:"rgba(255,255,255,0.05)"}}/>
+                            <span style={{fontSize:10,color:"#444",fontWeight:700}}>VS</span>
+                            <div style={{flex:1,height:1,background:"rgba(255,255,255,0.05)"}}/>
+                          </div>
+                          {/* Away */}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>
+                                {away?.code?.[0] || "?"}
+                              </div>
+                              <div>
+                                <div style={{fontSize:15,fontWeight:800,color: aWin?"#10b981":"#e8eaf0",lineHeight:1.1}}>{away?.name}</div>
+                                <div style={{fontSize:10,color:"#555"}}>{away?.code}</div>
+                              </div>
+                            </div>
+                            <div style={{fontSize: aScore!=null?32:18, fontWeight:900, color: aWin?"#10b981": isLive?"#fff":"#e8eaf0", minWidth:40, textAlign:"right"}}>
+                              {aScore != null ? aScore : (isDone||isLive) ? "—" : ""}
+                            </div>
                           </div>
                         </div>
-                        <div style={{marginTop:10,textAlign:"center",fontSize:10,color:"#f87171",fontWeight:700}}>
-                          {isSelected ? "✓ Analizando..." : "Tap para predecir IA →"}
+                        {/* Footer CTA */}
+                        <div style={{padding:"8px 16px",borderTop:"1px solid rgba(255,255,255,0.04)",textAlign:"center",
+                          fontSize:11,fontWeight:700,color: isSelected?"#f87171":"#555",letterSpacing:0.5}}>
+                          {isSelected ? "✓ Seleccionado — ver predicción abajo" : "🤖 Tap para predicción IA →"}
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Análisis IA NBA */}
-                {(loadingNbaAI || nbaAnalysis || nbaAiErr) && (
+                {/* Preview partido seleccionado + Análisis IA NBA */}
+                {selectedNbaGame && (
+                  <div style={{marginTop:8}}>
+                    {/* Preview stats */}
+                    {nbaGamePreview && !loadingNbaAI && (
+                      <div style={{...C.card,borderColor:"rgba(255,255,255,0.08)",marginBottom:12}}>
+                        <div style={{fontSize:11,color:"#666",fontWeight:700,letterSpacing:2,marginBottom:14}}>
+                          📊 VISTA PREVIA — {selectedNbaGame.teams?.home?.name} vs {selectedNbaGame.teams?.visitors?.name}
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                          {[
+                            {team: selectedNbaGame.teams?.home?.name, stats: nbaGamePreview.home},
+                            {team: selectedNbaGame.teams?.visitors?.name, stats: nbaGamePreview.away},
+                          ].map(({team, stats}) => (
+                            <div key={team}>
+                              <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0",marginBottom:10,textAlign:"center"}}>{team}</div>
+                              {stats ? (
+                                <div>
+                                  {[
+                                    ["Puntos/partido", stats.avgPts, 130, "#f97316"],
+                                    ["Puntos recibidos", stats.avgPtsCon, 130, "#ef4444"],
+                                  ].map(([label,val,max,color])=>(
+                                    <div key={label} style={{marginBottom:8}}>
+                                      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
+                                        <span style={{color:"#666"}}>{label}</span>
+                                        <span style={{fontWeight:800,color}}>{val}</span>
+                                      </div>
+                                      <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
+                                        <div style={{width:`${Math.min((val/max)*100,100)}%`,height:"100%",background:color,borderRadius:2}}/>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11}}>
+                                    <span style={{color:"#666"}}>Forma reciente</span>
+                                    <span style={{fontWeight:700,color:"#10b981"}}>{stats.results || "N/D"}</span>
+                                  </div>
+                                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:4}}>
+                                    <span style={{color:"#666"}}>Record últimos 5</span>
+                                    <span style={{fontWeight:700,color:"#aaa"}}>{stats.wins}V / {(stats.games||5)-stats.wins}D</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{textAlign:"center",color:"#555",fontSize:12}}>Sin datos</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={()=>runNbaAI(selectedNbaGame, nbaGamePreview)} 
+                          style={{width:"100%",marginTop:16,padding:"10px",borderRadius:10,border:"none",
+                            background:"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,
+                            fontSize:13,cursor:"pointer",letterSpacing:1}}>
+                          🤖 GENERAR PREDICCIÓN IA
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Loading preview */}
+                    {loadingNbaAI && !nbaAnalysis && !nbaGamePreview && (
+                      <div style={{...C.card,textAlign:"center",padding:24,color:"#f87171",fontSize:13,marginBottom:12}}>
+                        ⏳ Cargando estadísticas del partido...
+                      </div>
+                    )}
+
+                  {(loadingNbaAI && nbaGamePreview || nbaAnalysis || nbaAiErr) && (
                   <div style={{...C.card,borderColor:"rgba(239,68,68,0.25)",marginTop:8}}>
                     <div style={{fontSize:12,color:"#f87171",fontWeight:700,letterSpacing:2,marginBottom:14}}>🤖 PREDICCIÓN IA — {selectedNbaGame?.teams?.home?.name} vs {selectedNbaGame?.teams?.visitors?.name}</div>
-                    {loadingNbaAI && <div style={{textAlign:"center",padding:24,color:"#f87171",fontSize:13}}>Analizando partido...</div>}
+                    {loadingNbaAI && <div style={{textAlign:"center",padding:24,color:"#f87171",fontSize:13}}>Generando predicción IA...</div>}
                     {nbaAiErr && <div style={{color:"#ef4444",fontSize:12}}>{nbaAiErr}</div>}
                     {nbaAnalysis && (
                       <div>
@@ -2316,7 +2422,8 @@ Responde SOLO con JSON válido sin backticks:
                       </div>
                     )}
                   </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
