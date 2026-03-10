@@ -854,11 +854,6 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     setCompareData(prev => prev.filter(d => d.team.id !== teamId));
   };
 
-  const removeFromCompare = (teamId) => {
-    setCompareTeams(prev => prev.filter(t => t.id !== teamId));
-    setCompareData(prev => prev.filter(d => d.team.id !== teamId));
-  };
-
   /* ─── NBA FUNCTIONS ──────────────────────────────────────── */
   const nbFetch = async (path) => {
     const url = `/api/basketball?path=${encodeURIComponent(path)}`;
