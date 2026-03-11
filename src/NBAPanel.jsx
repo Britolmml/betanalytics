@@ -11,9 +11,20 @@ async function nbFetch(path) {
 }
 
 function getESTDate(offsetDays = 0) {
-  const d = new Date(Date.now() + offsetDays * 86400000);
-  const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  return est.toISOString().split("T")[0];
+  // Usar America/New_York que maneja EST/EDT automáticamente
+  const now = new Date();
+  const estStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(now);
+  // estStr = "YYYY-MM-DD"
+  const [y, m, d] = estStr.split("-").map(Number);
+  const base = new Date(y, m - 1, d);
+  base.setDate(base.getDate() + offsetDays);
+  const yr = base.getFullYear();
+  const mo = String(base.getMonth() + 1).padStart(2, "0");
+  const dy = String(base.getDate()).padStart(2, "0");
+  return yr + "-" + mo + "-" + dy;
 }
 
 function getRecentGames(res, teamId) {
@@ -433,11 +444,28 @@ export default function NBAPanel({ onClose }) {
   const loadNBA = async () => {
     setLoading(true); setErr("");
     try {
+      // Buscar partidos: primero hoy EST, luego mañana, luego ayer
+      // Priorizar si hay partidos en vivo o de hoy
+      const offsets = [0, 1, -1, 2, -2];
       let found = [];
-      for (let i = 0; i <= 4; i++) {
-        const res = await nbFetch("/games?season=2025&date=" + getESTDate(i));
-        found = res?.response || [];
-        if (found.length > 0) break;
+      let bestScore = -1;
+
+      for (const offset of offsets) {
+        const dateStr = getESTDate(offset);
+        const res = await nbFetch("/games?season=2025&date=" + dateStr);
+        const games = res?.response || [];
+        if (!games.length) continue;
+
+        // Calcular score: en vivo > hoy pendiente > ayer/mañana
+        const liveCount = games.filter(g => g.status?.short !== 3 && g.status?.short !== 1).length;
+        const score = liveCount * 10 + games.length;
+
+        if (score > bestScore) {
+          bestScore = score;
+          found = games;
+          // Si hay partidos en vivo, usar estos sin seguir buscando
+          if (liveCount > 0) break;
+        }
       }
       setGames(found.slice(0, 12));
 
