@@ -11,11 +11,10 @@ async function nbFetch(path) {
 }
 
 function getESTDate(offsetDays = 0) {
-  // Obtener la fecha actual en EST/EDT correctamente usando Intl
   const todayEST = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date()); // devuelve "YYYY-MM-DD"
+  }).format(new Date());
   const [y, m, d] = todayEST.split("-").map(Number);
   const dt = new Date(y, m - 1, d + offsetDays);
   return dt.getFullYear() + "-"
@@ -350,11 +349,11 @@ export default function NBAPanel({ onClose }) {
         "LOCAL " + home + ": " + hSL + (topH ? " | Top jugadores: " + topH : "") + " | " +
         "VISITA " + away + ": " + aSL + (topA ? " | Top jugadores: " + topA : "") + " | " +
         "Lineas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
-        "Responde SOLO JSON sin backticks: " +
-        "{"resumen":"string","ganadorProbable":"string","probabilidades":{"home":52,"away":48}," +
-        ""apuestasDestacadas":[{"tipo":"string","pick":"string","odds_sugerido":"string","confianza":75,"razon":"string","categoria":"principal","jugador":null}]," +
-        ""valueBet":{"existe":true,"mercado":"string","explicacion":"string","odds_recomendado":"string"}," +
-        ""alertas":["string"],"nivelConfianza":"ALTO","razonConfianza":"string"}";
+        "Responde SOLO JSON, responde SOLO el objeto JSON sin texto extra: " +
+        JSON.stringify({resumen:"string",ganadorProbable:"string",probabilidades:{home:52,away:48},
+        apuestasDestacadas:[{tipo:"string",pick:"string",odds_sugerido:"string",confianza:75,razon:"string",categoria:"principal",jugador:null}],
+        valueBet:{existe:true,mercado:"string",explicacion:"string",odds_recomendado:"string"},
+        alertas:["string"],nivelConfianza:"ALTO",razonConfianza:"string"});
 
       const res = await fetch("/api/predict", {
         method: "POST",
