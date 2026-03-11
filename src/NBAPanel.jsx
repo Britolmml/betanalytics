@@ -444,30 +444,39 @@ export default function NBAPanel({ onClose }) {
   const loadNBA = async () => {
     setLoading(true); setErr("");
     try {
-      // Buscar partidos: primero hoy EST, luego mañana, luego ayer
-      // Priorizar si hay partidos en vivo o de hoy
-      const offsets = [0, 1, -1, 2, -2];
+      // Estrategia: buscar hoy Y ayer Y mañana en paralelo
+      // Mostrar: en vivo primero, luego pendientes de hoy, luego terminados de hoy
+      // Solo usar otra fecha si hoy no tiene absolutamente nada
+      const [resYest, resToday, resTomorrow] = await Promise.all([
+        nbFetch("/games?season=2025&date=" + getESTDate(-1)),
+        nbFetch("/games?season=2025&date=" + getESTDate(0)),
+        nbFetch("/games?season=2025&date=" + getESTDate(1)),
+      ]);
+
+      const todayGames   = resToday?.response   || [];
+      const tomorrowGames = resTomorrow?.response || [];
+      const yesterdayGames = resYest?.response   || [];
+
       let found = [];
-      let bestScore = -1;
 
-      for (const offset of offsets) {
-        const dateStr = getESTDate(offset);
-        const res = await nbFetch("/games?season=2025&date=" + dateStr);
-        const games = res?.response || [];
-        if (!games.length) continue;
-
-        // Calcular score: en vivo > hoy pendiente > ayer/mañana
-        const liveCount = games.filter(g => g.status?.short !== 3 && g.status?.short !== 1).length;
-        const score = liveCount * 10 + games.length;
-
-        if (score > bestScore) {
-          bestScore = score;
-          found = games;
-          // Si hay partidos en vivo, usar estos sin seguir buscando
-          if (liveCount > 0) break;
-        }
+      if (todayGames.length > 0) {
+        // Hay partidos hoy — mostrarlos todos ordenados: en vivo > pendientes > terminados
+        const statusOrder = g => {
+          const s = g.status?.short;
+          if (s !== 1 && s !== 3) return 0;  // en vivo
+          if (s === 1) return 1;              // por empezar
+          return 2;                           // terminado
+        };
+        found = [...todayGames].sort((a, b) => statusOrder(a) - statusOrder(b));
+      } else if (tomorrowGames.length > 0) {
+        // No hay hoy, mostrar mañana
+        found = tomorrowGames;
+      } else {
+        // Nada, mostrar ayer
+        found = yesterdayGames;
       }
-      setGames(found.slice(0, 12));
+
+      setGames(found.slice(0, 15));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
