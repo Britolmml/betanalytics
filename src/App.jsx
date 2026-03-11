@@ -973,34 +973,52 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const hTeamLine = ((hAvg + aCon) / 2).toFixed(1);
       const aTeamLine = ((aAvg + hCon) / 2).toFixed(1);
 
-      const prompt = `Eres un analista experto de NBA con 15 años de experiencia en apuestas deportivas de basketball. Tu especialidad son los mercados de BAJA VOLATILIDAD con alta consistencia: totales de puntos y puntos por equipo. Evitas mercados impredecibles.
+      const hRecord = hStats ? (hStats.wins + "V/" + ((hStats.games||5)-hStats.wins) + "D") : "N/D";
+      const aRecord = aStats ? (aStats.wins + "V/" + ((aStats.games||5)-aStats.wins) + "D") : "N/D";
+      const hStatsLine = hStats ? ("Puntos anotados prom: " + hStats.avgPts + " | Puntos recibidos prom: " + hStats.avgPtsCon + " | Record: " + hRecord + " | Forma: " + hStats.results) : "Sin datos disponibles";
+      const aStatsLine = aStats ? ("Puntos anotados prom: " + aStats.avgPts + " | Puntos recibidos prom: " + aStats.avgPtsCon + " | Record: " + aRecord + " | Forma: " + aStats.results) : "Sin datos disponibles";
+      const scoreLine = hScore != null ? (" | Marcador actual: " + hScore + "-" + aScore) : "";
+      const jsonTemplate = '{"resumen":"Análisis de 3 oraciones enfocado en consistencia de totales","ganadorProbable":"EQUIPO","probabilidades":{"home":52,"away":48},"apuestasDestacadas":[{"tipo":"Total puntos partido","pick":"Más/Menos TOTAL","odds_sugerido":"1.90","confianza":75,"razon":"Basado en promedios"},{"tipo":"Total puntos LOCAL","pick":"Más/Menos HLINE","odds_sugerido":"1.87","confianza":78,"razon":"Consistencia local"},{"tipo":"Total puntos VISITA","pick":"Más/Menos ALINE","odds_sugerido":"1.87","confianza":74,"razon":"Consistencia visitante"}],"valueBet":{"existe":true,"mercado":"Mercado con valor","explicacion":"Razón del valor"},"alertas":["Alerta relevante"],"nivelConfianza":"ALTO","razonConfianza":"Razón de confianza"}';
+      const prompt = "Eres un analista experto de NBA especializado en totales de puntos.
 
-PARTIDO: ${home} vs ${away}
-Estado: ${status}${hScore != null ? ` | Marcador actual: ${hScore}-${aScore}` : ""}
+" +
+        "PARTIDO: " + home + " vs " + away + "
+" +
+        "Estado: " + status + scoreLine + "
 
-════ STATS ${home} — últimos 5 partidos ════
-${hStats ? `Puntos anotados prom: ${hStats.avgPts} | Puntos recibidos prom: ${hStats.avgPtsCon} | Record: ${hStats.wins}V/${hStats.games-hStats.wins}D | Forma: ${hStats.results}` : "Sin datos disponibles"}
+" +
+        "STATS " + home + " (últimos 5):
+" + hStatsLine + "
 
-════ STATS ${away} — últimos 5 partidos ════
-${aStats ? `Puntos anotados prom: ${aStats.avgPts} | Puntos recibidos prom: ${aStats.avgPtsCon} | Record: ${aStats.wins}V/${aStats.games-aStats.wins}D | Forma: ${aStats.results}` : "Sin datos disponibles"}
+" +
+        "STATS " + away + " (últimos 5):
+" + aStatsLine + "
 
-════ LÍNEAS CALCULADAS (basadas en promedios reales) ════
-Total puntos esperado del partido: ${totalLine}
-Puntos esperados ${home}: ${hTeamLine}
-Puntos esperados ${away}: ${aTeamLine}
+" +
+        "LÍNEAS: Total=" + totalLine + " | " + home + "=" + hTeamLine + " | " + away + "=" + aTeamLine + "
 
-════ INSTRUCCIONES ════
-1. Analiza la consistencia de los totales — ¿ambos equipos son predecibles en puntos anotados?
-2. Para Total puntos: usa la línea ${totalLine} como referencia. Si la desviación estándar es baja (equipos consistentes), aumenta confianza.
-3. Para Total por equipo: usa ${hTeamLine} para ${home} y ${aTeamLine} para ${away}. El mercado más seguro es el equipo MÁS consistente.
-4. Para Resultado: solo recomienda si hay diferencia clara de forma (≥3 victorias de diferencia en últimos 5).
-5. Para Hándicap: solo spreads entre 3.5 y 7.5, nunca spreads extremos.
-6. Confianza 80%+: equipo muy consistente en puntos últimos 5 partidos (variación <10 pts)
-7. Confianza 65-79%: datos moderados o partidos equilibrados
-8. Confianza <65%: recomienda PASO en ese mercado
+" +
+        "INSTRUCCIONES:
+" +
+        "1. Analiza consistencia de totales (variación entre partidos)
+" +
+        "2. Total partido: usa " + totalLine + " como referencia
+" +
+        "3. Total por equipo: " + hTeamLine + " para " + home + ", " + aTeamLine + " para " + away + "
+" +
+        "4. Resultado: solo si diferencia de forma mayor a 3 victorias
+" +
+        "5. Hándicap: solo spreads 3.5-7.5
+" +
+        "6. Confianza 80%+: variación menor a 10pts en últimos 5
+" +
+        "7. Confianza 65-79%: datos moderados
+" +
+        "8. Confianza menor a 65%: recomienda PASO
 
-Responde SOLO con JSON válido sin backticks:
-{"resumen":"Análisis de 3 oraciones enfocado en consistencia de totales y qué mercado tiene más valor","ganadorProbable":"${home} o ${away}","probabilidades":{"home":52,"away":48},"apuestasDestacadas":[{"tipo":"Resultado","pick":"${home} o ${away}","odds_sugerido":"1.85","confianza":72,"razon":"Razón basada en forma W/L"},{"tipo":"Total puntos partido","pick":"Más/Menos ${totalLine}","odds_sugerido":"1.90","confianza":75,"razon":"Basado en promedios: local anota ${hTeamLine}, visita ${aTeamLine}"},{"tipo":"Total puntos ${home}","pick":"Más/Menos ${hTeamLine}","odds_sugerido":"1.87","confianza":78,"razon":"Consistencia del equipo local en últimos 5"},{"tipo":"Total puntos ${away}","pick":"Más/Menos ${aTeamLine}","odds_sugerido":"1.87","confianza":74,"razon":"Consistencia del equipo visitante en últimos 5"},{"tipo":"Hándicap","pick":"Equipo -X.5","odds_sugerido":"1.87","confianza":65,"razon":"Solo si hay diferencia clara de nivel"}],"valueBet":{"existe":true,"mercado":"El mercado con más valor real vs las cuotas","explicacion":"Por qué hay valor aquí"},"alertas":["Solo alertas relevantes basadas en datos reales"],"nivelConfianza":"ALTO/MEDIO/BAJO","razonConfianza":"Por qué este nivel de confianza general"}`;
+" +
+        "Responde SOLO con JSON válido sin backticks ni markdown:
+" + jsonTemplate;
 
       const res = await fetch("/api/predict", {
         method: "POST",
