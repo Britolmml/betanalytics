@@ -26,6 +26,32 @@ function getESTDate(offsetDays = 0) {
     + String(base.getDate()).padStart(2, "0");
 }
 
+async function fetchNBAGames() {
+  const d0  = getESTDate(0);
+  const d1  = getESTDate(1);
+  const dm1 = getESTDate(-1);
+  console.log("[NBA] fechas → ayer:", dm1, "hoy:", d0, "mañana:", d1);
+  const [rToday, rTomorrow, rYesterday] = await Promise.all([
+    nbFetch("/games?season=2025&date=" + d0),
+    nbFetch("/games?season=2025&date=" + d1),
+    nbFetch("/games?season=2025&date=" + dm1),
+  ]);
+  const gToday    = rToday?.response    || [];
+  const gTomorrow = rTomorrow?.response || [];
+  const gYesterday = rYesterday?.response || [];
+  console.log("[NBA] hoy:", gToday.length, "mañana:", gTomorrow.length, "ayer:", gYesterday.length);
+  if (gToday.length > 0) {
+    const sorted = [...gToday].sort((a, b) => {
+      const rank = g => { const s = g.status?.short; if (s !== 1 && s !== 3) return 0; if (s === 1) return 1; return 2; };
+      return rank(a) - rank(b);
+    });
+    const hasLive = sorted.some(g => g.status?.short !== 1 && g.status?.short !== 3);
+    return { games: sorted.slice(0, 15), label: hasLive ? "🔴 En vivo hoy" : "Partidos de hoy" };
+  }
+  if (gTomorrow.length > 0) return { games: gTomorrow.slice(0, 15), label: "Partidos de mañana" };
+  return { games: gYesterday.slice(0, 15), label: "Resultados de ayer" };
+}
+
 function getRecentGames(res, teamId) {
   return (res?.response || [])
     .filter(g => g.status?.short === 3)
@@ -444,67 +470,9 @@ export default function NBAPanel({ onClose }) {
   const loadNBA = async () => {
     setLoading(true); setErr("");
     try {
-      // Calcular fechas en zona horaria EST correctamente
-      const getDate = (offset) => {
-        const estStr = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "America/New_York",
-          year: "numeric", month: "2-digit", day: "2-digit"
-        }).format(new Date());
-        const [y, m, d] = estStr.split("-").map(Number);
-        const dt = new Date(y, m - 1, d + offset);
-        return dt.getFullYear() + "-"
-          + String(dt.getMonth() + 1).padStart(2, "0") + "-"
-          + String(dt.getDate()).padStart(2, "0");
-      };
-
-      const d0 = getDate(0);  // hoy EST
-      const d1 = getDate(1);  // mañana
-      const dm1 = getDate(-1); // ayer
-
-      console.log("[NBA] Fechas → ayer:", dm1, "hoy:", d0, "mañana:", d1);
-
-      // Traer hoy, mañana y ayer en paralelo
-      const [rToday, rTomorrow, rYesterday] = await Promise.all([
-        nbFetch("/games?season=2025&date=" + d0),
-        nbFetch("/games?season=2025&date=" + d1),
-        nbFetch("/games?season=2025&date=" + dm1),
-      ]);
-
-      const gToday     = rToday?.response     || [];
-      const gTomorrow  = rTomorrow?.response  || [];
-      const gYesterday = rYesterday?.response || [];
-
-      console.log("[NBA] Partidos → hoy:", gToday.length, "mañana:", gTomorrow.length, "ayer:", gYesterday.length);
-
-      // Prioridad: 1) hoy (cualquier status)  2) mañana (si hoy vacío)  3) ayer (fallback)
-      let found = [];
-      let label = "";
-
-      if (gToday.length > 0) {
-        // Ordenar: en vivo > pendientes > terminados
-        found = [...gToday].sort((a, b) => {
-          const order = g => {
-            const s = g.status?.short;
-            if (s !== 1 && s !== 3) return 0; // en vivo (cualquier otro valor)
-            if (s === 1) return 1;             // NS - no started
-            return 2;                           // terminado
-          };
-          return order(a) - order(b);
-        });
-        const hasLive = found.some(g => g.status?.short !== 1 && g.status?.short !== 3);
-        label = hasLive ? "🔴 En vivo hoy" : "Partidos de hoy";
-      } else if (gTomorrow.length > 0) {
-        found = gTomorrow;
-        label = "Partidos de mañana";
-      } else {
-        found = gYesterday;
-        label = "Resultados de ayer";
-      }
-
-      console.log("[NBA] Mostrando:", label, "| partidos:", found.length);
-
+      const { games: found, label } = await fetchNBAGames();
       setGamesLabel(label);
-      setGames(found.slice(0, 15));
+      setGames(found);
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
