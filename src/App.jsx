@@ -2214,19 +2214,16 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                     const isSelected = selectedNbaGame?.id === g.id;
                     const hWin = isDone && hScore > aScore;
                     const aWin = isDone && aScore > hScore;
-                    // Hora local
                     const timeStr = g.date?.start ? new Date(g.date.start).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}) : "";
+                    const cardBorder = isSelected ? "1.5px solid rgba(239,68,68,0.6)" : isLive ? "1.5px solid rgba(16,185,129,0.35)" : "1.5px solid rgba(255,255,255,0.07)";
+                    const cardBg = isSelected ? "rgba(239,68,68,0.07)" : "#0d1117";
+                    const cardShadow = isSelected ? "0 0 20px rgba(239,68,68,0.1)" : "none";
+                    const headerBg = isLive ? "rgba(16,185,129,0.08)" : isDone ? "rgba(255,255,255,0.03)" : "rgba(245,158,11,0.06)";
                     return (
-                      <div key={i} onClick={()=>analyzeNbaGame(g)}
-                        style={{cursor:"pointer", borderRadius:14, overflow:"hidden",
-                          border: isSelected ? "1.5px solid rgba(239,68,68,0.6)" : isLive ? "1.5px solid rgba(16,185,129,0.35)" : "1.5px solid rgba(255,255,255,0.07)",
-                          background: isSelected ? "rgba(239,68,68,0.07)" : "#0d1117",
-                          transition:"all 0.2s", boxShadow: isSelected ? "0 0 20px rgba(239,68,68,0.1)" : "none"}}>
+                      <div key={i} onClick={()=>analyzeNbaGame(g)} style={{cursor:"pointer",borderRadius:14,overflow:"hidden",border:cardBorder,background:cardBg,transition:"all 0.2s",boxShadow:cardShadow}}>
                         {/* Header status */}
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",
-                          background: isLive ? "rgba(16,185,129,0.08)" : isDone ? "rgba(255,255,255,0.03)" : "rgba(245,158,11,0.06)"}}>
-                          <span style={{fontSize:11,fontWeight:800,letterSpacing:1,
-                            color: isLive?"#10b981" : isDone?"#666" : "#f59e0b"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:headerBg}}>
+                          <span style={{fontSize:11,fontWeight:800,letterSpacing:1,color:isLive?"#10b981":isDone?"#666":"#f59e0b"}}>
                             {isLive ? "🔴 EN VIVO" : isDone ? "⏱ FINAL" : `🕐 ${timeStr}`}
                           </span>
                           <span style={{fontSize:10,color:"#444"}}>{g.arena?.city || ""}</span>
@@ -2271,8 +2268,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           </div>
                         </div>
                         {/* Footer CTA */}
-                        <div style={{padding:"8px 16px",borderTop:"1px solid rgba(255,255,255,0.04)",textAlign:"center",
-                          fontSize:11,fontWeight:700,color: isSelected?"#f87171":"#555",letterSpacing:0.5}}>
+                        <div style={{padding:"8px 16px",borderTop:"1px solid rgba(255,255,255,0.04)",textAlign:"center",fontSize:11,fontWeight:700,color:isSelected?"#f87171":"#555",letterSpacing:0.5}}>
                           {isSelected ? "✓ Seleccionado — ver predicción abajo" : "🤖 Tap para predicción IA →"}
                         </div>
                       </div>
@@ -2328,9 +2324,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           ))}
                         </div>
                         <button onClick={()=>runNbaAI(selectedNbaGame, nbaGamePreview)} 
-                          style={{width:"100%",marginTop:16,padding:"10px",borderRadius:10,border:"none",
-                            background:"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,
-                            fontSize:13,cursor:"pointer",letterSpacing:1}}>
+                          style={{width:"100%",marginTop:16,padding:"10px",borderRadius:10,border:"none",background:"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",letterSpacing:1}}>
                           🤖 GENERAR PREDICCIÓN IA
                         </button>
                       </div>
@@ -2393,9 +2387,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           </div>
                         )}
                         {/* Nivel confianza */}
-                        <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,
-                          background:nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.08)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)",
-                          color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444"}}>
+                        <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,background:nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.08)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)",color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444"}}>
                           <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>
                             {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza: {nbaAnalysis.nivelConfianza}
                           </div>
