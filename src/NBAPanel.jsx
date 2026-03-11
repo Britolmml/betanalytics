@@ -66,8 +66,8 @@ function GameCard({ game, isSelected, onSelect }) {
   const hScore = game.scores?.home?.points;
   const aScore = game.scores?.visitors?.points;
   const status = game.status?.short;
-  const isLive = [1, 2, 3, 4].includes(status) || status === "HT";
-  const isDone = status === 3 && game.periods?.current === 4;
+  const isLive = status === 2 || (typeof status === "string" && !["NS","FT","AOT"].includes(status));
+  const isDone = status === 3 || status === "FT" || status === "AOT";
   const hWin = isDone && hScore > aScore;
   const aWin = isDone && aScore > hScore;
   const timeStr = game.date?.start
@@ -469,29 +469,58 @@ export default function NBAPanel({ onClose }) {
       const tomorrowGames = merge(resTomorrow, resTomorrow26);
       const yesterdayGames = merge(resYest, resYest26);
 
+      // Helpers para status (API puede devolver int o string)
+      const isNS     = g => g.status?.short === 1 || g.status?.short === "NS";
+      const isLive   = g => !isNS(g) && !isDone(g);
+      const isDone   = g => g.status?.short === 3 || g.status?.short === "FT" || g.status?.short === "AOT";
+
+      const statusOrder = g => {
+        if (isLive(g)) return 0;
+        if (isNS(g))   return 1;
+        return 2;
+      };
+
+      console.log("[NBA debug] today:", todayGames.length, "tomorrow:", tomorrowGames.length, "yesterday:", yesterdayGames.length);
+      console.log("[NBA debug] todayGames statuses:", todayGames.map(g => g.status?.short));
+      console.log("[NBA debug] tomorrowGames statuses:", tomorrowGames.map(g => g.status?.short));
+
+      const anyLive      = (arr) => arr.some(isLive);
+      const anyNS        = (arr) => arr.some(isNS);
+
       let found = [];
 
-      if (todayGames.length > 0) {
-        // Hay partidos hoy — mostrarlos todos ordenados: en vivo > pendientes > terminados
-        const statusOrder = g => {
-          const s = g.status?.short;
-          if (s !== 1 && s !== 3) return 0;  // en vivo
-          if (s === 1) return 1;              // por empezar
-          return 2;                           // terminado
-        };
+      if (anyLive(todayGames) || anyLive(tomorrowGames)) {
+        // En vivo hoy o mañana
+        const liveArr = anyLive(todayGames) ? todayGames : tomorrowGames;
+        found = [...liveArr].sort((a, b) => statusOrder(a) - statusOrder(b));
+      } else if (anyNS(todayGames)) {
+        // Partidos de hoy pendientes
         found = [...todayGames].sort((a, b) => statusOrder(a) - statusOrder(b));
-      } else if (tomorrowGames.length > 0) {
-        // No hay hoy, mostrar mañana
+      } else if (anyNS(tomorrowGames)) {
+        // Partidos de mañana pendientes
         found = tomorrowGames;
+      } else if (todayGames.length > 0) {
+        // Hoy ya terminaron — mostrar igual (son de hoy)
+        found = [...todayGames].sort((a, b) => statusOrder(a) - statusOrder(b));
       } else {
-        // Nada, mostrar ayer
+        // Sin nada hoy — fallback a ayer
         found = yesterdayGames;
       }
 
+      // Label inteligente según qué se está mostrando
       const todayEst = getESTDate(0);
-      const labelDate = found.length > 0
-        ? new Date(found[0].date?.start || todayEst).toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long", timeZone:"America/New_York" })
-        : "";
+      const tomorrowEst = getESTDate(1);
+      let labelDate = "";
+      if (found.length > 0) {
+        const firstDate = found[0].date?.start?.split("T")[0] || todayEst;
+        const dayLabel = new Date(firstDate + "T12:00:00").toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" });
+        const hasLive = found.some(g => g.status?.short !== 1 && g.status?.short !== 3);
+        const hasNS = found.some(g => g.status?.short === 1);
+        if (hasLive) labelDate = "🔴 En vivo — " + dayLabel;
+        else if (hasNS && firstDate === todayEst) labelDate = "Esta noche — " + dayLabel;
+        else if (hasNS && firstDate === tomorrowEst) labelDate = "Mañana — " + dayLabel;
+        else labelDate = dayLabel;
+      }
       setGamesLabel(labelDate);
       setGames(found.slice(0, 15));
 
