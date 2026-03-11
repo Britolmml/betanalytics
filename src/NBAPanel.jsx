@@ -442,15 +442,32 @@ export default function NBAPanel({ onClose }) {
       // Estrategia: buscar hoy Y ayer Y mañana en paralelo
       // Mostrar: en vivo primero, luego pendientes de hoy, luego terminados de hoy
       // Solo usar otra fecha si hoy no tiene absolutamente nada
-      const [resYest, resToday, resTomorrow] = await Promise.all([
-        nbFetch("/games?season=2025&date=" + getESTDate(-1)),
-        nbFetch("/games?season=2025&date=" + getESTDate(0)),
-        nbFetch("/games?season=2025&date=" + getESTDate(1)),
+      // Buscar en temporada 2025 (= temporada 2025-26) Y también sin filtro de season
+      // para asegurar que encontramos los partidos correctos
+      const todayStr = getESTDate(0);
+      const yesterdayStr = getESTDate(-1);
+      const tomorrowStr = getESTDate(1);
+      
+      const [resYest, resToday, resTomorrow, resYest26, resToday26, resTomorrow26] = await Promise.all([
+        nbFetch("/games?season=2025&date=" + yesterdayStr),
+        nbFetch("/games?season=2025&date=" + todayStr),
+        nbFetch("/games?season=2025&date=" + tomorrowStr),
+        nbFetch("/games?season=2026&date=" + yesterdayStr),
+        nbFetch("/games?season=2026&date=" + todayStr),
+        nbFetch("/games?season=2026&date=" + tomorrowStr),
       ]);
+      
+      // Combinar resultados de ambas temporadas
+      const merge = (r1, r2) => {
+        const a = r1?.response || [];
+        const b = r2?.response || [];
+        const ids = new Set(a.map(g => g.id));
+        return [...a, ...b.filter(g => !ids.has(g.id))];
+      };
 
-      const todayGames   = resToday?.response   || [];
-      const tomorrowGames = resTomorrow?.response || [];
-      const yesterdayGames = resYest?.response   || [];
+      const todayGames    = merge(resToday, resToday26);
+      const tomorrowGames = merge(resTomorrow, resTomorrow26);
+      const yesterdayGames = merge(resYest, resYest26);
 
       let found = [];
 

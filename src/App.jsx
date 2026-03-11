@@ -167,6 +167,7 @@ export default function App() {
   const [league,        setLeague]        = useState(null);
   const [todayGames,    setTodayGames]    = useState([]);
   const [loadingToday,  setLoadingToday]  = useState(false);
+  const [todayLabel,    setTodayLabel]    = useState("hoy");
   const [teams,         setTeams]         = useState([]);
   const [loadingTeams,  setLoadingTeams]  = useState(false);
   const [homeTeam,      setHomeTeam]      = useState(null);
@@ -328,18 +329,41 @@ export default function App() {
     // Cargar partidos de hoy para esta liga
     setLoadingToday(true);
     try {
-      const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
-      const d = await apiFetch("/fixtures?league=" + lg.id + "&date=" + todayStr);
-      const games = d.response || [];
-      // Si no hay hoy, buscar mañana y ayer también
-      if (games.length === 0) {
-        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(tomorrow);
-        const d2 = await apiFetch("/fixtures?league=" + lg.id + "&date=" + tomorrowStr);
-        const g2 = d2.response || [];
-        if (g2.length > 0) { setTodayGames(g2.slice(0,10)); setLoadingToday(false); return; }
+      // Helper para obtener fecha en zona horaria México
+      const getMXDate = (offsetDays = 0) => {
+        const base = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+        const [y, m, d] = base.split("-").map(Number);
+        const dt = new Date(y, m - 1, d + offsetDays);
+        return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
+      };
+
+      // Buscar partidos: primero hoy (en vivo o programados), luego fechas cercanas
+      // PRIORIDAD: 1) en vivo hoy  2) pendientes hoy  3) mañana  4) ayer  5) demás
+      let bestGames = [];
+      let bestOffset = 0;
+      const searchOrder = [0, 1, -1, 2, -2];
+      for (const offset of searchOrder) {
+        const dateStr = getMXDate(offset);
+        const res = await apiFetch("/fixtures?league=" + lg.id + "&date=" + dateStr);
+        const games = res.response || [];
+        if (!games.length) continue;
+        const liveGames = games.filter(g => ["1H","2H","HT","ET","BT","P"].includes(g.fixture?.status?.short));
+        const pendingGames = games.filter(g => g.fixture?.status?.short === "NS");
+        // Si hay partidos en vivo, usar esta fecha inmediatamente
+        if (liveGames.length > 0) { bestGames = games; bestOffset = offset; break; }
+        // Si es hoy (offset=0) y hay partidos (pendientes o terminados), usar hoy siempre
+        if (offset === 0) { bestGames = games; bestOffset = 0; break; }
+        // Para otros días: solo usar si hoy no tuvo nada y este tiene pendientes
+        if (bestGames.length === 0 && pendingGames.length > 0) {
+          bestGames = games; bestOffset = offset;
+          break; // tomar el primero con partidos pendientes
+        }
+        // Fallback: cualquier día con partidos
+        if (bestGames.length === 0) { bestGames = games; bestOffset = offset; }
       }
-      setTodayGames(games.slice(0, 10));
+      const labelMap = {"0":"hoy", "1":"mañana", "-1":"ayer", "2":"pasado mañana", "-2":"antes de ayer"};
+      setTodayLabel(labelMap[String(bestOffset)] || "próximos");
+      setTodayGames(bestGames.slice(0, 15));
     } catch(e) { /* silencioso */ }
     finally { setLoadingToday(false); }
     // Cargar equipos intentando varias temporadas
@@ -1005,13 +1029,13 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
             {league && (
               <div style={{marginBottom:20}}>
                 <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>
-                  📅 Partidos de hoy — {league.name}
+                  📅 Partidos de {todayLabel} — {league.name}
                 </div>
                 {loadingToday && (
                   <div style={{color:"#555",fontSize:12,padding:"8px 0"}}>⏳ Cargando partidos...</div>
                 )}
                 {!loadingToday && todayGames.length === 0 && (
-                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>No hay partidos programados hoy para esta liga.</div>
+                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>No hay partidos próximos para esta liga.</div>
                 )}
                 {!loadingToday && todayGames.length > 0 && (
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
