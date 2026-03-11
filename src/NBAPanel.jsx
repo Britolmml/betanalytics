@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveNBAPrediction, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const NBA_PROXY = "https://nba-proxy-snowy.vercel.app/api/basketball";
@@ -296,9 +297,39 @@ export default function NBAPanel({ onClose }) {
   const [analysis, setAnalysis] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiErr, setAiErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
+
+  const guardarPrediccion = async (parsedAnalysis) => {
+    const data = parsedAnalysis || analysis;
+    if (!data || !selectedGame) return;
+    setSaving(true); setSaveErr("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setSaving(false); return; } // silencioso si no hay sesión
+      const topPick = data.apuestasDestacadas?.[0];
+      const { error } = await saveNBAPrediction(session.user.id, {
+        homeTeam: selectedGame.teams?.home?.name,
+        awayTeam: selectedGame.teams?.visitors?.name,
+        pick: topPick ? (topPick.tipo + ": " + topPick.pick) : data.ganadorProbable,
+        odds: topPick?.odds_sugerido || null,
+        confidence: topPick?.confianza || data.probabilidades?.home || null,
+        analysis: data,
+        gameDate: selectedGame.date?.start ? selectedGame.date.start.split("T")[0] : null,
+        gameId: String(selectedGame.id || ""),
+      });
+      if (error) throw new Error(error.message);
+      setSaved(true);
+    } catch(e) {
+      setSaveErr("Error guardando: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => { loadNBA(); }, []);
 
@@ -331,6 +362,7 @@ export default function NBAPanel({ onClose }) {
     setSelectedGame(game);
     setAnalysis(null); setAiErr(""); setPreview(null);
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
+    setSaved(false); setSaveErr("");
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
@@ -448,7 +480,9 @@ export default function NBAPanel({ onClose }) {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setAnalysis(JSON.parse(data.result));
+      const parsed = JSON.parse(data.result);
+      setAnalysis(parsed);
+      guardarPrediccion(parsed);
     } catch (e) {
       setAiErr("Error en análisis IA: " + e.message);
     } finally {
@@ -642,6 +676,13 @@ export default function NBAPanel({ onClose }) {
                         )}
 
                         <NivelConfianza nivel={analysis.nivelConfianza} razon={analysis.razonConfianza} />
+
+                        {/* Estado de guardado automático */}
+                        <div style={{marginTop:12,textAlign:"center",fontSize:11}}>
+                          {saving && <span style={{color:"#60a5fa"}}>💾 Guardando en historial...</span>}
+                          {saved && !saving && <span style={{color:"#10b981"}}>✅ Guardado automáticamente en historial</span>}
+                          {saveErr && <span style={{color:"#ef4444"}}>{saveErr}</span>}
+                        </div>
                       </div>
                     )}
                   </div>

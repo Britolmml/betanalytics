@@ -1,4 +1,5 @@
 import NBAPanel from "./NBAPanel";
+import HistorialPanel from "./HistorialPanel";
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, getPredictions, updateResult } from "./supabase";
 
@@ -845,6 +846,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
   };
 
   const [showNBA, setShowNBA] = useState(false);
+  const [showHistorial, setShowHistorial] = useState(false);
 
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
@@ -869,6 +871,9 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           )}
           <button onClick={()=>{ setShowNBA(true); }} style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
             🏀 NBA
+          </button>
+          <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            📊 Historial
           </button>
           <button onClick={loadSaved}
             style={{background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
@@ -2008,6 +2013,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         </div>
       )}
       {showNBA && <NBAPanel onClose={()=>setShowNBA(false)} />}
+      {showHistorial && <HistorialPanel onClose={()=>setShowHistorial(false)} />}
     </div>
   );
 }
