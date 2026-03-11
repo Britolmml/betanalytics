@@ -180,6 +180,7 @@ const CATEGORIA_LABELS = {
   cuartos:   { label: "CUARTOS",   color: "#a78bfa", bg: "rgba(167,139,250,0.08)" },
   tiempos:   { label: "TIEMPOS",   color: "#60a5fa", bg: "rgba(96,165,250,0.08)" },
   especial:  { label: "ESPECIAL",  color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+  jugador:   { label: "PLAYER PROP", color: "#34d399", bg: "rgba(52,211,153,0.08)" },
 };
 
 function ApuestaCard({ a }) {
@@ -191,10 +192,15 @@ function ApuestaCard({ a }) {
     <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, padding: "12px 14px", border: "1px solid rgba(255,255,255,0.05)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
             <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, padding: "2px 6px", borderRadius: 4, background: cat.bg, color: cat.color }}>
               {cat.label}
             </span>
+            {a.jugador && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#34d399", background: "rgba(52,211,153,0.08)", padding: "2px 7px", borderRadius: 4 }}>
+                👤 {a.jugador}
+              </span>
+            )}
             <span style={{ fontSize: 11, color: "#666" }}>{a.tipo}</span>
           </div>
           <div style={{ fontSize: 15, color: "#e8eaf0", fontWeight: 800, marginBottom: 4 }}>{a.pick}</div>
@@ -411,30 +417,30 @@ export default function NBAPanel({ onClose }) {
       const aSL = aStats ? ("Pts: " + aStats.avgPts + " | Rec: " + aStats.avgPtsCon + " | " + aRec) : "Sin datos";
       const scorePart = hScore != null ? (" Marcador: " + hScore + "-" + aScore) : "";
 
-      const prompt = "Eres un analista NBA experto en apuestas deportivas. Genera TODOS los mercados posibles para este partido. " +
-        "Partido: " + home + " vs " + away + " | Estado: " + status + scorePart + " | " +
-        "LOCAL " + home + ": " + hSL + " | " +
-        "VISITA " + away + ": " + aSL + " | " +
-        "Lineas base calculadas: Total=" + totalLine + " pts | Local=" + hLine + " pts | Visita=" + aLine + " pts. " +
-        "MERCADOS A ANALIZAR (genera todos): " +
-        "1) Ganador partido (Moneyline) " +
-        "2) Handicap/Spread (-3.5 a -8.5 al favorito) " +
-        "3) Total puntos partido Over/Under (usa linea " + totalLine + ") " +
-        "4) Total puntos 1er cuarto Over/Under (aprox 25% del total) " +
-        "5) Total puntos 1er tiempo Over/Under (aprox 50% del total) " +
-        "6) Total puntos " + home + " Over/Under (usa linea " + hLine + ") " +
-        "7) Total puntos " + away + " Over/Under (usa linea " + aLine + ") " +
-        "8) Doble oportunidad (equipo menos favorito no pierde) " +
-        "9) Margen de victoria (1-5, 6-10, 11-15, 16+ puntos) " +
-        "10) Race to 20 puntos (quien anota primero 20) " +
-        "Solo recomienda mercados con confianza mayor a 60%. " +
-        "Responde SOLO con JSON valido sin markdown ni backticks: " +
-        "{\"resumen\":\"string 3 oraciones\",\"ganadorProbable\":\"string\",\"probabilidades\":{\"home\":52,\"away\":48}," +
-        "\"apuestasDestacadas\":[{\"tipo\":\"string\",\"pick\":\"string\",\"odds_sugerido\":\"string\",\"confianza\":75,\"razon\":\"string\",\"categoria\":\"principal|cuartos|tiempos|especial\"}]," +
-        "\"valueBet\":{\"existe\":true,\"mercado\":\"string\",\"explicacion\":\"string\",\"odds_recomendado\":\"string\"}," +
-        "\"alertas\":[\"string\"],\"nivelConfianza\":\"ALTO\",\"razonConfianza\":\"string\"}";
+      // Serializar top 5 jugadores de cada equipo para el prompt
+      const serializePlayers = (list) => list.slice(0, 5).map(p =>
+        p.name + "(pts:" + p.pts + " reb:" + p.reb + " ast:" + p.ast + ")"
+      ).join(", ");
+      const hPlayersSummary = players.home.length > 0 ? serializePlayers(players.home) : "Sin datos";
+      const aPlayersSummary = players.away.length > 0 ? serializePlayers(players.away) : "Sin datos";
 
-      const res = await fetch("/api/predict", {
+      const prompt = "Eres un analista NBA experto en apuestas deportivas incluyendo player props. " +
+        "PARTIDO: " + home + " vs " + away + " | Estado: " + status + scorePart + " | " +
+        "LOCAL " + home + ": " + hSL + " | VISITA " + away + ": " + aSL + " | " +
+        "Lineas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
+        "JUGADORES " + home + ": " + hPlayersSummary + ". " +
+        "JUGADORES " + away + ": " + aPlayersSummary + ". " +
+        "MERCADOS EQUIPO (categoria principal/cuartos/tiempos): Moneyline, Spread, " +
+        "Total partido O/U " + totalLine + ", Total 1Q, Total 1H, " +
+        "Total " + home + " O/U " + hLine + ", Total " + away + " O/U " + aLine + ", Doble Oportunidad. " +
+        "PLAYER PROPS (categoria jugador, campo jugador=nombre del jugador): " +
+        "Para cada jugador top: Puntos O/U (linea=promedio-1.5), Rebotes O/U si promedia 5+ (linea-0.5), Asistencias O/U si promedia 4+ (linea-0.5). " +
+        "Solo picks con confianza mayor a 62%. " +
+        "Responde SOLO JSON sin markdown: " +
+        "{\"resumen\":\"string\",\"ganadorProbable\":\"string\",\"probabilidades\":{\"home\":52,\"away\":48}," +
+        "\"apuestasDestacadas\":[{\"tipo\":\"string\",\"pick\":\"string\",\"odds_sugerido\":\"string\",\"confianza\":75,\"razon\":\"string\",\"categoria\":\"principal|cuartos|tiempos|jugador\",\"jugador\":null}]," +
+        "\"valueBet\":{\"existe\":true,\"mercado\":\"string\",\"explicacion\":\"string\",\"odds_recomendado\":\"string\"}," +
+        "\"alertas\":[\"string\"],\"nivelConfianza\":\"ALTO\",\"razonConfianza\":\"string\"}";\n      const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
@@ -601,8 +607,8 @@ export default function NBAPanel({ onClose }) {
 
                         {(() => {
                           const apuestas = analysis.apuestasDestacadas || [];
-                          const cats = ["principal","cuartos","tiempos","especial"];
-                          const catNames = {principal:"🎯 Mercados Principales",cuartos:"⏱ Por Cuartos",tiempos:"🏀 Por Tiempos",especial:"⚡ Mercados Especiales"};
+                          const cats = ["principal","cuartos","tiempos","jugador","especial"];
+                          const catNames = {principal:"🎯 Mercados Principales",cuartos:"⏱ Por Cuartos",tiempos:"🏀 Por Tiempos",jugador:"🏀 Player Props",especial:"⚡ Mercados Especiales"};
                           return cats.map(cat => {
                             const items = apuestas.filter(a => (a.categoria||"principal")===cat);
                             if (!items.length) return null;
