@@ -975,51 +975,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
       const hRecord = hStats ? (hStats.wins + "V/" + ((hStats.games||5)-hStats.wins) + "D") : "N/D";
       const aRecord = aStats ? (aStats.wins + "V/" + ((aStats.games||5)-aStats.wins) + "D") : "N/D";
-      const hStatsLine = hStats ? ("Puntos anotados prom: " + hStats.avgPts + " | Puntos recibidos prom: " + hStats.avgPtsCon + " | Record: " + hRecord + " | Forma: " + hStats.results) : "Sin datos disponibles";
-      const aStatsLine = aStats ? ("Puntos anotados prom: " + aStats.avgPts + " | Puntos recibidos prom: " + aStats.avgPtsCon + " | Record: " + aRecord + " | Forma: " + aStats.results) : "Sin datos disponibles";
-      const scoreLine = hScore != null ? (" | Marcador actual: " + hScore + "-" + aScore) : "";
-      const jsonTemplate = '{"resumen":"Análisis de 3 oraciones enfocado en consistencia de totales","ganadorProbable":"EQUIPO","probabilidades":{"home":52,"away":48},"apuestasDestacadas":[{"tipo":"Total puntos partido","pick":"Más/Menos TOTAL","odds_sugerido":"1.90","confianza":75,"razon":"Basado en promedios"},{"tipo":"Total puntos LOCAL","pick":"Más/Menos HLINE","odds_sugerido":"1.87","confianza":78,"razon":"Consistencia local"},{"tipo":"Total puntos VISITA","pick":"Más/Menos ALINE","odds_sugerido":"1.87","confianza":74,"razon":"Consistencia visitante"}],"valueBet":{"existe":true,"mercado":"Mercado con valor","explicacion":"Razón del valor"},"alertas":["Alerta relevante"],"nivelConfianza":"ALTO","razonConfianza":"Razón de confianza"}';
-      const prompt = "Eres un analista experto de NBA especializado en totales de puntos.
-
-" +
-        "PARTIDO: " + home + " vs " + away + "
-" +
-        "Estado: " + status + scoreLine + "
-
-" +
-        "STATS " + home + " (últimos 5):
-" + hStatsLine + "
-
-" +
-        "STATS " + away + " (últimos 5):
-" + aStatsLine + "
-
-" +
-        "LÍNEAS: Total=" + totalLine + " | " + home + "=" + hTeamLine + " | " + away + "=" + aTeamLine + "
-
-" +
-        "INSTRUCCIONES:
-" +
-        "1. Analiza consistencia de totales (variación entre partidos)
-" +
-        "2. Total partido: usa " + totalLine + " como referencia
-" +
-        "3. Total por equipo: " + hTeamLine + " para " + home + ", " + aTeamLine + " para " + away + "
-" +
-        "4. Resultado: solo si diferencia de forma mayor a 3 victorias
-" +
-        "5. Hándicap: solo spreads 3.5-7.5
-" +
-        "6. Confianza 80%+: variación menor a 10pts en últimos 5
-" +
-        "7. Confianza 65-79%: datos moderados
-" +
-        "8. Confianza menor a 65%: recomienda PASO
-
-" +
-        "Responde SOLO con JSON válido sin backticks ni markdown:
-" + jsonTemplate;
-
+      const hStatsLine = hStats ? ("Pts prom: " + hStats.avgPts + " | Pts recibidos: " + hStats.avgPtsCon + " | " + hRecord + " | Forma: " + hStats.results) : "Sin datos";
+      const aStatsLine = aStats ? ("Pts prom: " + aStats.avgPts + " | Pts recibidos: " + aStats.avgPtsCon + " | " + aRecord + " | Forma: " + aStats.results) : "Sin datos";
+      const scoreLine = hScore != null ? (" | Marcador: " + hScore + "-" + aScore) : "";
+      const jsonSchema = "{resumen, ganadorProbable, probabilidades:{home,away}, apuestasDestacadas:[{tipo,pick,odds_sugerido,confianza,razon}], valueBet:{existe,mercado,explicacion}, alertas:[], nivelConfianza, razonConfianza}";
+      const prompt = "Eres analista NBA experto en totales de puntos. Responde SOLO con JSON valido sin backticks." + " PARTIDO: " + home + " vs " + away + scoreLine + " ESTADO: " + status + " | STATS LOCAL: " + hStatsLine + " | STATS VISITA: " + aStatsLine + " | LINEAS: Total=" + totalLine + " Local=" + hTeamLine + " Visita=" + aTeamLine + " | INSTRUCCIONES: 1.Analiza consistencia totales 2.Total partido usa linea " + totalLine + " 3.Equipo local usa " + hTeamLine + " 4.Equipo visita usa " + aTeamLine + " 5.Resultado solo si diferencia mayor a 3 victorias 6.Handicap solo spreads 3.5-7.5 7.Confianza80+: variacion menor 10pts 8.Confianza65-79: datos moderados 9.ConfianzaMenor65: recomienda PASO | ESQUEMA JSON: " + jsonSchema
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
