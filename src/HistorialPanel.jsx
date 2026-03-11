@@ -17,12 +17,22 @@ function StatBox({ label, value, color, sub }) {
   );
 }
 
+const CAT_COLOR = {
+  principal: "#f87171",
+  cuartos:   "#a78bfa",
+  tiempos:   "#60a5fa",
+  jugador:   "#34d399",
+  especial:  "#f59e0b",
+};
+
 function PredCard({ pred, onUpdateResult }) {
   const [updating, setUpdating] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const res = RESULT_LABELS[pred.result] || RESULT_LABELS.pending;
   const analysis = pred.analysis || {};
   const isNBA = pred.sport === "nba";
   const date = new Date(pred.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
+  const apuestas = analysis.apuestasDestacadas || [];
 
   const handleResult = async (result) => {
     setUpdating(true);
@@ -30,12 +40,19 @@ function PredCard({ pred, onUpdateResult }) {
     setUpdating(false);
   };
 
+  const resBorder = pred.result === "won"
+    ? "1px solid rgba(16,185,129,0.25)"
+    : pred.result === "lost"
+    ? "1px solid rgba(239,68,68,0.2)"
+    : "1px solid rgba(255,255,255,0.07)";
+
   return (
-    <div style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, overflow: "hidden" }}>
+    <div style={{ background: "#0d1117", border: resBorder, borderRadius: 14, overflow: "hidden" }}>
+
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14 }}>{isNBA ? "🏀" : "⚽"}</span>
+          <span>{isNBA ? "🏀" : "⚽"}</span>
           <span style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: 1 }}>{pred.league || (isNBA ? "NBA" : "FÚTBOL")}</span>
           <span style={{ fontSize: 10, color: "#333" }}>•</span>
           <span style={{ fontSize: 10, color: "#444" }}>{date}</span>
@@ -45,60 +62,118 @@ function PredCard({ pred, onUpdateResult }) {
         </div>
       </div>
 
-      {/* Partido */}
       <div style={{ padding: "12px 14px" }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#e8eaf0", marginBottom: 4 }}>
-          {pred.home_team} <span style={{ color: "#444", fontWeight: 400 }}>vs</span> {pred.away_team}
+
+        {/* Partido + probabilidades */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#e8eaf0" }}>
+              {pred.home_team} <span style={{ color: "#444", fontWeight: 400, fontSize: 12 }}>vs</span> {pred.away_team}
+            </div>
+            {analysis.ganadorProbable && (
+              <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
+                Favorito: <span style={{ color: "#f59e0b", fontWeight: 700 }}>{analysis.ganadorProbable}</span>
+              </div>
+            )}
+          </div>
+          {analysis.probabilidades && (
+            <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 12 }}>
+              <div style={{ textAlign: "center", background: "rgba(249,115,22,0.08)", borderRadius: 8, padding: "5px 10px" }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#f97316" }}>{analysis.probabilidades.home}%</div>
+                <div style={{ fontSize: 9, color: "#555" }}>Local</div>
+              </div>
+              <div style={{ textAlign: "center", background: "rgba(96,165,250,0.08)", borderRadius: 8, padding: "5px 10px" }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>{analysis.probabilidades.away}%</div>
+                <div style={{ fontSize: 9, color: "#555" }}>Visita</div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Pick principal */}
-        {pred.pick && (
-          <div style={{ fontSize: 12, color: "#aaa", marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "6px 10px" }}>
-            <span style={{ color: "#555", fontSize: 10 }}>PICK: </span>
-            <span style={{ fontWeight: 700 }}>{pred.pick}</span>
-            {pred.odds && <span style={{ color: "#60a5fa", marginLeft: 8, fontWeight: 700 }}>{pred.odds}</span>}
-            {pred.confidence && <span style={{ color: "#10b981", marginLeft: 8, fontSize: 11 }}>{pred.confidence}% conf.</span>}
-          </div>
-        )}
-
-        {/* Resumen IA */}
+        {/* Resumen */}
         {analysis.resumen && (
-          <p style={{ fontSize: 11, color: "#555", lineHeight: 1.6, marginBottom: 8 }}>{analysis.resumen}</p>
+          <p style={{ fontSize: 11, color: "#555", lineHeight: 1.6, marginBottom: 10, borderLeft: "2px solid rgba(255,255,255,0.07)", paddingLeft: 8 }}>
+            {analysis.resumen}
+          </p>
         )}
 
-        {/* Apuestas destacadas colapsadas */}
-        {analysis.apuestasDestacadas && analysis.apuestasDestacadas.length > 0 && (
-          <details style={{ marginBottom: 8 }}>
-            <summary style={{ fontSize: 11, color: "#f87171", cursor: "pointer", fontWeight: 700, listStyle: "none", padding: "4px 0" }}>
-              📋 {analysis.apuestasDestacadas.length} picks detallados
-            </summary>
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-              {analysis.apuestasDestacadas.map((a, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "5px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 6 }}>
-                  <span style={{ color: "#888" }}>
-                    {a.jugador && <span style={{ color: "#34d399", marginRight: 4 }}>👤{a.jugador}</span>}
-                    {a.tipo}: <span style={{ color: "#e8eaf0", fontWeight: 700 }}>{a.pick}</span>
-                  </span>
-                  <span style={{ color: a.confianza > 74 ? "#10b981" : a.confianza > 64 ? "#f59e0b" : "#ef4444", fontWeight: 700 }}>
-                    {a.confianza}%
-                  </span>
-                </div>
-              ))}
+        {/* Todos los picks */}
+        {apuestas.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>
+              📋 PICKS ({apuestas.length})
             </div>
-          </details>
+            {/* Siempre mostrar todos */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {apuestas.map((a, i) => {
+                const catColor = CAT_COLOR[a.categoria] || "#f87171";
+                const confColor = a.confianza > 74 ? "#10b981" : a.confianza > 64 ? "#f59e0b" : "#ef4444";
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "2px solid " + catColor }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {a.jugador && (
+                        <span style={{ fontSize: 10, color: "#34d399", fontWeight: 700, marginRight: 5 }}>👤{a.jugador}</span>
+                      )}
+                      <span style={{ fontSize: 10, color: "#555" }}>{a.tipo}: </span>
+                      <span style={{ fontSize: 12, color: "#e8eaf0", fontWeight: 700 }}>{a.pick}</span>
+                      {a.razon && (
+                        <div style={{ fontSize: 10, color: "#444", marginTop: 2, lineHeight: 1.4 }}>{a.razon}</div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: confColor }}>{a.confianza}%</div>
+                      {a.odds_sugerido && <div style={{ fontSize: 10, color: "#444" }}>{a.odds_sugerido}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Value bet */}
         {analysis.valueBet?.existe && (
-          <div style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245,158,11,0.07)", padding: "5px 10px", borderRadius: 6, marginBottom: 8 }}>
-            💰 VALUE: {analysis.valueBet.mercado}
+          <div style={{ fontSize: 11, padding: "7px 10px", borderRadius: 8, background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)", marginBottom: 10 }}>
+            <span style={{ color: "#f59e0b", fontWeight: 700 }}>💰 VALUE: </span>
+            <span style={{ color: "#aaa" }}>{analysis.valueBet.mercado}</span>
+            {analysis.valueBet.odds_recomendado && (
+              <span style={{ color: "#f59e0b", fontWeight: 800, marginLeft: 8 }}>{analysis.valueBet.odds_recomendado}</span>
+            )}
+            {analysis.valueBet.explicacion && (
+              <div style={{ fontSize: 10, color: "#555", marginTop: 3 }}>{analysis.valueBet.explicacion}</div>
+            )}
+          </div>
+        )}
+
+        {/* Alertas */}
+        {analysis.alertas && analysis.alertas.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            {analysis.alertas.map((a, i) => (
+              <div key={i} style={{ fontSize: 10, color: "#666", padding: "3px 0" }}>⚠️ {a}</div>
+            ))}
+          </div>
+        )}
+
+        {/* Nivel confianza */}
+        {analysis.nivelConfianza && (
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 10,
+            color: analysis.nivelConfianza === "ALTO" ? "#10b981" : analysis.nivelConfianza === "MEDIO" ? "#f59e0b" : "#ef4444" }}>
+            {analysis.nivelConfianza === "ALTO" ? "🟢" : analysis.nivelConfianza === "MEDIO" ? "🟡" : "🔴"} Confianza {analysis.nivelConfianza}
+            {analysis.razonConfianza && <span style={{ color: "#444", fontWeight: 400, marginLeft: 6 }}>— {analysis.razonConfianza}</span>}
+          </div>
+        )}
+
+        {/* Marcador real (si se ingresó) */}
+        {pred.predicted_score && (
+          <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>
+            Marcador final: <span style={{ color: "#aaa", fontWeight: 700 }}>{pred.predicted_score}</span>
           </div>
         )}
 
         {/* Botones resultado */}
         {pred.result === "pending" && (
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <span style={{ fontSize: 10, color: "#444", alignSelf: "center", marginRight: 4 }}>¿Resultado?</span>
+            <span style={{ fontSize: 10, color: "#444", alignSelf: "center" }}>¿Resultado?</span>
             <button onClick={() => handleResult("won")} disabled={updating} style={{ flex: 1, padding: "6px", borderRadius: 8, border: "1px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)", color: "#10b981", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
               ✅ Ganada
             </button>
@@ -108,14 +183,16 @@ function PredCard({ pred, onUpdateResult }) {
           </div>
         )}
         {pred.result !== "pending" && (
-          <button onClick={() => handleResult("pending")} style={{ marginTop: 8, fontSize: 10, color: "#444", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-            Deshacer resultado
+          <button onClick={() => handleResult("pending")} style={{ fontSize: 10, color: "#333", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginTop: 4 }}>
+            Deshacer
           </button>
         )}
+
       </div>
     </div>
   );
 }
+
 
 export default function HistorialPanel({ onClose }) {
   const [predictions, setPredictions] = useState([]);
