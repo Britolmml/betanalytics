@@ -484,26 +484,19 @@ export default function NBAPanel({ onClose }) {
       console.log("[NBA debug] todayGames statuses:", todayGames.map(g => g.status?.short));
       console.log("[NBA debug] tomorrowGames statuses:", tomorrowGames.map(g => g.status?.short));
 
-      const anyLive      = (arr) => arr.some(isLive);
-      const anyNS        = (arr) => arr.some(isNS);
-
       let found = [];
 
-      if (anyLive(todayGames) || anyLive(tomorrowGames)) {
-        // En vivo hoy o mañana
-        const liveArr = anyLive(todayGames) ? todayGames : tomorrowGames;
-        found = [...liveArr].sort((a, b) => statusOrder(a) - statusOrder(b));
-      } else if (anyNS(todayGames)) {
-        // Partidos de hoy pendientes
-        found = [...todayGames].sort((a, b) => statusOrder(a) - statusOrder(b));
-      } else if (anyNS(tomorrowGames)) {
-        // Partidos de mañana pendientes
-        found = tomorrowGames;
+      if (liveGames.length > 0) {
+        // Hay partidos en vivo ahora — usar endpoint live que es más confiable
+        found = liveGames;
       } else if (todayGames.length > 0) {
-        // Hoy ya terminaron — mostrar igual (son de hoy)
+        // Hoy tiene partidos (NS o terminados) — mostrar hoy siempre
         found = [...todayGames].sort((a, b) => statusOrder(a) - statusOrder(b));
+      } else if (tomorrowGames.length > 0) {
+        // No hay hoy, mostrar mañana
+        found = tomorrowGames;
       } else {
-        // Sin nada hoy — fallback a ayer
+        // Fallback: ayer
         found = yesterdayGames;
       }
 
@@ -722,9 +715,14 @@ export default function NBAPanel({ onClose }) {
               </div>
             )}
             {gamesLabel && (
-              <div style={{fontSize:11,color:"#555",marginBottom:12,display:"flex",alignItems:"center",gap:6}}>
+              <div style={{fontSize:11,color:"#555",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
                 <span style={{color:"#f87171",fontWeight:700}}>📅</span>
                 <span>Mostrando partidos del <span style={{color:"#e8eaf0",fontWeight:700}}>{gamesLabel}</span> (EST)</span>
+              </div>
+            )}
+            {debugInfo && (
+              <div style={{fontSize:10,color:"#333",marginBottom:10,padding:"4px 8px",background:"rgba(255,255,255,0.02)",borderRadius:6,fontFamily:"monospace"}}>
+                🔍 API: {debugInfo}
               </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12, marginBottom: 16 }}>
