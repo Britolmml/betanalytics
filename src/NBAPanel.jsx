@@ -175,18 +175,39 @@ function NivelConfianza({ nivel, razon }) {
   );
 }
 
+const CATEGORIA_LABELS = {
+  principal: { label: "PRINCIPAL", color: "#f87171", bg: "rgba(239,68,68,0.08)" },
+  cuartos:   { label: "CUARTOS",   color: "#a78bfa", bg: "rgba(167,139,250,0.08)" },
+  tiempos:   { label: "TIEMPOS",   color: "#60a5fa", bg: "rgba(96,165,250,0.08)" },
+  especial:  { label: "ESPECIAL",  color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+};
+
 function ApuestaCard({ a }) {
-  const color = a.confianza > 74 ? "#10b981" : a.confianza > 59 ? "#f59e0b" : "#ef4444";
+  const conColor = a.confianza > 74 ? "#10b981" : a.confianza > 64 ? "#f59e0b" : "#ef4444";
+  const conBg = a.confianza > 74 ? "rgba(16,185,129,0.1)" : a.confianza > 64 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
+  const cat = CATEGORIA_LABELS[a.categoria] || CATEGORIA_LABELS.principal;
+  const pctW = String(Math.min(a.confianza, 100)) + "%";
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div>
-        <span style={{ fontSize: 10, color: "#f87171", fontWeight: 700 }}>{a.tipo} </span>
-        <span style={{ fontSize: 13, color: "#e8eaf0", fontWeight: 700 }}>{a.pick}</span>
-        <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{a.razon}</div>
+    <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, padding: "12px 14px", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, padding: "2px 6px", borderRadius: 4, background: cat.bg, color: cat.color }}>
+              {cat.label}
+            </span>
+            <span style={{ fontSize: 11, color: "#666" }}>{a.tipo}</span>
+          </div>
+          <div style={{ fontSize: 15, color: "#e8eaf0", fontWeight: 800, marginBottom: 4 }}>{a.pick}</div>
+          <div style={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>{a.razon}</div>
+        </div>
+        <div style={{ textAlign: "center", marginLeft: 16, flexShrink: 0, background: conBg, borderRadius: 10, padding: "8px 12px", minWidth: 64 }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: conColor, lineHeight: 1 }}>{a.confianza}%</div>
+          <div style={{ fontSize: 10, color: "#444", marginTop: 3 }}>odds</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#aaa" }}>{a.odds_sugerido}</div>
+        </div>
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 900, color: color }}>{a.confianza}%</div>
-        <div style={{ fontSize: 10, color: "#444" }}>odds {a.odds_sugerido}</div>
+      <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ width: pctW, height: "100%", background: conColor, borderRadius: 2, transition: "width 0.6s ease" }} />
       </div>
     </div>
   );
@@ -207,6 +228,57 @@ function ProbBar({ name, pct, color }) {
 
 /* ─── main component ──────────────────────────────────────── */
 
+
+function PlayerPropsCard({ p }) {
+  const ptsLine = (parseFloat(p.pts) - 1.5).toFixed(1);
+  const rebLine = (parseFloat(p.reb) - 0.5).toFixed(1);
+  const astLine = (parseFloat(p.ast) - 0.5).toFixed(1);
+  const ptsHigh = parseFloat(p.pts) >= 20;
+  const ptsColor = ptsHigh ? "#f97316" : parseFloat(p.pts) >= 15 ? "#f59e0b" : "#aaa";
+  return (
+    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#e8eaf0" }}>{p.name}</div>
+          <div style={{ fontSize: 10, color: "#444", marginTop: 1 }}>{p.games} partidos esta temporada</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: ptsColor, lineHeight: 1 }}>{p.pts}</div>
+          <div style={{ fontSize: 9, color: "#444" }}>pts/partido</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
+        {[["PTS", p.pts, "#f97316"], ["REB", p.reb, "#60a5fa"], ["AST", p.ast, "#a78bfa"], ["ROB+TAP", (parseFloat(p.stl)+parseFloat(p.blk)).toFixed(1), "#10b981"]].map(([label, val, color]) => (
+          <div key={label} style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "6px 4px" }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: color }}>{val}</div>
+            <div style={{ fontSize: 9, color: "#444" }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: 8 }}>
+        <div style={{ fontSize: 9, color: "#555", fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>📋 LÍNEAS SUGERIDAS (Over)</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {parseFloat(p.pts) >= 10 && (
+            <span style={{ fontSize: 10, background: "rgba(249,115,22,0.12)", color: "#f97316", borderRadius: 6, padding: "3px 8px", fontWeight: 700 }}>
+              Más {ptsLine} pts
+            </span>
+          )}
+          {parseFloat(p.reb) >= 4 && (
+            <span style={{ fontSize: 10, background: "rgba(96,165,250,0.12)", color: "#60a5fa", borderRadius: 6, padding: "3px 8px", fontWeight: 700 }}>
+              Más {rebLine} reb
+            </span>
+          )}
+          {parseFloat(p.ast) >= 3 && (
+            <span style={{ fontSize: 10, background: "rgba(167,139,250,0.12)", color: "#a78bfa", borderRadius: 6, padding: "3px 8px", fontWeight: 700 }}>
+              Más {astLine} ast
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NBAPanel({ onClose }) {
   const [games, setGames] = useState([]);
   const [standings, setStandings] = useState({ east: [], west: [] });
@@ -218,6 +290,9 @@ export default function NBAPanel({ onClose }) {
   const [analysis, setAnalysis] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiErr, setAiErr] = useState("");
+  const [players, setPlayers] = useState({ home: [], away: [] });
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [playerTab, setPlayerTab] = useState("home");
 
   useEffect(() => { loadNBA(); }, []);
 
@@ -249,6 +324,7 @@ export default function NBAPanel({ onClose }) {
     if (selectedGame?.id === game.id) return;
     setSelectedGame(game);
     setAnalysis(null); setAiErr(""); setPreview(null);
+    setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
@@ -258,6 +334,50 @@ export default function NBAPanel({ onClose }) {
       const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
       const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
       setPreview({ home: hStats, away: aStats });
+
+      // Cargar top jugadores de cada equipo (promedios de temporada)
+      setLoadingPlayers(true);
+      try {
+        const [hPlayers, aPlayers] = await Promise.allSettled([
+          nbFetch("/players/statistics?team=" + game.teams?.home?.id + "&season=2025"),
+          nbFetch("/players/statistics?team=" + game.teams?.visitors?.id + "&season=2025"),
+        ]);
+        const parseTopPlayers = (res) => {
+          if (res.status !== "fulfilled") return [];
+          const all = res.value?.response || [];
+          // Agrupar por jugador y calcular promedios
+          const map = {};
+          all.forEach(s => {
+            const pid = s.player?.id;
+            if (!pid) return;
+            if (!map[pid]) map[pid] = { player: s.player, games: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0 };
+            map[pid].games += 1;
+            map[pid].pts += s.points || 0;
+            map[pid].reb += (s.totReb || s.defReb || 0);
+            map[pid].ast += s.assists || 0;
+            map[pid].stl += s.steals || 0;
+            map[pid].blk += s.blocks || 0;
+          });
+          return Object.values(map)
+            .filter(p => p.games >= 3)
+            .map(p => ({
+              name: p.player?.firstname + " " + p.player?.lastname,
+              games: p.games,
+              pts: (p.pts / p.games).toFixed(1),
+              reb: (p.reb / p.games).toFixed(1),
+              ast: (p.ast / p.games).toFixed(1),
+              stl: (p.stl / p.games).toFixed(1),
+              blk: (p.blk / p.games).toFixed(1),
+            }))
+            .sort((a, b) => parseFloat(b.pts) - parseFloat(a.pts))
+            .slice(0, 8);
+        };
+        setPlayers({ home: parseTopPlayers(hPlayers), away: parseTopPlayers(aPlayers) });
+      } catch (e) {
+        // silencioso si falla jugadores
+      } finally {
+        setLoadingPlayers(false);
+      }
     } catch (e) {
       setAiErr("Error cargando stats: " + e.message);
     } finally {
@@ -291,15 +411,27 @@ export default function NBAPanel({ onClose }) {
       const aSL = aStats ? ("Pts: " + aStats.avgPts + " | Rec: " + aStats.avgPtsCon + " | " + aRec) : "Sin datos";
       const scorePart = hScore != null ? (" Marcador: " + hScore + "-" + aScore) : "";
 
-      const prompt = "Analista NBA experto en totales de puntos. " +
+      const prompt = "Eres un analista NBA experto en apuestas deportivas. Genera TODOS los mercados posibles para este partido. " +
         "Partido: " + home + " vs " + away + " | Estado: " + status + scorePart + " | " +
         "LOCAL " + home + ": " + hSL + " | " +
         "VISITA " + away + ": " + aSL + " | " +
-        "Lineas calculadas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
+        "Lineas base calculadas: Total=" + totalLine + " pts | Local=" + hLine + " pts | Visita=" + aLine + " pts. " +
+        "MERCADOS A ANALIZAR (genera todos): " +
+        "1) Ganador partido (Moneyline) " +
+        "2) Handicap/Spread (-3.5 a -8.5 al favorito) " +
+        "3) Total puntos partido Over/Under (usa linea " + totalLine + ") " +
+        "4) Total puntos 1er cuarto Over/Under (aprox 25% del total) " +
+        "5) Total puntos 1er tiempo Over/Under (aprox 50% del total) " +
+        "6) Total puntos " + home + " Over/Under (usa linea " + hLine + ") " +
+        "7) Total puntos " + away + " Over/Under (usa linea " + aLine + ") " +
+        "8) Doble oportunidad (equipo menos favorito no pierde) " +
+        "9) Margen de victoria (1-5, 6-10, 11-15, 16+ puntos) " +
+        "10) Race to 20 puntos (quien anota primero 20) " +
+        "Solo recomienda mercados con confianza mayor a 60%. " +
         "Responde SOLO con JSON valido sin markdown ni backticks: " +
-        "{\"resumen\":\"string\",\"ganadorProbable\":\"string\",\"probabilidades\":{\"home\":52,\"away\":48}," +
-        "\"apuestasDestacadas\":[{\"tipo\":\"string\",\"pick\":\"string\",\"odds_sugerido\":\"string\",\"confianza\":75,\"razon\":\"string\"}]," +
-        "\"valueBet\":{\"existe\":true,\"mercado\":\"string\",\"explicacion\":\"string\"}," +
+        "{\"resumen\":\"string 3 oraciones\",\"ganadorProbable\":\"string\",\"probabilidades\":{\"home\":52,\"away\":48}," +
+        "\"apuestasDestacadas\":[{\"tipo\":\"string\",\"pick\":\"string\",\"odds_sugerido\":\"string\",\"confianza\":75,\"razon\":\"string\",\"categoria\":\"principal|cuartos|tiempos|especial\"}]," +
+        "\"valueBet\":{\"existe\":true,\"mercado\":\"string\",\"explicacion\":\"string\",\"odds_recomendado\":\"string\"}," +
         "\"alertas\":[\"string\"],\"nivelConfianza\":\"ALTO\",\"razonConfianza\":\"string\"}";
 
       const res = await fetch("/api/predict", {
@@ -407,6 +539,34 @@ export default function NBAPanel({ onClose }) {
                         </div>
                       ))}
                     </div>
+                    {/* Sección jugadores */}
+                    {(loadingPlayers || players.home.length > 0 || players.away.length > 0) && (
+                      <div style={{ marginTop: 16, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 14 }}>
+                        <div style={{ fontSize: 10, color: "#666", fontWeight: 700, letterSpacing: 2, marginBottom: 10 }}>
+                          🏀 PROPS POR JUGADOR — Líneas sugeridas basadas en promedios de temporada
+                        </div>
+                        {loadingPlayers && (
+                          <div style={{ textAlign: "center", color: "#555", fontSize: 12, padding: 12 }}>Cargando jugadores...</div>
+                        )}
+                        {!loadingPlayers && (players.home.length > 0 || players.away.length > 0) && (
+                          <div>
+                            <div style={{ display: "flex", gap: 4, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: 4 }}>
+                              {[["home", selectedGame?.teams?.home?.name], ["away", selectedGame?.teams?.visitors?.name]].map(([t, label]) => (
+                                <button key={t} onClick={() => setPlayerTab(t)} style={{ flex: 1, padding: "6px 0", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: playerTab===t ? "rgba(239,68,68,0.2)" : "transparent", color: playerTab===t ? "#f87171" : "#555" }}>
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 8 }}>
+                              {(playerTab === "home" ? players.home : players.away).map((p, i) => (
+                                <PlayerPropsCard key={i} p={p} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <button onClick={runAI} style={{ width: "100%", marginTop: 16, padding: "10px", borderRadius: 10, border: "none", background: "linear-gradient(90deg,#ef4444,#f97316)", color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", letterSpacing: 1 }}>
                       🤖 GENERAR PREDICCIÓN IA
                     </button>
@@ -439,16 +599,38 @@ export default function NBAPanel({ onClose }) {
                           ))}
                         </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-                          {(analysis.apuestasDestacadas || []).map((a, i) => (
-                            <ApuestaCard key={i} a={a} />
-                          ))}
-                        </div>
+                        {(() => {
+                          const apuestas = analysis.apuestasDestacadas || [];
+                          const cats = ["principal","cuartos","tiempos","especial"];
+                          const catNames = {principal:"🎯 Mercados Principales",cuartos:"⏱ Por Cuartos",tiempos:"🏀 Por Tiempos",especial:"⚡ Mercados Especiales"};
+                          return cats.map(cat => {
+                            const items = apuestas.filter(a => (a.categoria||"principal")===cat);
+                            if (!items.length) return null;
+                            return (
+                              <div key={cat} style={{marginBottom:14}}>
+                                <div style={{fontSize:10,color:"#444",fontWeight:700,letterSpacing:1.5,marginBottom:8,paddingBottom:6,borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                                  {catNames[cat]}
+                                </div>
+                                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                                  {items.map((a,i) => <ApuestaCard key={i} a={a} />)}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
 
                         {analysis.valueBet?.existe && (
-                          <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
-                            <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, marginBottom: 4 }}>💰 VALUE BET — {analysis.valueBet.mercado}</div>
-                            <div style={{ fontSize: 12, color: "#aaa" }}>{analysis.valueBet.explicacion}</div>
+                          <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                              <div style={{fontSize:10,color:"#f59e0b",fontWeight:800,letterSpacing:1}}>💰 VALUE BET DESTACADO</div>
+                              {analysis.valueBet.odds_recomendado && (
+                                <div style={{background:"rgba(245,158,11,0.15)",borderRadius:6,padding:"3px 8px",fontSize:13,fontWeight:900,color:"#f59e0b"}}>
+                                  {analysis.valueBet.odds_recomendado}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{fontSize:14,color:"#e8eaf0",fontWeight:700,marginBottom:4}}>{analysis.valueBet.mercado}</div>
+                            <div style={{fontSize:12,color:"#888",lineHeight:1.5}}>{analysis.valueBet.explicacion}</div>
                           </div>
                         )}
 
