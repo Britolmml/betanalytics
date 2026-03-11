@@ -514,6 +514,14 @@ export default function NBAPanel({ onClose }) {
         else if (hasNS && firstDate === tomorrowEst) labelDate = "Mañana — " + dayLabel;
         else labelDate = dayLabel;
       }
+      console.log("=== NBA DEBUG ===");
+      console.log("Fecha EST hoy:", getESTDate(0));
+      console.log("Fecha EST ayer:", getESTDate(-1));
+      console.log("Partidos hoy s2025:", (resToday?.response||[]).length, "| s2026:", (resToday26?.response||[]).length);
+      console.log("Partidos ayer s2025:", (resYest?.response||[]).length, "| s2026:", (resYest26?.response||[]).length);
+      console.log("Partidos mañana s2025:", (resTomorrow?.response||[]).length, "| s2026:", (resTomorrow26?.response||[]).length);
+      console.log("todayGames merged:", todayGames.length, "| yesterdayGames:", yesterdayGames.length);
+      console.log("found:", found.length, "primer partido:", found[0]?.date?.start, found[0]?.teams?.home?.name);
       setGamesLabel(labelDate);
       setGames(found.slice(0, 15));
 
