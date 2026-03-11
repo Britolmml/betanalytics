@@ -344,10 +344,10 @@ export default function NBAPanel({ onClose }) {
         "VISITA " + away + ": " + aSL + (topA ? " | Top jugadores: " + topA : "") + " | " +
         "Lineas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
         "Responde SOLO JSON sin backticks: " +
-        "{"resumen":"string","ganadorProbable":"string","probabilidades":{"home":52,"away":48}," +
-        ""apuestasDestacadas":[{"tipo":"string","pick":"string","odds_sugerido":"string","confianza":75,"razon":"string","categoria":"principal","jugador":null}]," +
-        ""valueBet":{"existe":true,"mercado":"string","explicacion":"string","odds_recomendado":"string"}," +
-        ""alertas":["string"],"nivelConfianza":"ALTO","razonConfianza":"string"}";
+        '{"resumen":"string","ganadorProbable":"string","probabilidades":{"home":52,"away":48},' +
+        '"apuestasDestacadas":[{"tipo":"string","pick":"string","odds_sugerido":"string","confianza":75,"razon":"string","categoria":"principal","jugador":null}],' +
+        '"valueBet":{"existe":true,"mercado":"string","explicacion":"string","odds_recomendado":"string"},' +
+        '"alertas":["string"],"nivelConfianza":"ALTO","razonConfianza":"string"}';
 
       const res = await fetch("/api/predict", {
         method: "POST",
