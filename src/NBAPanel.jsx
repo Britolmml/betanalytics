@@ -11,14 +11,19 @@ async function nbFetch(path) {
 }
 
 function getESTDate(offsetDays = 0) {
-  // Obtener fecha actual en EST/EDT (America/New_York)
-  const now = new Date();
-  // Sumar offset en ms antes de formatear — evita bugs de timezone local
-  const shifted = new Date(now.getTime() + offsetDays * 86400000);
-  return new Intl.DateTimeFormat("en-CA", {
+  // Calcular fecha en EST/EDT correctamente:
+  // 1) Obtener el string de hoy en America/New_York
+  // 2) Construir un Date local desde ese string
+  // 3) Sumar los días de offset
+  const todayEST = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(shifted);
+  }).format(new Date()); // "YYYY-MM-DD"
+  const [y, m, d] = todayEST.split("-").map(Number);
+  const base = new Date(y, m - 1, d + offsetDays);
+  return base.getFullYear() + "-"
+    + String(base.getMonth() + 1).padStart(2, "0") + "-"
+    + String(base.getDate()).padStart(2, "0");
 }
 
 function getRecentGames(res, teamId) {
@@ -468,6 +473,11 @@ export default function NBAPanel({ onClose }) {
       const todayGames    = merge(resToday, resToday26);
       const tomorrowGames = merge(resTomorrow, resTomorrow26);
       const yesterdayGames = merge(resYest, resYest26);
+      // DEBUG — ver en consola qué devuelve la API
+      console.log("[NBA DEBUG] todayStr=", todayStr, "yesterdayStr=", yesterdayStr, "tomorrowStr=", tomorrowStr);
+      console.log("[NBA DEBUG] hoy:", todayGames.length, "| ayer:", yesterdayGames.length, "| mañana:", tomorrowGames.length);
+      if (todayGames.length) console.log("[NBA DEBUG] primer partido hoy:", todayGames[0]?.teams?.home?.name, "vs", todayGames[0]?.teams?.visitors?.name, "status:", todayGames[0]?.status?.long);
+      if (yesterdayGames.length) console.log("[NBA DEBUG] primer partido ayer:", yesterdayGames[0]?.teams?.home?.name, "vs", yesterdayGames[0]?.teams?.visitors?.name, "status:", yesterdayGames[0]?.status?.long);
 
       // Helpers para status (API puede devolver int o string)
       const isNS     = g => g.status?.short === 1 || g.status?.short === "NS";
