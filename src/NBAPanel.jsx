@@ -11,20 +11,14 @@ async function nbFetch(path) {
 }
 
 function getESTDate(offsetDays = 0) {
-  // Usar America/New_York que maneja EST/EDT automáticamente
+  // Obtener fecha actual en EST/EDT (America/New_York)
   const now = new Date();
-  const estStr = new Intl.DateTimeFormat("en-CA", {
+  // Sumar offset en ms antes de formatear — evita bugs de timezone local
+  const shifted = new Date(now.getTime() + offsetDays * 86400000);
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(now);
-  // estStr = "YYYY-MM-DD"
-  const [y, m, d] = estStr.split("-").map(Number);
-  const base = new Date(y, m - 1, d);
-  base.setDate(base.getDate() + offsetDays);
-  const yr = base.getFullYear();
-  const mo = String(base.getMonth() + 1).padStart(2, "0");
-  const dy = String(base.getDate()).padStart(2, "0");
-  return yr + "-" + mo + "-" + dy;
+  }).format(shifted);
 }
 
 function getRecentGames(res, teamId) {
@@ -408,6 +402,7 @@ export default function NBAPanel({ onClose }) {
   const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState("");
   const [allAnalyses, setAllAnalyses] = useState({});
+  const [gamesLabel, setGamesLabel] = useState("");
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -476,6 +471,11 @@ export default function NBAPanel({ onClose }) {
         found = yesterdayGames;
       }
 
+      const todayEst = getESTDate(0);
+      const labelDate = found.length > 0
+        ? new Date(found[0].date?.start || todayEst).toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long", timeZone:"America/New_York" })
+        : "";
+      setGamesLabel(labelDate);
       setGames(found.slice(0, 15));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
@@ -673,6 +673,12 @@ export default function NBAPanel({ onClose }) {
             {games.length === 0 && (
               <div style={{ textAlign: "center", padding: 40, color: "#555", fontSize: 13 }}>
                 No se encontraron partidos. Pulsa Actualizar.
+              </div>
+            )}
+            {gamesLabel && (
+              <div style={{fontSize:11,color:"#555",marginBottom:12,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{color:"#f87171",fontWeight:700}}>📅</span>
+                <span>Mostrando partidos del <span style={{color:"#e8eaf0",fontWeight:700}}>{gamesLabel}</span> (EST)</span>
               </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12, marginBottom: 16 }}>
