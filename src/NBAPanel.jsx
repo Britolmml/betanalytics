@@ -440,7 +440,8 @@ export default function NBAPanel({ onClose }) {
         "{\"resumen\":\"string\",\"ganadorProbable\":\"string\",\"probabilidades\":{\"home\":52,\"away\":48}," +
         "\"apuestasDestacadas\":[{\"tipo\":\"string\",\"pick\":\"string\",\"odds_sugerido\":\"string\",\"confianza\":75,\"razon\":\"string\",\"categoria\":\"principal|cuartos|tiempos|jugador\",\"jugador\":null}]," +
         "\"valueBet\":{\"existe\":true,\"mercado\":\"string\",\"explicacion\":\"string\",\"odds_recomendado\":\"string\"}," +
-        "\"alertas\":[\"string\"],\"nivelConfianza\":\"ALTO\",\"razonConfianza\":\"string\"}";\n      const res = await fetch("/api/predict", {
+        "\"alertas\":[\"string\"],\"nivelConfianza\":\"ALTO\",\"razonConfianza\":\"string\"}";
+      const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
