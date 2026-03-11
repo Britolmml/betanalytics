@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const NBA_PROXY = "https://nba-proxy-snowy.vercel.app/api/basketball";
@@ -218,6 +218,8 @@ export default function NBAPanel({ onClose }) {
   const [analysis, setAnalysis] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiErr, setAiErr] = useState("");
+
+  useEffect(() => { loadNBA(); }, []);
 
   const loadNBA = async () => {
     setLoading(true); setErr("");
