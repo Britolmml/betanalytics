@@ -971,12 +971,12 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const hTeamLine = ((hAvg + aCon) / 2).toFixed(1);
       const aTeamLine = ((aAvg + hCon) / 2).toFixed(1);
 
-      const hRecord = hStats ? (hStats.wins + "V/" + ((hStats.games||5)-hStats.wins) + "D") : "N/D";
-      const aRecord = aStats ? (aStats.wins + "V/" + ((aStats.games||5)-aStats.wins) + "D") : "N/D";
-      const hSL = hStats ? ("Pts: " + hStats.avgPts + " | Rec: " + hStats.avgPtsCon + " | " + hRecord + " | " + hStats.results) : "Sin datos";
-      const aSL = aStats ? ("Pts: " + aStats.avgPts + " | Rec: " + aStats.avgPtsCon + " | " + aRecord + " | " + aStats.results) : "Sin datos";
+      const hRec = hStats ? (hStats.wins + "V/" + ((hStats.games||5)-hStats.wins) + "D") : "N/D";
+      const aRec = aStats ? (aStats.wins + "V/" + ((aStats.games||5)-aStats.wins) + "D") : "N/D";
+      const hSL = hStats ? ("Pts: " + hStats.avgPts + " rec: " + hStats.avgPtsCon + " " + hRec + " " + hStats.results) : "Sin datos";
+      const aSL = aStats ? ("Pts: " + aStats.avgPts + " rec: " + aStats.avgPtsCon + " " + aRec + " " + aStats.results) : "Sin datos";
       const sLine = hScore != null ? (" Marcador: " + hScore + "-" + aScore) : "";
-      const prompt = "Analista NBA experto en totales. Partido: " + home + " vs " + away + sLine + " Estado: " + status + " | LOCAL: " + hSL + " | VISITA: " + aSL + " | Lineas: Total=" + totalLine + " Local=" + hTeamLine + " Visita=" + aTeamLine + " | Responde SOLO JSON: {resumen,ganadorProbable,probabilidades:{home,away},apuestasDestacadas:[{tipo,pick,odds_sugerido,confianza,razon}],valueBet:{existe,mercado,explicacion},alertas:[],nivelConfianza,razonConfianza}";
+      const prompt = "Analista NBA experto en totales. Partido: " + home + " vs " + away + sLine + " Estado: " + status + " LOCAL: " + hSL + " VISITA: " + aSL + " Lineas: Total=" + totalLine + " Local=" + hTeamLine + " Visita=" + aTeamLine + " Responde SOLO JSON sin backticks: {resumen,ganadorProbable,probabilidades:{home,away},apuestasDestacadas:[{tipo,pick,odds_sugerido,confianza,razon}],valueBet:{existe,mercado,explicacion},alertas:[],nivelConfianza,razonConfianza}";
 
       const res = await fetch("/api/predict", {
         method: "POST",
@@ -2213,8 +2213,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                     // Hora local
                     const timeStr = g.date?.start ? new Date(g.date.start).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}) : "";
                     return (
-                      <div key={i} onClick={()=>analyzeNbaGame(g)}
-                        style={{cursor:"pointer",borderRadius:14,overflow:"hidden",border:isSelected?"1.5px solid rgba(239,68,68,0.6)":isLive?"1.5px solid rgba(16,185,129,0.35)":"1.5px solid rgba(255,255,255,0.07)",background:isSelected?"rgba(239,68,68,0.07)":"#0d1117",transition:"all 0.2s",boxShadow:isSelected?"0 0 20px rgba(239,68,68,0.1)":"none"}}>
+                      <div key={i} onClick={()=>analyzeNbaGame(g)} style={{cursor:"pointer",borderRadius:14,overflow:"hidden",border:isSelected?"1.5px solid rgba(239,68,68,0.6)":isLive?"1.5px solid rgba(16,185,129,0.35)":"1.5px solid rgba(255,255,255,0.07)",background:isSelected?"rgba(239,68,68,0.07)":"#0d1117",transition:"all 0.2s",boxShadow:isSelected?"0 0 20px rgba(239,68,68,0.1)":"none"}}>
                         {/* Header status */}
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:isLive?"rgba(16,185,129,0.08)":isDone?"rgba(255,255,255,0.03)":"rgba(245,158,11,0.06)"}}>
                           <span style={{fontSize:11,fontWeight:800,letterSpacing:1,color:isLive?"#10b981":isDone?"#666":"#f59e0b"}}>
@@ -2351,7 +2350,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                               <div style={{fontSize:11,color:"#555",marginBottom:4}}>{name}</div>
                               <div style={{fontSize:28,fontWeight:900,color}}>{pct}%</div>
                               <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:6,overflow:"hidden"}}>
-                                <div style={{width:`${pct}%`,height:"100%",background:color}}/>
+                                <div style={{width:String(pct)+"%",height:"100%",background:color}}/>
                               </div>
                             </div>
                           ))}
@@ -2366,7 +2365,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                                 <div style={{fontSize:11,color:"#555",marginTop:2}}>{a.razon}</div>
                               </div>
                               <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                                <div style={{fontSize:14,fontWeight:900,color:a.confianza>=75?"#10b981":a.confianza>=60?"#f59e0b":"#ef4444"}}>{a.confianza}%</div>
+                                <div style={{fontSize:14,fontWeight:900,color:a.confianza>74?"#10b981":a.confianza>59?"#f59e0b":"#ef4444"}}>{a.confianza}%</div>
                                 <div style={{fontSize:10,color:"#444"}}>odds {a.odds_sugerido}</div>
                               </div>
                             </div>
@@ -2380,14 +2379,12 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           </div>
                         )}
                         {/* Nivel confianza */}
-                        {(()=>{const nc=nbaAnalysis.nivelConfianza;const ncBg=nc==="ALTO"?"rgba(16,185,129,0.08)":nc==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)";const ncClr=nc==="ALTO"?"#10b981":nc==="MEDIO"?"#f59e0b":"#ef4444";const ncBdr=nc==="ALTO"?"rgba(16,185,129,0.2)":nc==="MEDIO"?"rgba(245,158,11,0.2)":"rgba(239,68,68,0.2)";return(
-                        <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,background:ncBg,color:ncClr,border:"1px solid "+ncBdr}}>
+                        <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,background:nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.08)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)",color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444",border:"1px solid "+(nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.2)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.2)":"rgba(239,68,68,0.2)")}}>
                           <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>
                             {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza general: {nbaAnalysis.nivelConfianza}
                           </div>
                           {nbaAnalysis.razonConfianza && <div style={{fontSize:11,opacity:0.8}}>{nbaAnalysis.razonConfianza}</div>}
                         </div>
-                        )})()}
                       </div>
                     )}
                   </div>
@@ -2415,8 +2412,8 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                       <tbody>
                         {nbaStandings[conf].map((t,i)=>(
                           <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)"}}>
-                            <td style={{padding:"5px 0",color:i<8?"#f87171":"#555",fontWeight:700}}>{t.position}</td>
-                            <td style={{padding:"5px 0",color:i<8?"#e8eaf0":"#777"}}>{t.team?.name}</td>
+                            <td style={{padding:"5px 0",color:i>7?"#555":"#f87171",fontWeight:700}}>{t.position}</td>
+                            <td style={{padding:"5px 0",color:i>7?"#777":"#e8eaf0"}}>{t.team?.name}</td>
                             <td style={{textAlign:"center",color:"#10b981",fontWeight:700}}>{t.games?.win?.total}</td>
                             <td style={{textAlign:"center",color:"#ef4444"}}>{t.games?.lose?.total}</td>
                             <td style={{textAlign:"center",color:"#aaa"}}>{t.games?.win?.percentage ? (parseFloat(t.games.win.percentage)*100).toFixed(0)+"%" : "-"}</td>
