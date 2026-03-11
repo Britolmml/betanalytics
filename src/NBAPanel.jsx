@@ -287,87 +287,100 @@ function PlayerPropsCard({ p }) {
 }
 
 
-function ParlayBox({ apuestas }) {
-  // Tomar los top picks excluyendo jugador (más volátiles) con confianza >= 68%
-  const tops = apuestas
-    .filter(a => a.confianza >= 68 && a.categoria !== "jugador")
-    .sort((a, b) => b.confianza - a.confianza)
-    .slice(0, 4);
+function ParlayBox({ allAnalyses }) {
+  const entries = Object.values(allAnalyses);
+  if (entries.length === 0) return null;
 
-  // También los mejores player props >= 72%
-  const topProps = apuestas
-    .filter(a => a.confianza >= 72 && a.categoria === "jugador")
-    .sort((a, b) => b.confianza - a.confianza)
-    .slice(0, 2);
+  // De cada partido tomar el pick de mayor confianza (no jugador, >=65%)
+  const picks = entries.map(({ game, analysis }) => {
+    const best = (analysis.apuestasDestacadas || [])
+      .filter(a => a.confianza >= 65 && a.categoria !== "jugador")
+      .sort((a, b) => b.confianza - a.confianza)[0];
+    if (!best) return null;
+    return {
+      home: game.teams?.home?.name,
+      away: game.teams?.visitors?.name,
+      pick: best.pick,
+      tipo: best.tipo,
+      confianza: best.confianza,
+      odds: best.odds_sugerido,
+    };
+  }).filter(Boolean);
 
-  const parlayPicks = [...tops, ...topProps].slice(0, 4);
-  if (parlayPicks.length < 2) return null;
+  if (picks.length < 2) return (
+    <div style={{padding:"16px",textAlign:"center",color:"#444",fontSize:12,borderRadius:12,border:"1px dashed rgba(245,158,11,0.2)",marginTop:8}}>
+      Analiza al menos 2 partidos para generar el parlay del día
+    </div>
+  );
 
-  // Calcular odds combinadas (estimadas a partir de confianza)
-  const oddsEst = parlayPicks.map(a => {
-    const p = a.confianza / 100;
-    return 1 / p;
-  });
-  const combinedOdds = oddsEst.reduce((acc, o) => acc * o, 1).toFixed(2);
-  const confCombinada = parlayPicks.reduce((acc, a) => acc * (a.confianza / 100), 1);
-  const confPct = (confCombinada * 100).toFixed(0);
-
-  const confColor = confPct > 40 ? "#10b981" : confPct > 25 ? "#f59e0b" : "#ef4444";
+  // Calcular odds combinadas
+  const combinedOdds = picks.reduce((acc, p) => {
+    const prob = p.confianza / 100;
+    return acc * (1 / prob);
+  }, 1).toFixed(2);
+  const combinedProb = (picks.reduce((acc, p) => acc * (p.confianza / 100), 1) * 100).toFixed(0);
+  const confColor = combinedProb > 35 ? "#10b981" : combinedProb > 20 ? "#f59e0b" : "#ef4444";
 
   return (
-    <div style={{marginTop:16,borderRadius:14,overflow:"hidden",border:"1px solid rgba(245,158,11,0.3)",background:"rgba(245,158,11,0.04)"}}>
-      <div style={{padding:"10px 14px",background:"rgba(245,158,11,0.08)",borderBottom:"1px solid rgba(245,158,11,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:16}}>🎰</span>
+    <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(245,158,11,0.35)",background:"rgba(245,158,11,0.03)"}}>
+      {/* Header */}
+      <div style={{padding:"12px 16px",background:"rgba(245,158,11,0.09)",borderBottom:"1px solid rgba(245,158,11,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:20}}>🎰</span>
           <div>
-            <div style={{fontSize:12,fontWeight:800,color:"#f59e0b",letterSpacing:1}}>PARLAY SUGERIDO</div>
-            <div style={{fontSize:10,color:"#666"}}>{parlayPicks.length} picks combinados</div>
+            <div style={{fontSize:13,fontWeight:800,color:"#f59e0b",letterSpacing:1}}>PARLAY DEL DÍA</div>
+            <div style={{fontSize:10,color:"#666"}}>{picks.length} partidos · mejor pick de cada uno</div>
           </div>
         </div>
         <div style={{textAlign:"right"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#f59e0b",lineHeight:1}}>{combinedOdds}x</div>
+          <div style={{fontSize:24,fontWeight:900,color:"#f59e0b",lineHeight:1}}>{combinedOdds}x</div>
           <div style={{fontSize:10,color:"#555"}}>odds estimadas</div>
         </div>
       </div>
 
-      <div style={{padding:"12px 14px"}}>
-        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
-          {parlayPicks.map((a, i) => {
-            const catColor = a.categoria === "jugador" ? "#34d399" : a.categoria === "cuartos" ? "#a78bfa" : a.categoria === "tiempos" ? "#60a5fa" : "#f87171";
-            return (
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
-                <span style={{fontSize:13,color:catColor,fontWeight:900,minWidth:20}}>{i+1}.</span>
-                <div style={{flex:1}}>
-                  {a.jugador && <span style={{fontSize:10,color:"#34d399",fontWeight:700,marginRight:5}}>👤{a.jugador} — </span>}
-                  <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700}}>{a.pick}</span>
-                  <span style={{fontSize:10,color:"#555",marginLeft:6}}>{a.tipo}</span>
-                </div>
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <span style={{fontSize:12,fontWeight:800,color:a.confianza>74?"#10b981":"#f59e0b"}}>{a.confianza}%</span>
-                </div>
+      {/* Picks */}
+      <div style={{padding:"12px 16px"}}>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+          {picks.map((p, i) => (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10,borderLeft:"3px solid #f59e0b"}}>
+              <span style={{fontSize:14,fontWeight:900,color:"#f59e0b",minWidth:22}}>{i+1}.</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:10,color:"#555",marginBottom:2}}>{p.home} vs {p.away}</div>
+                <div style={{fontSize:13,color:"#e8eaf0",fontWeight:800}}>{p.pick}</div>
+                <div style={{fontSize:10,color:"#666"}}>{p.tipo}</div>
               </div>
-            );
-          })}
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:14,fontWeight:900,color:p.confianza>74?"#10b981":"#f59e0b"}}>{p.confianza}%</div>
+                {p.odds && <div style={{fontSize:10,color:"#444"}}>{p.odds}</div>}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <div style={{textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px"}}>
-            <div style={{fontSize:18,fontWeight:900,color:confColor}}>{confPct}%</div>
+        {/* Stats del parlay */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+          <div style={{textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 4px"}}>
+            <div style={{fontSize:20,fontWeight:900,color:"#e8eaf0"}}>{picks.length}</div>
+            <div style={{fontSize:10,color:"#444"}}>partidos</div>
+          </div>
+          <div style={{textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 4px"}}>
+            <div style={{fontSize:20,fontWeight:900,color:confColor}}>{combinedProb}%</div>
             <div style={{fontSize:10,color:"#444"}}>prob. combinada</div>
           </div>
-          <div style={{textAlign:"center",background:"rgba(245,158,11,0.08)",borderRadius:10,padding:"8px"}}>
-            <div style={{fontSize:18,fontWeight:900,color:"#f59e0b"}}>{combinedOdds}x</div>
-            <div style={{fontSize:10,color:"#444"}}>retorno estimado</div>
+          <div style={{textAlign:"center",background:"rgba(245,158,11,0.08)",borderRadius:10,padding:"8px 4px"}}>
+            <div style={{fontSize:20,fontWeight:900,color:"#f59e0b"}}>{combinedOdds}x</div>
+            <div style={{fontSize:10,color:"#444"}}>retorno</div>
           </div>
         </div>
 
-        <div style={{marginTop:10,fontSize:10,color:"#444",textAlign:"center",lineHeight:1.5}}>
-          ⚠️ Parlay generado con picks de mayor confianza individual. La probabilidad combinada disminuye con cada pick añadido.
+        <div style={{fontSize:10,color:"#333",textAlign:"center",lineHeight:1.5}}>
+          ⚠️ Analiza más partidos para ampliar el parlay · La prob. combinada baja con cada pick
         </div>
       </div>
     </div>
   );
 }
+
 
 export default function NBAPanel({ onClose }) {
   const [games, setGames] = useState([]);
@@ -383,6 +396,7 @@ export default function NBAPanel({ onClose }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+  const [allAnalyses, setAllAnalyses] = useState({});
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -566,6 +580,7 @@ export default function NBAPanel({ onClose }) {
       const parsed = JSON.parse(data.result);
       setAnalysis(parsed);
       guardarPrediccion(parsed);
+      setAllAnalyses(prev => ({ ...prev, [String(selectedGame.id)]: { game: selectedGame, analysis: parsed } }));
     } catch (e) {
       setAiErr("Error en análisis IA: " + e.message);
     } finally {
@@ -597,7 +612,7 @@ export default function NBAPanel({ onClose }) {
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 4, marginBottom: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 4 }}>
-          {[["games", "🏀 Partidos"], ["standings", "🏆 Tabla"]].map(([t, l]) => {
+          {[["games", "🏀 Partidos"], ["standings", "🏆 Tabla"], ["parlay", "🎰 Parlay"]].map(([t, l]) => {
             const active = tab === t;
             return (
               <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: active ? "rgba(239,68,68,0.2)" : "transparent", color: active ? "#f87171" : "#555", transition: "all 0.2s" }}>
@@ -760,7 +775,6 @@ export default function NBAPanel({ onClose }) {
 
                         <NivelConfianza nivel={analysis.nivelConfianza} razon={analysis.razonConfianza} />
 
-                        <ParlayBox apuestas={analysis.apuestasDestacadas || []} />
 
                         {/* Estado de guardado automático */}
                         <div style={{marginTop:12,textAlign:"center",fontSize:11}}>
@@ -772,6 +786,23 @@ export default function NBAPanel({ onClose }) {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Parlay */}
+        {tab === "parlay" && !loading && (
+          <div>
+            <div style={{fontSize:11,color:"#555",marginBottom:16,lineHeight:1.6}}>
+              Analiza partidos individuales en la pestaña <span style={{color:"#f87171",fontWeight:700}}>🏀 Partidos</span> y aquí se construirá automáticamente el parlay del día con el mejor pick de cada partido.
+            </div>
+            <ParlayBox allAnalyses={allAnalyses} />
+            {Object.keys(allAnalyses).length > 0 && (
+              <div style={{marginTop:12,textAlign:"right"}}>
+                <button onClick={() => setAllAnalyses({})} style={{fontSize:10,color:"#333",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>
+                  Limpiar parlay
+                </button>
               </div>
             )}
           </div>
