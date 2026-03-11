@@ -165,6 +165,8 @@ export default function App() {
 
   // App state
   const [league,        setLeague]        = useState(null);
+  const [todayGames,    setTodayGames]    = useState([]);
+  const [loadingToday,  setLoadingToday]  = useState(false);
   const [teams,         setTeams]         = useState([]);
   const [loadingTeams,  setLoadingTeams]  = useState(false);
   const [homeTeam,      setHomeTeam]      = useState(null);
@@ -322,6 +324,24 @@ export default function App() {
     setHomeMatches([]); setAwayMatches([]); setAnalysis(null);
     setStandings([]); setH2h([]); setNextMatches({home:[],away:[]});
     setActiveTab("stats");
+    setTodayGames([]);
+    // Cargar partidos de hoy para esta liga
+    setLoadingToday(true);
+    try {
+      const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+      const d = await apiFetch("/fixtures?league=" + lg.id + "&date=" + todayStr);
+      const games = d.response || [];
+      // Si no hay hoy, buscar mañana y ayer también
+      if (games.length === 0) {
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(tomorrow);
+        const d2 = await apiFetch("/fixtures?league=" + lg.id + "&date=" + tomorrowStr);
+        const g2 = d2.response || [];
+        if (g2.length > 0) { setTodayGames(g2.slice(0,10)); setLoadingToday(false); return; }
+      }
+      setTodayGames(games.slice(0, 10));
+    } catch(e) { /* silencioso */ }
+    finally { setLoadingToday(false); }
     // Cargar equipos intentando varias temporadas
     setLoadingTeams(true);
     try {
@@ -980,6 +1000,53 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                 );
               })}
             </div>
+
+            {/* Partidos de hoy */}
+            {league && (
+              <div style={{marginBottom:20}}>
+                <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>
+                  📅 Partidos de hoy — {league.name}
+                </div>
+                {loadingToday && (
+                  <div style={{color:"#555",fontSize:12,padding:"8px 0"}}>⏳ Cargando partidos...</div>
+                )}
+                {!loadingToday && todayGames.length === 0 && (
+                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>No hay partidos programados hoy para esta liga.</div>
+                )}
+                {!loadingToday && todayGames.length > 0 && (
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {todayGames.map((f,i) => {
+                      const st = f.fixture?.status?.short;
+                      const isLive = ["1H","2H","HT","ET","BT","P"].includes(st);
+                      const isDone = ["FT","AET","PEN"].includes(st);
+                      const isPending = !isLive && !isDone;
+                      const hScore = f.goals?.home;
+                      const aScore = f.goals?.away;
+                      const kickoff = f.fixture?.date ? new Date(f.fixture.date).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",timeZone:"America/Mexico_City"}) : "";
+                      const statusColor = isLive ? "#10b981" : isDone ? "#555" : "#f59e0b";
+                      const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ " + st : "🕐 " + kickoff;
+                      return (
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid " + (isLive?"rgba(16,185,129,0.2)":"rgba(255,255,255,0.05)")}}>
+                          <span style={{fontSize:10,fontWeight:700,color:statusColor,minWidth:72}}>{statusLabel}</span>
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700,flex:1,textAlign:"right"}}>{f.teams?.home?.name}</span>
+                            <span style={{fontSize:14,fontWeight:900,color:"#e8eaf0",minWidth:36,textAlign:"center"}}>
+                              {hScore != null ? hScore+"-"+aScore : "vs"}
+                            </span>
+                            <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700,flex:1}}>{f.teams?.away?.name}</span>
+                          </div>
+                          <button
+                            onClick={() => { const ht = teams.find(t=>t.name===f.teams?.home?.name||t.id===f.teams?.home?.id); const at = teams.find(t=>t.name===f.teams?.away?.name||t.id===f.teams?.away?.id); if(ht) setHomeTeam(ht); if(at) setAwayTeam(at); }}
+                            style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
+                            Analizar
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Teams */}
             {league && (
