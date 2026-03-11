@@ -2297,17 +2297,20 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                                   {[
                                     ["Puntos/partido", stats.avgPts, 130, "#f97316"],
                                     ["Puntos recibidos", stats.avgPtsCon, 130, "#ef4444"],
-                                  ].map(([label,val,max,color])=>(
+                                  ].map(([label,val,max,color])=>{
+                                    const w = String(Math.min((val/max)*100,100))+"%";
+                                    return (
                                     <div key={label} style={{marginBottom:8}}>
                                       <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
                                         <span style={{color:"#666"}}>{label}</span>
                                         <span style={{fontWeight:800,color}}>{val}</span>
                                       </div>
                                       <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
-                                        <div style={{width:String(Math.min((val/max)*100,100))+"%",height:"100%",background:color,borderRadius:2}}/>
+                                        <div style={{width:w,height:"100%",background:color,borderRadius:2}}/>
                                       </div>
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                   <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11}}>
                                     <span style={{color:"#666"}}>Forma reciente</span>
                                     <span style={{fontWeight:700,color:"#10b981"}}>{stats.results || "N/D"}</span>
@@ -2350,15 +2353,18 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           {[
                             [selectedNbaGame?.teams?.home?.name, nbaAnalysis.probabilidades?.home, "#ef4444"],
                             [selectedNbaGame?.teams?.visitors?.name, nbaAnalysis.probabilidades?.away, "#60a5fa"],
-                          ].map(([name,pct,color])=>(
+                          ].map(([name,pct,color])=>{
+                            const pw = String(pct)+"%";
+                            return (
                             <div key={name} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
                               <div style={{fontSize:11,color:"#555",marginBottom:4}}>{name}</div>
                               <div style={{fontSize:28,fontWeight:900,color}}>{pct}%</div>
                               <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:6,overflow:"hidden"}}>
-                                <div style={{width:`${pct}%`,height:"100%",background:color}}/>
+                                <div style={{width:pw,height:"100%",background:color}}/>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         {/* Apuestas */}
                         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
