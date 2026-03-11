@@ -1,3 +1,4 @@
+import NBAPanel from "./NBAPanel";
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, getPredictions, updateResult } from "./supabase";
 
@@ -843,6 +844,8 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     setCompareData(prev => prev.filter(d => d.team.id !== teamId));
   };
 
+  const [showNBA, setShowNBA] = useState(false);
+
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
     <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
@@ -864,6 +867,9 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               📋 JORNADA
             </button>
           )}
+          <button onClick={()=>{ setShowNBA(true); }} style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            🏀 NBA
+          </button>
           <button onClick={loadSaved}
             style={{background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📁 GUARDADAS
@@ -2001,6 +2007,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           </div>
         </div>
       )}
+      {showNBA && <NBAPanel onClose={()=>setShowNBA(false)} />}
     </div>
   );
 }
