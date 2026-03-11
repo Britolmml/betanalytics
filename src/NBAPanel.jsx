@@ -444,95 +444,66 @@ export default function NBAPanel({ onClose }) {
   const loadNBA = async () => {
     setLoading(true); setErr("");
     try {
-      // Estrategia: buscar hoy Y ayer Y mañana en paralelo
-      // Mostrar: en vivo primero, luego pendientes de hoy, luego terminados de hoy
-      // Solo usar otra fecha si hoy no tiene absolutamente nada
-      // Buscar en temporada 2025 (= temporada 2025-26) Y también sin filtro de season
-      // para asegurar que encontramos los partidos correctos
-      const todayStr = getESTDate(0);
-      const yesterdayStr = getESTDate(-1);
-      const tomorrowStr = getESTDate(1);
-      
-      const [resYest, resToday, resTomorrow, resYest26, resToday26, resTomorrow26] = await Promise.all([
-        nbFetch("/games?season=2025&date=" + yesterdayStr),
-        nbFetch("/games?season=2025&date=" + todayStr),
-        nbFetch("/games?season=2025&date=" + tomorrowStr),
-        nbFetch("/games?season=2026&date=" + yesterdayStr),
-        nbFetch("/games?season=2026&date=" + todayStr),
-        nbFetch("/games?season=2026&date=" + tomorrowStr),
+      // Calcular fechas en zona horaria EST correctamente
+      const getDate = (offset) => {
+        const estStr = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/New_York",
+          year: "numeric", month: "2-digit", day: "2-digit"
+        }).format(new Date());
+        const [y, m, d] = estStr.split("-").map(Number);
+        const dt = new Date(y, m - 1, d + offset);
+        return dt.getFullYear() + "-"
+          + String(dt.getMonth() + 1).padStart(2, "0") + "-"
+          + String(dt.getDate()).padStart(2, "0");
+      };
+
+      const d0 = getDate(0);  // hoy EST
+      const d1 = getDate(1);  // mañana
+      const dm1 = getDate(-1); // ayer
+
+      console.log("[NBA] Fechas → ayer:", dm1, "hoy:", d0, "mañana:", d1);
+
+      // Traer hoy, mañana y ayer en paralelo
+      const [rToday, rTomorrow, rYesterday] = await Promise.all([
+        nbFetch("/games?season=2025&date=" + d0),
+        nbFetch("/games?season=2025&date=" + d1),
+        nbFetch("/games?season=2025&date=" + dm1),
       ]);
-      
-      // Combinar resultados de ambas temporadas
-      const merge = (r1, r2) => {
-        const a = r1?.response || [];
-        const b = r2?.response || [];
-        const ids = new Set(a.map(g => g.id));
-        return [...a, ...b.filter(g => !ids.has(g.id))];
-      };
 
-      const todayGames    = merge(resToday, resToday26);
-      const tomorrowGames = merge(resTomorrow, resTomorrow26);
-      const yesterdayGames = merge(resYest, resYest26);
-      // DEBUG — ver en consola qué devuelve la API
-      console.log("[NBA DEBUG] todayStr=", todayStr, "yesterdayStr=", yesterdayStr, "tomorrowStr=", tomorrowStr);
-      console.log("[NBA DEBUG] hoy:", todayGames.length, "| ayer:", yesterdayGames.length, "| mañana:", tomorrowGames.length);
-      if (todayGames.length) console.log("[NBA DEBUG] primer partido hoy:", todayGames[0]?.teams?.home?.name, "vs", todayGames[0]?.teams?.visitors?.name, "status:", todayGames[0]?.status?.long);
-      if (yesterdayGames.length) console.log("[NBA DEBUG] primer partido ayer:", yesterdayGames[0]?.teams?.home?.name, "vs", yesterdayGames[0]?.teams?.visitors?.name, "status:", yesterdayGames[0]?.status?.long);
+      const gToday     = rToday?.response     || [];
+      const gTomorrow  = rTomorrow?.response  || [];
+      const gYesterday = rYesterday?.response || [];
 
-      // Helpers para status (API puede devolver int o string)
-      const isNS     = g => g.status?.short === 1 || g.status?.short === "NS";
-      const isLive   = g => !isNS(g) && !isDone(g);
-      const isDone   = g => g.status?.short === 3 || g.status?.short === "FT" || g.status?.short === "AOT";
+      console.log("[NBA] Partidos → hoy:", gToday.length, "mañana:", gTomorrow.length, "ayer:", gYesterday.length);
 
-      const statusOrder = g => {
-        if (isLive(g)) return 0;
-        if (isNS(g))   return 1;
-        return 2;
-      };
-
-      console.log("[NBA debug] today:", todayGames.length, "tomorrow:", tomorrowGames.length, "yesterday:", yesterdayGames.length);
-      console.log("[NBA debug] todayGames statuses:", todayGames.map(g => g.status?.short));
-      console.log("[NBA debug] tomorrowGames statuses:", tomorrowGames.map(g => g.status?.short));
-
+      // Prioridad: 1) hoy (cualquier status)  2) mañana (si hoy vacío)  3) ayer (fallback)
       let found = [];
+      let label = "";
 
-      if (liveGames.length > 0) {
-        // Hay partidos en vivo ahora — usar endpoint live que es más confiable
-        found = liveGames;
-      } else if (todayGames.length > 0) {
-        // Hoy tiene partidos (NS o terminados) — mostrar hoy siempre
-        found = [...todayGames].sort((a, b) => statusOrder(a) - statusOrder(b));
-      } else if (tomorrowGames.length > 0) {
-        // No hay hoy, mostrar mañana
-        found = tomorrowGames;
-      } else {
-        // Fallback: ayer
-        found = yesterdayGames;
-      }
-
-      // Label inteligente según qué se está mostrando
-      const todayEst = getESTDate(0);
-      const tomorrowEst = getESTDate(1);
-      let labelDate = "";
-      if (found.length > 0) {
-        const firstDate = found[0].date?.start?.split("T")[0] || todayEst;
-        const dayLabel = new Date(firstDate + "T12:00:00").toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" });
+      if (gToday.length > 0) {
+        // Ordenar: en vivo > pendientes > terminados
+        found = [...gToday].sort((a, b) => {
+          const order = g => {
+            const s = g.status?.short;
+            if (s !== 1 && s !== 3) return 0; // en vivo (cualquier otro valor)
+            if (s === 1) return 1;             // NS - no started
+            return 2;                           // terminado
+          };
+          return order(a) - order(b);
+        });
         const hasLive = found.some(g => g.status?.short !== 1 && g.status?.short !== 3);
-        const hasNS = found.some(g => g.status?.short === 1);
-        if (hasLive) labelDate = "🔴 En vivo — " + dayLabel;
-        else if (hasNS && firstDate === todayEst) labelDate = "Esta noche — " + dayLabel;
-        else if (hasNS && firstDate === tomorrowEst) labelDate = "Mañana — " + dayLabel;
-        else labelDate = dayLabel;
+        label = hasLive ? "🔴 En vivo hoy" : "Partidos de hoy";
+      } else if (gTomorrow.length > 0) {
+        found = gTomorrow;
+        label = "Partidos de mañana";
+      } else {
+        found = gYesterday;
+        label = "Resultados de ayer";
       }
-      console.log("=== NBA DEBUG ===");
-      console.log("Fecha EST hoy:", getESTDate(0));
-      console.log("Fecha EST ayer:", getESTDate(-1));
-      console.log("Partidos hoy s2025:", (resToday?.response||[]).length, "| s2026:", (resToday26?.response||[]).length);
-      console.log("Partidos ayer s2025:", (resYest?.response||[]).length, "| s2026:", (resYest26?.response||[]).length);
-      console.log("Partidos mañana s2025:", (resTomorrow?.response||[]).length, "| s2026:", (resTomorrow26?.response||[]).length);
-      console.log("todayGames merged:", todayGames.length, "| yesterdayGames:", yesterdayGames.length);
-      console.log("found:", found.length, "primer partido:", found[0]?.date?.start, found[0]?.teams?.home?.name);
-      setGamesLabel(labelDate);
+
+      console.log("[NBA] Mostrando:", label, "| partidos:", found.length);
+
+      setGamesLabel(label);
       setGames(found.slice(0, 15));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
