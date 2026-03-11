@@ -286,6 +286,89 @@ function PlayerPropsCard({ p }) {
   );
 }
 
+
+function ParlayBox({ apuestas }) {
+  // Tomar los top picks excluyendo jugador (más volátiles) con confianza >= 68%
+  const tops = apuestas
+    .filter(a => a.confianza >= 68 && a.categoria !== "jugador")
+    .sort((a, b) => b.confianza - a.confianza)
+    .slice(0, 4);
+
+  // También los mejores player props >= 72%
+  const topProps = apuestas
+    .filter(a => a.confianza >= 72 && a.categoria === "jugador")
+    .sort((a, b) => b.confianza - a.confianza)
+    .slice(0, 2);
+
+  const parlayPicks = [...tops, ...topProps].slice(0, 4);
+  if (parlayPicks.length < 2) return null;
+
+  // Calcular odds combinadas (estimadas a partir de confianza)
+  const oddsEst = parlayPicks.map(a => {
+    const p = a.confianza / 100;
+    return 1 / p;
+  });
+  const combinedOdds = oddsEst.reduce((acc, o) => acc * o, 1).toFixed(2);
+  const confCombinada = parlayPicks.reduce((acc, a) => acc * (a.confianza / 100), 1);
+  const confPct = (confCombinada * 100).toFixed(0);
+
+  const confColor = confPct > 40 ? "#10b981" : confPct > 25 ? "#f59e0b" : "#ef4444";
+
+  return (
+    <div style={{marginTop:16,borderRadius:14,overflow:"hidden",border:"1px solid rgba(245,158,11,0.3)",background:"rgba(245,158,11,0.04)"}}>
+      <div style={{padding:"10px 14px",background:"rgba(245,158,11,0.08)",borderBottom:"1px solid rgba(245,158,11,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:16}}>🎰</span>
+          <div>
+            <div style={{fontSize:12,fontWeight:800,color:"#f59e0b",letterSpacing:1}}>PARLAY SUGERIDO</div>
+            <div style={{fontSize:10,color:"#666"}}>{parlayPicks.length} picks combinados</div>
+          </div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:20,fontWeight:900,color:"#f59e0b",lineHeight:1}}>{combinedOdds}x</div>
+          <div style={{fontSize:10,color:"#555"}}>odds estimadas</div>
+        </div>
+      </div>
+
+      <div style={{padding:"12px 14px"}}>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+          {parlayPicks.map((a, i) => {
+            const catColor = a.categoria === "jugador" ? "#34d399" : a.categoria === "cuartos" ? "#a78bfa" : a.categoria === "tiempos" ? "#60a5fa" : "#f87171";
+            return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                <span style={{fontSize:13,color:catColor,fontWeight:900,minWidth:20}}>{i+1}.</span>
+                <div style={{flex:1}}>
+                  {a.jugador && <span style={{fontSize:10,color:"#34d399",fontWeight:700,marginRight:5}}>👤{a.jugador} — </span>}
+                  <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700}}>{a.pick}</span>
+                  <span style={{fontSize:10,color:"#555",marginLeft:6}}>{a.tipo}</span>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <span style={{fontSize:12,fontWeight:800,color:a.confianza>74?"#10b981":"#f59e0b"}}>{a.confianza}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div style={{textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px"}}>
+            <div style={{fontSize:18,fontWeight:900,color:confColor}}>{confPct}%</div>
+            <div style={{fontSize:10,color:"#444"}}>prob. combinada</div>
+          </div>
+          <div style={{textAlign:"center",background:"rgba(245,158,11,0.08)",borderRadius:10,padding:"8px"}}>
+            <div style={{fontSize:18,fontWeight:900,color:"#f59e0b"}}>{combinedOdds}x</div>
+            <div style={{fontSize:10,color:"#444"}}>retorno estimado</div>
+          </div>
+        </div>
+
+        <div style={{marginTop:10,fontSize:10,color:"#444",textAlign:"center",lineHeight:1.5}}>
+          ⚠️ Parlay generado con picks de mayor confianza individual. La probabilidad combinada disminuye con cada pick añadido.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NBAPanel({ onClose }) {
   const [games, setGames] = useState([]);
   const [standings, setStandings] = useState({ east: [], west: [] });
@@ -676,6 +759,8 @@ export default function NBAPanel({ onClose }) {
                         )}
 
                         <NivelConfianza nivel={analysis.nivelConfianza} razon={analysis.razonConfianza} />
+
+                        <ParlayBox apuestas={analysis.apuestasDestacadas || []} />
 
                         {/* Estado de guardado automático */}
                         <div style={{marginTop:12,textAlign:"center",fontSize:11}}>
