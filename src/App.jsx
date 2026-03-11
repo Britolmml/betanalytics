@@ -140,19 +140,17 @@ const RBadge = ({r}) => {
   return <span style={{background:bg,color:fg,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{r==="W"?"V":r==="D"?"E":"D"}</span>;
 };
 
-const SBar = ({label,val,max,color,dimmed}) => {
-  const bw = dimmed ? "0%" : Math.min((val/(max||1))*100, 100) + "%";
-  return (
+const SBar = ({label,val,max,color,dimmed}) => (
   <div style={{marginBottom:9,opacity:dimmed?0.4:1}}>
     <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
       <span style={{color:"#666"}}>{label}</span>
       <span style={{fontWeight:700,color}}>{dimmed ? "N/D" : val}</span>
     </div>
     <div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}>
-      <div style={{width:bw,height:"100%",background:color,borderRadius:2}}/>
+      {(()=>{const bw=dimmed?"0%":Math.min((val/(max||1))*100,100)+"%"; return <div style={{width:bw,height:"100%",background:color,borderRadius:2}}/>; })()}
     </div>
   </div>
-);};
+);
 
 export default function App() {
   // API config
@@ -975,11 +973,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
       const hRecord = hStats ? (hStats.wins + "V/" + ((hStats.games||5)-hStats.wins) + "D") : "N/D";
       const aRecord = aStats ? (aStats.wins + "V/" + ((aStats.games||5)-aStats.wins) + "D") : "N/D";
-      const hStatsLine = hStats ? ("Pts prom: " + hStats.avgPts + " | Pts recibidos: " + hStats.avgPtsCon + " | " + hRecord + " | Forma: " + hStats.results) : "Sin datos";
-      const aStatsLine = aStats ? ("Pts prom: " + aStats.avgPts + " | Pts recibidos: " + aStats.avgPtsCon + " | " + aRecord + " | Forma: " + aStats.results) : "Sin datos";
-      const scoreLine = hScore != null ? (" | Marcador: " + hScore + "-" + aScore) : "";
-      const jsonSchema = "{resumen, ganadorProbable, probabilidades:{home,away}, apuestasDestacadas:[{tipo,pick,odds_sugerido,confianza,razon}], valueBet:{existe,mercado,explicacion}, alertas:[], nivelConfianza, razonConfianza}";
-      const prompt = "Eres analista NBA experto en totales de puntos. Responde SOLO con JSON valido sin backticks." + " PARTIDO: " + home + " vs " + away + scoreLine + " ESTADO: " + status + " | STATS LOCAL: " + hStatsLine + " | STATS VISITA: " + aStatsLine + " | LINEAS: Total=" + totalLine + " Local=" + hTeamLine + " Visita=" + aTeamLine + " | INSTRUCCIONES: 1.Analiza consistencia totales 2.Total partido usa linea " + totalLine + " 3.Equipo local usa " + hTeamLine + " 4.Equipo visita usa " + aTeamLine + " 5.Resultado solo si diferencia mayor a 3 victorias 6.Handicap solo spreads 3.5-7.5 7.Confianza80+: variacion menor 10pts 8.Confianza65-79: datos moderados 9.ConfianzaMenor65: recomienda PASO | ESQUEMA JSON: " + jsonSchema
+      const hSL = hStats ? ("Pts: " + hStats.avgPts + " | Rec: " + hStats.avgPtsCon + " | " + hRecord + " | " + hStats.results) : "Sin datos";
+      const aSL = aStats ? ("Pts: " + aStats.avgPts + " | Rec: " + aStats.avgPtsCon + " | " + aRecord + " | " + aStats.results) : "Sin datos";
+      const sLine = hScore != null ? (" Marcador: " + hScore + "-" + aScore) : "";
+      const prompt = "Analista NBA experto en totales. Partido: " + home + " vs " + away + sLine + " Estado: " + status + " | LOCAL: " + hSL + " | VISITA: " + aSL + " | Lineas: Total=" + totalLine + " Local=" + hTeamLine + " Visita=" + aTeamLine + " | Responde SOLO JSON: {resumen,ganadorProbable,probabilidades:{home,away},apuestasDestacadas:[{tipo,pick,odds_sugerido,confianza,razon}],valueBet:{existe,mercado,explicacion},alertas:[],nivelConfianza,razonConfianza}";
+
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2180,9 +2178,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
             {/* Tabs */}
             <div style={{display:"flex",gap:4,marginBottom:18,background:"rgba(255,255,255,0.03)",borderRadius:10,padding:4}}>
               {[["games","🏀 Partidos"],["standings","🏆 Tabla"]].map(([t,l])=>(
-                <button key={t} onClick={()=>setNbaTab(t)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-                  background:nbaTab===t?"rgba(239,68,68,0.2)":"transparent",
-                  color:nbaTab===t?"#f87171":"#555",transition:"all 0.2s"}}>
+                <button key={t} onClick={()=>setNbaTab(t)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:nbaTab===t?"rgba(239,68,68,0.2)":"transparent",color:nbaTab===t?"#f87171":"#555",transition:"all 0.2s"}}>
                   {l}
                 </button>
               ))}
@@ -2214,17 +2210,15 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                     const isSelected = selectedNbaGame?.id === g.id;
                     const hWin = isDone && hScore > aScore;
                     const aWin = isDone && aScore > hScore;
+                    // Hora local
                     const timeStr = g.date?.start ? new Date(g.date.start).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}) : "";
-                    const cardBorder = isSelected ? "1.5px solid rgba(239,68,68,0.6)" : isLive ? "1.5px solid rgba(16,185,129,0.35)" : "1.5px solid rgba(255,255,255,0.07)";
-                    const cardBg = isSelected ? "rgba(239,68,68,0.07)" : "#0d1117";
-                    const cardShadow = isSelected ? "0 0 20px rgba(239,68,68,0.1)" : "none";
-                    const headerBg = isLive ? "rgba(16,185,129,0.08)" : isDone ? "rgba(255,255,255,0.03)" : "rgba(245,158,11,0.06)";
                     return (
-                      <div key={i} onClick={()=>analyzeNbaGame(g)} style={{cursor:"pointer",borderRadius:14,overflow:"hidden",border:cardBorder,background:cardBg,transition:"all 0.2s",boxShadow:cardShadow}}>
+                      <div key={i} onClick={()=>analyzeNbaGame(g)}
+                        style={{cursor:"pointer",borderRadius:14,overflow:"hidden",border:isSelected?"1.5px solid rgba(239,68,68,0.6)":isLive?"1.5px solid rgba(16,185,129,0.35)":"1.5px solid rgba(255,255,255,0.07)",background:isSelected?"rgba(239,68,68,0.07)":"#0d1117",transition:"all 0.2s",boxShadow:isSelected?"0 0 20px rgba(239,68,68,0.1)":"none"}}>
                         {/* Header status */}
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:headerBg}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:isLive?"rgba(16,185,129,0.08)":isDone?"rgba(255,255,255,0.03)":"rgba(245,158,11,0.06)"}}>
                           <span style={{fontSize:11,fontWeight:800,letterSpacing:1,color:isLive?"#10b981":isDone?"#666":"#f59e0b"}}>
-                            {isLive ? "🔴 EN VIVO" : isDone ? "⏱ FINAL" : `🕐 ${timeStr}`}
+                            {isLive ? "🔴 EN VIVO" : isDone ? "⏱ FINAL" : "🕐 "+timeStr}
                           </span>
                           <span style={{fontSize:10,color:"#444"}}>{g.arena?.city || ""}</span>
                         </div>
@@ -2298,7 +2292,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                                     ["Puntos/partido", stats.avgPts, 130, "#f97316"],
                                     ["Puntos recibidos", stats.avgPtsCon, 130, "#ef4444"],
                                   ].map(([label,val,max,color])=>{
-                                    const w = String(Math.min((val/max)*100,100))+"%";
+                                    const barW = Math.min((val/max)*100, 100) + "%";
                                     return (
                                     <div key={label} style={{marginBottom:8}}>
                                       <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
@@ -2306,11 +2300,10 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                                         <span style={{fontWeight:800,color}}>{val}</span>
                                       </div>
                                       <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
-                                        <div style={{width:w,height:"100%",background:color,borderRadius:2}}/>
+                                        <div style={{width:barW,height:"100%",background:color,borderRadius:2}}/>
                                       </div>
                                     </div>
-                                    );
-                                  })}
+                                  );})}
                                   <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11}}>
                                     <span style={{color:"#666"}}>Forma reciente</span>
                                     <span style={{fontWeight:700,color:"#10b981"}}>{stats.results || "N/D"}</span>
@@ -2353,24 +2346,19 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           {[
                             [selectedNbaGame?.teams?.home?.name, nbaAnalysis.probabilidades?.home, "#ef4444"],
                             [selectedNbaGame?.teams?.visitors?.name, nbaAnalysis.probabilidades?.away, "#60a5fa"],
-                          ].map(([name,pct,color])=>{
-                            const pw = String(pct)+"%";
-                            return (
+                          ].map(([name,pct,color])=>(
                             <div key={name} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
                               <div style={{fontSize:11,color:"#555",marginBottom:4}}>{name}</div>
                               <div style={{fontSize:28,fontWeight:900,color}}>{pct}%</div>
                               <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:6,overflow:"hidden"}}>
-                                <div style={{width:pw,height:"100%",background:color}}/>
+                                <div style={{width:`${pct}%`,height:"100%",background:color}}/>
                               </div>
                             </div>
-                            );
-                          })}
+                          ))}
                         </div>
                         {/* Apuestas */}
                         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
-                          {(nbaAnalysis.apuestasDestacadas||[]).map((a,i)=>{
-                            const cc=a.confianza>74?"#10b981":a.confianza>59?"#f59e0b":"#ef4444";
-                            return (
+                          {(nbaAnalysis.apuestasDestacadas||[]).map((a,i)=>(
                             <div key={i} style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                               <div>
                                 <span style={{fontSize:10,color:"#f87171",fontWeight:700}}>{a.tipo} </span>
@@ -2378,12 +2366,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                                 <div style={{fontSize:11,color:"#555",marginTop:2}}>{a.razon}</div>
                               </div>
                               <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                                <div style={{fontSize:14,fontWeight:900,color:cc}}>{a.confianza}%</div>
+                                <div style={{fontSize:14,fontWeight:900,color:a.confianza>=75?"#10b981":a.confianza>=60?"#f59e0b":"#ef4444"}}>{a.confianza}%</div>
                                 <div style={{fontSize:10,color:"#444"}}>odds {a.odds_sugerido}</div>
                               </div>
                             </div>
-                            );
-                          })}
+                          ))}
                         </div>
                         {/* Value bet */}
                         {nbaAnalysis.valueBet?.existe && (
@@ -2393,12 +2380,14 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                           </div>
                         )}
                         {/* Nivel confianza */}
-                        <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,background:nbaAnalysis.nivelConfianza==="ALTO"?"rgba(16,185,129,0.08)":nbaAnalysis.nivelConfianza==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)",color:nbaAnalysis.nivelConfianza==="ALTO"?"#10b981":nbaAnalysis.nivelConfianza==="MEDIO"?"#f59e0b":"#ef4444"}}>
+                        {(()=>{const nc=nbaAnalysis.nivelConfianza;const ncBg=nc==="ALTO"?"rgba(16,185,129,0.08)":nc==="MEDIO"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.08)";const ncClr=nc==="ALTO"?"#10b981":nc==="MEDIO"?"#f59e0b":"#ef4444";const ncBdr=nc==="ALTO"?"rgba(16,185,129,0.2)":nc==="MEDIO"?"rgba(245,158,11,0.2)":"rgba(239,68,68,0.2)";return(
+                        <div style={{textAlign:"center",padding:"10px 14px",borderRadius:8,background:ncBg,color:ncClr,border:"1px solid "+ncBdr}}>
                           <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>
-                            {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza: {nbaAnalysis.nivelConfianza}
+                            {nbaAnalysis.nivelConfianza==="ALTO"?"🟢":nbaAnalysis.nivelConfianza==="MEDIO"?"🟡":"🔴"} Confianza general: {nbaAnalysis.nivelConfianza}
                           </div>
                           {nbaAnalysis.razonConfianza && <div style={{fontSize:11,opacity:0.8}}>{nbaAnalysis.razonConfianza}</div>}
                         </div>
+                        )})()}
                       </div>
                     )}
                   </div>
@@ -2426,8 +2415,8 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                       <tbody>
                         {nbaStandings[conf].map((t,i)=>(
                           <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)"}}>
-                            <td style={{padding:"5px 0",color:i>7?"#555":"#f87171",fontWeight:700}}>{t.position}</td>
-                            <td style={{padding:"5px 0",color:i>7?"#777":"#e8eaf0"}}>{t.team?.name}</td>
+                            <td style={{padding:"5px 0",color:i<8?"#f87171":"#555",fontWeight:700}}>{t.position}</td>
+                            <td style={{padding:"5px 0",color:i<8?"#e8eaf0":"#777"}}>{t.team?.name}</td>
                             <td style={{textAlign:"center",color:"#10b981",fontWeight:700}}>{t.games?.win?.total}</td>
                             <td style={{textAlign:"center",color:"#ef4444"}}>{t.games?.lose?.total}</td>
                             <td style={{textAlign:"center",color:"#aaa"}}>{t.games?.win?.percentage ? (parseFloat(t.games.win.percentage)*100).toFixed(0)+"%" : "-"}</td>
