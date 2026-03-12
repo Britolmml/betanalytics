@@ -225,16 +225,13 @@ export default function App() {
   const loadNews = async () => {
     setLoadingNews(true);
     try {
-      const res = await fetch("/api/predict", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: 'Analista deportivo. Dame 6 tendencias/noticias de HOY sobre NBA y fútbol (mezcla ambos). Responde SOLO JSON sin texto extra: ' + JSON.stringify({noticias:[{titulo:"",deporte:"NBA",dato:""}]})})
-      });
+      const res = await fetch("/api/predict", { method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({prompt:'Analista deportivo. Dame 6 tendencias de HOY sobre NBA y futbol. SOLO JSON: '+JSON.stringify({noticias:[{titulo:"",deporte:"NBA",dato:""}]})}) });
       const data = await res.json();
-      const text = data.content?.[0]?.text || "";
+      const text = data.content?.[0]?.text||"";
       const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
-      setNews(parsed.noticias || []);
-    } catch(e) { setNews([]); }
-    finally { setLoadingNews(false); }
+      setNews(parsed.noticias||[]);
+    } catch(e){setNews([]);} finally{setLoadingNews(false);}
   };
 
   useEffect(() => {
@@ -931,15 +928,9 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               📋 JORNADA
             </button>
           )}
-          <button onClick={()=>{ setActiveSport(null); setShowNBA(false); }} style={{background:activeSport===null?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",border:activeSport===null?"1px solid rgba(255,255,255,0.25)":"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#e8eaf0":"#555",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            🏠 INICIO
-          </button>
-          <button onClick={()=>{ setActiveSport("football"); setShowNBA(false); }} style={{background:activeSport==="football"?"rgba(16,185,129,0.2)":"rgba(16,185,129,0.08)",border:activeSport==="football"?"1px solid rgba(16,185,129,0.5)":"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            ⚽ FÚTBOL
-          </button>
-          <button onClick={()=>{ setActiveSport("nba"); setShowNBA(true); }} style={{background:activeSport==="nba"?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.08)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            🏀 NBA
-          </button>
+          <button onClick={()=>{setActiveSport(null);setShowNBA(false);}} style={{background:activeSport===null?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",border:activeSport===null?"1px solid rgba(255,255,255,0.25)":"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#e8eaf0":"#555",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
+          <button onClick={()=>{setActiveSport("football");setShowNBA(false);}} style={{background:activeSport==="football"?"rgba(16,185,129,0.2)":"rgba(16,185,129,0.08)",border:activeSport==="football"?"1px solid rgba(16,185,129,0.5)":"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
+          <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}} style={{background:activeSport==="nba"?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.08)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
           </button>
@@ -962,7 +953,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         </div>
       </div>
 
-      {activeSport === "football" && <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
+      {activeSport === "football" && (<div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
 
         {/* API Panel */}
         {showPanel && (
@@ -2126,32 +2117,31 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
             </div>
           </div>
         </div>
-      </div>}
+      )}
+      </div>)}
 
       {activeSport === null && (
-        <div style={{maxWidth:880,margin:"0 auto",padding:"32px 16px"}}>
-          <div style={{textAlign:"center",marginBottom:40}}>
-            <div style={{fontSize:44,marginBottom:10}}>🏆</div>
-            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:40,color:"#e8eaf0",letterSpacing:3,marginBottom:6}}>BETANALYTICS</div>
-            <div style={{fontSize:13,color:"#555",marginBottom:36}}>Selecciona un deporte para empezar</div>
-            <div style={{display:"flex",gap:20,justifyContent:"center",marginBottom:48}}>
-              <button onClick={()=>{ setActiveSport("football"); }} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:16,padding:"28px 52px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,185,129,0.2)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(16,185,129,0.1)"}>
-                <span style={{fontSize:42}}>⚽</span>
-                <span style={{color:"#34d399",fontWeight:800,fontSize:13,letterSpacing:2}}>FÚTBOL</span>
-              </button>
-              <button onClick={()=>{ setActiveSport("nba"); setShowNBA(true); }} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:16,padding:"28px 52px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.2)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.1)"}>
-                <span style={{fontSize:42}}>🏀</span>
-                <span style={{color:"#f87171",fontWeight:800,fontSize:13,letterSpacing:2}}>NBA</span>
-              </button>
-            </div>
+        <div style={{maxWidth:860,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
+          <div style={{fontSize:42,marginBottom:8}}>🏆</div>
+          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:38,color:"#e8eaf0",letterSpacing:3,marginBottom:6}}>BETANALYTICS</div>
+          <div style={{fontSize:13,color:"#555",marginBottom:36}}>Selecciona un deporte para empezar</div>
+          <div style={{display:"flex",gap:20,justifyContent:"center",marginBottom:48}}>
+            <button onClick={()=>setActiveSport("football")} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:16,padding:"28px 52px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,185,129,0.22)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(16,185,129,0.1)"}>
+              <span style={{fontSize:40}}>⚽</span>
+              <span style={{color:"#34d399",fontWeight:800,fontSize:13,letterSpacing:2}}>FÚTBOL</span>
+            </button>
+            <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:16,padding:"28px 52px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.22)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.1)"}>
+              <span style={{fontSize:40}}>🏀</span>
+              <span style={{color:"#f87171",fontWeight:800,fontSize:13,letterSpacing:2}}>NBA</span>
+            </button>
           </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,textAlign:"left"}}>
             <div style={{fontSize:11,color:"#555",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>📰 Tendencias del día</div>
             <button onClick={loadNews} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,padding:"4px 10px",color:"#555",cursor:"pointer",fontSize:10}}>🔄 Cargar</button>
           </div>
-          {loadingNews && <div style={{textAlign:"center",color:"#444",fontSize:12,padding:24}}>⏳ Cargando tendencias...</div>}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            {news.map((n,i) => (
+          {loadingNews && <div style={{color:"#444",fontSize:12,padding:20}}>⏳ Cargando...</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,textAlign:"left"}}>
+            {news.map((n,i)=>(
               <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"14px 16px"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                   <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,background:n.deporte==="NBA"?"rgba(239,68,68,0.15)":"rgba(16,185,129,0.15)",color:n.deporte==="NBA"?"#f87171":"#34d399"}}>{n.deporte}</span>
@@ -2163,6 +2153,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           </div>
         </div>
       )}
+
       {showNBA && <NBAPanel onClose={()=>setShowNBA(false)} />}
       {showHistorial && <HistorialPanel onClose={()=>setShowHistorial(false)} />}
     </div>
