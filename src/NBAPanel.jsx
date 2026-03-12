@@ -10,16 +10,18 @@ async function nbFetch(path) {
   return res.json();
 }
 
-function getESTDate(offsetDays = 0) {
-  const base = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date());
-  const [y, m, d] = base.split("-").map(Number);
-  const dt = new Date(y, m - 1, d + offsetDays);
+function shiftDate(dateStr, days) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + days);
   return dt.getFullYear() + "-" +
     String(dt.getMonth() + 1).padStart(2, "0") + "-" +
     String(dt.getDate()).padStart(2, "0");
+}
+
+function getESTDate(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  return est.toISOString().split("T")[0];
 }
 
 function getRecentGames(res, teamId) {
@@ -210,12 +212,20 @@ export default function NBAPanel({ onClose }) {
   const loadNBA = async (dateStr) => {
     setLoading(true); setErr("");
     try {
-      const res = await nbFetch("/games?season=2025&date=" + (dateStr || selectedDate));
-      const all = res?.response || [];
-      const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
-      const ns   = all.filter(g => g.status?.short === 1);
-      const done = all.filter(g => g.status?.short === 3);
-      setGames([...live, ...ns, ...done].slice(0, 15));
+      const date = dateStr || selectedDate;
+      // La API registra partidos nocturnos en fecha+1, cargar ambos días
+      const [r1, r2] = await Promise.all([
+        nbFetch("/games?season=2025&date=" + date),
+        nbFetch("/games?season=2025&date=" + shiftDate(date, 1)),
+      ]);
+      const all = [...(r1?.response || []), ...(r2?.response || [])];
+      // Deduplicar por id
+      const seen = new Set();
+      const unique = all.filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
+      const live = unique.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
+      const ns   = unique.filter(g => g.status?.short === 1);
+      const done = unique.filter(g => g.status?.short === 3);
+      setGames([...live, ...ns, ...done].slice(0, 20));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
