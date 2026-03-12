@@ -202,10 +202,9 @@ export default function NBAPanel({ onClose }) {
   useEffect(() => { loadNBA(getESTDate(0)); }, []);
 
   const loadNBA = async (dateStr) => {
-    const date = dateStr || selectedDate;
     setLoading(true); setErr("");
     try {
-      const res = await nbFetch("/games?season=2025&date=" + date);
+      const res = await nbFetch("/games?season=2025&date=" + (dateStr || selectedDate));
       const all = res?.response || [];
       const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
       const ns   = all.filter(g => g.status?.short === 1);
@@ -337,11 +336,7 @@ export default function NBAPanel({ onClose }) {
         "LOCAL " + home + ": " + hSL + (topH ? " | Top jugadores: " + topH : "") + " | " +
         "VISITA " + away + ": " + aSL + (topA ? " | Top jugadores: " + topA : "") + " | " +
         "Lineas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
-        "Responde SOLO JSON sin backticks: " +
-        "{"resumen":"string","ganadorProbable":"string","probabilidades":{"home":52,"away":48}," +
-        ""apuestasDestacadas":[{"tipo":"string","pick":"string","odds_sugerido":"string","confianza":75,"razon":"string","categoria":"principal","jugador":null}]," +
-        ""valueBet":{"existe":true,"mercado":"string","explicacion":"string","odds_recomendado":"string"}," +
-        ""alertas":["string"],"nivelConfianza":"ALTO","razonConfianza":"string"}";
+        "Responde SOLO JSON sin texto extra: " + JSON.stringify({resumen:"texto",ganadorProbable:"equipo",probabilidades:{home:52,away:48},apuestasDestacadas:[{tipo:"",pick:"",odds_sugerido:"",confianza:75,razon:"",categoria:"principal",jugador:null}],valueBet:{existe:true,mercado:"",explicacion:"",odds_recomendado:""},alertas:[""],nivelConfianza:"ALTO",razonConfianza:""});
 
       const res = await fetch("/api/predict", {
         method: "POST",
@@ -375,13 +370,11 @@ export default function NBAPanel({ onClose }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="date"
-              value={selectedDate}
+            <input type="date" value={selectedDate}
               onChange={e => { setSelectedDate(e.target.value); loadNBA(e.target.value); setSelectedGame(null); setAnalysis(null); setPreview(null); }}
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "5px 8px", color: "#e8eaf0", fontSize: 12, cursor: "pointer", colorScheme: "dark" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "5px 8px", color: "#e8eaf0", fontSize: 12, colorScheme: "dark" }}
             />
-            <button onClick={() => loadNBA(selectedDate)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 12px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+            <button onClick={() => loadNBA(selectedDate)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 10px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
               🔄
             </button>
             <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "#aaa", cursor: "pointer", fontSize: 11 }}>
