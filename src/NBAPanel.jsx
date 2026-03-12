@@ -11,9 +11,15 @@ async function nbFetch(path) {
 }
 
 function getESTDate(offsetDays = 0) {
-  const d = new Date(Date.now() + offsetDays * 86400000);
-  const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  return est.toISOString().split("T")[0];
+  const base = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date());
+  const [y, m, d] = base.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + offsetDays);
+  return dt.getFullYear() + "-" +
+    String(dt.getMonth() + 1).padStart(2, "0") + "-" +
+    String(dt.getDate()).padStart(2, "0");
 }
 
 function getRecentGames(res, teamId) {
