@@ -953,7 +953,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         </div>
       </div>
 
-      {activeSport === "football" && (<div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
+      {activeSport === "football" && <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
 
         {/* API Panel */}
         {showPanel && (
@@ -2118,7 +2118,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           </div>
         </div>
       )}
-      </div>)}
+      </div>}
 
       {activeSport === null && (
         <div style={{maxWidth:860,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
