@@ -891,6 +891,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
   const [showNBA, setShowNBA] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
+  const [sportSelected, setSportSelected] = useState(null); // null = mostrar selector, "football" o "nba"
 
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
@@ -913,7 +914,10 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               📋 JORNADA
             </button>
           )}
-          <button onClick={()=>{ setShowNBA(true); }} style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>{ setSportSelected("football"); setShowNBA(false); }} style={{background:sportSelected==="football"?"rgba(16,185,129,0.25)":"rgba(16,185,129,0.1)",border:sportSelected==="football"?"1px solid rgba(16,185,129,0.6)":"1px solid rgba(16,185,129,0.3)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            ⚽ FÚTBOL
+          </button>
+          <button onClick={()=>{ setSportSelected("nba"); setShowNBA(true); }} style={{background:sportSelected==="nba"?"rgba(239,68,68,0.25)":"rgba(239,68,68,0.12)",border:sportSelected==="nba"?"1px solid rgba(239,68,68,0.6)":"1px solid rgba(239,68,68,0.35)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
             🏀 NBA
           </button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
@@ -2103,7 +2107,25 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           </div>
         </div>
       )}
-      {showNBA && <NBAPanel onClose={()=>setShowNBA(false)} />}
+      {sportSelected === null && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:"#0f0f13",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"48px 56px",textAlign:"center",maxWidth:480}}>
+            <div style={{fontSize:32,fontWeight:900,letterSpacing:2,color:"#e8eaf0",marginBottom:8,fontFamily:"'Bebas Neue',cursive"}}>BETANALYTICS</div>
+            <div style={{fontSize:13,color:"#555",marginBottom:40}}>Selecciona el deporte para comenzar</div>
+            <div style={{display:"flex",gap:20,justifyContent:"center"}}>
+              <button onClick={()=>setSportSelected("football")} style={{background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.4)",borderRadius:16,padding:"32px 40px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:12,transition:"all 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,185,129,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(16,185,129,0.12)"}>
+                <span style={{fontSize:48}}>⚽</span>
+                <span style={{color:"#34d399",fontWeight:800,fontSize:15,letterSpacing:1}}>FÚTBOL</span>
+              </button>
+              <button onClick={()=>{ setSportSelected("nba"); setShowNBA(true); }} style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.4)",borderRadius:16,padding:"32px 40px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:12,transition:"all 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.12)"}>
+                <span style={{fontSize:48}}>🏀</span>
+                <span style={{color:"#f87171",fontWeight:800,fontSize:15,letterSpacing:1}}>NBA</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showNBA && <NBAPanel onClose={()=>{ setShowNBA(false); }} />}
       {showHistorial && <HistorialPanel onClose={()=>setShowHistorial(false)} />}
     </div>
   );
