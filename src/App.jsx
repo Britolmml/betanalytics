@@ -222,6 +222,22 @@ export default function App() {
   const [leagueSearch,  setLeagueSearch]  = useState("");
   const [showAllLeagues,setShowAllLeagues]= useState(false);
 
+  const loadNews = async () => {
+    setLoadingNews(true);
+    try {
+      const res = await fetch("/api/predict", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: 'Eres un analista deportivo. Dame 6 noticias/tendencias relevantes de HOY sobre NBA y fútbol internacional (mezcla ambos). Para cada una incluye: título corto, deporte (NBA o Fútbol), y un dato clave de 1 oración. Responde SOLO JSON: ' + JSON.stringify({noticias:[{titulo:"",deporte:"NBA",dato:""}]})})
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(clean);
+      setNews(parsed.noticias || []);
+    } catch(e) { setNews([]); }
+    finally { setLoadingNews(false); }
+  };
+
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
@@ -891,7 +907,9 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
   const [showNBA, setShowNBA] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
-  const [sportSelected, setSportSelected] = useState(null); // null = mostrar selector, "football" o "nba"
+  const [activeSport, setActiveSport] = useState(null); // null=home, "football", "nba"
+  const [news, setNews] = useState([]);
+  const [loadingNews, setLoadingNews] = useState(false);
 
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
@@ -914,10 +932,13 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               📋 JORNADA
             </button>
           )}
-          <button onClick={()=>{ setSportSelected("football"); setShowNBA(false); }} style={{background:sportSelected==="football"?"rgba(16,185,129,0.25)":"rgba(16,185,129,0.1)",border:sportSelected==="football"?"1px solid rgba(16,185,129,0.6)":"1px solid rgba(16,185,129,0.3)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>{ setActiveSport(null); setShowNBA(false); }} style={{background:activeSport===null?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",border:activeSport===null?"1px solid rgba(255,255,255,0.3)":"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#e8eaf0":"#555",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            🏠 INICIO
+          </button>
+          <button onClick={()=>{ setActiveSport("football"); setShowNBA(false); }} style={{background:activeSport==="football"?"rgba(16,185,129,0.2)":"rgba(16,185,129,0.08)",border:activeSport==="football"?"1px solid rgba(16,185,129,0.5)":"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>
             ⚽ FÚTBOL
           </button>
-          <button onClick={()=>{ setSportSelected("nba"); setShowNBA(true); }} style={{background:sportSelected==="nba"?"rgba(239,68,68,0.25)":"rgba(239,68,68,0.12)",border:sportSelected==="nba"?"1px solid rgba(239,68,68,0.6)":"1px solid rgba(239,68,68,0.35)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>{ setActiveSport("nba"); setShowNBA(true); }} style={{background:activeSport==="nba"?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.08)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>
             🏀 NBA
           </button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
@@ -942,7 +963,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         </div>
       </div>
 
-      <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
+      {activeSport === "football" && <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
 
         {/* API Panel */}
         {showPanel && (
@@ -2107,24 +2128,46 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           </div>
         </div>
       )}
-      {sportSelected === null && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-          <div style={{background:"#0f0f13",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"48px 56px",textAlign:"center",maxWidth:480}}>
-            <div style={{fontSize:32,fontWeight:900,letterSpacing:2,color:"#e8eaf0",marginBottom:8,fontFamily:"'Bebas Neue',cursive"}}>BETANALYTICS</div>
-            <div style={{fontSize:13,color:"#555",marginBottom:40}}>Selecciona el deporte para comenzar</div>
-            <div style={{display:"flex",gap:20,justifyContent:"center"}}>
-              <button onClick={()=>setSportSelected("football")} style={{background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.4)",borderRadius:16,padding:"32px 40px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:12,transition:"all 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,185,129,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(16,185,129,0.12)"}>
-                <span style={{fontSize:48}}>⚽</span>
-                <span style={{color:"#34d399",fontWeight:800,fontSize:15,letterSpacing:1}}>FÚTBOL</span>
+      {activeSport === null && (
+        <div style={{maxWidth:900,margin:"0 auto",padding:"32px 16px"}}>
+          <div style={{textAlign:"center",marginBottom:40}}>
+            <div style={{fontSize:48,marginBottom:12}}>🏆</div>
+            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:42,color:"#e8eaf0",letterSpacing:3,marginBottom:8}}>BETANALYTICS</div>
+            <div style={{fontSize:14,color:"#555",marginBottom:32}}>Selecciona un deporte para empezar a analizar</div>
+            <div style={{display:"flex",gap:16,justifyContent:"center",marginBottom:48}}>
+              <button onClick={()=>{ setActiveSport("football"); setShowNBA(false); }} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.35)",borderRadius:16,padding:"24px 48px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,185,129,0.2)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(16,185,129,0.1)"}>
+                <span style={{fontSize:40}}>⚽</span>
+                <span style={{color:"#34d399",fontWeight:800,fontSize:14,letterSpacing:2}}>FÚTBOL</span>
               </button>
-              <button onClick={()=>{ setSportSelected("nba"); setShowNBA(true); }} style={{background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.4)",borderRadius:16,padding:"32px 40px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:12,transition:"all 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.25)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.12)"}>
-                <span style={{fontSize:48}}>🏀</span>
-                <span style={{color:"#f87171",fontWeight:800,fontSize:15,letterSpacing:1}}>NBA</span>
+              <button onClick={()=>{ setActiveSport("nba"); setShowNBA(true); }} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:16,padding:"24px 48px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.2)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.1)"}>
+                <span style={{fontSize:40}}>🏀</span>
+                <span style={{color:"#f87171",fontWeight:800,fontSize:14,letterSpacing:2}}>NBA</span>
               </button>
             </div>
           </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{fontSize:11,color:"#555",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>📰 Tendencias del día</div>
+            <button onClick={loadNews} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,padding:"4px 10px",color:"#555",cursor:"pointer",fontSize:10}}>🔄 Actualizar</button>
+          </div>
+          {loadingNews && <div style={{textAlign:"center",color:"#444",fontSize:12,padding:32}}>⏳ Cargando tendencias...</div>}
+          {!loadingNews && news.length === 0 && (
+            <div style={{textAlign:"center",padding:32}}>
+              <button onClick={loadNews} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:10,padding:"12px 24px",color:"#60a5fa",cursor:"pointer",fontSize:12,fontWeight:700}}>📰 Cargar tendencias del día</button>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            {news.map((n,i) => (
+              <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"16px 18px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,background:n.deporte==="NBA"?"rgba(239,68,68,0.15)":"rgba(16,185,129,0.15)",color:n.deporte==="NBA"?"#f87171":"#34d399"}}>{n.deporte}</span>
+                  <span style={{fontSize:12,fontWeight:700,color:"#e8eaf0"}}>{n.titulo}</span>
+                </div>
+                <div style={{fontSize:11,color:"#666",lineHeight:1.6}}>{n.dato}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      </div>}
       {showNBA && <NBAPanel onClose={()=>{ setShowNBA(false); }} />}
       {showHistorial && <HistorialPanel onClose={()=>setShowHistorial(false)} />}
     </div>
