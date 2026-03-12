@@ -11,15 +11,9 @@ async function nbFetch(path) {
 }
 
 function getESTDate(offsetDays = 0) {
-  const todayEST = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date());
-  const [y, m, d] = todayEST.split("-").map(Number);
-  const dt = new Date(y, m - 1, d + offsetDays);
-  return dt.getFullYear() + "-"
-    + String(dt.getMonth() + 1).padStart(2, "0") + "-"
-    + String(dt.getDate()).padStart(2, "0");
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  return est.toISOString().split("T")[0];
 }
 
 function getRecentGames(res, teamId) {
@@ -203,26 +197,20 @@ export default function NBAPanel({ onClose }) {
   const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState("");
   const [allAnalyses, setAllAnalyses] = useState({});
+  const [selectedDate, setSelectedDate] = useState(getESTDate(0));
 
-  useEffect(() => { loadNBA(); }, []);
+  useEffect(() => { loadNBA(getESTDate(0)); }, []);
 
-  const loadNBA = async () => {
+  const loadNBA = async (dateStr) => {
+    const date = dateStr || selectedDate;
     setLoading(true); setErr("");
     try {
-      // Buscar partidos: empezar desde hoy y buscar hacia adelante
-      // Si hoy no tiene, intentar ayer (partidos en vivo nocturnos)
-      let found = [];
-      for (let i = 0; i <= 4; i++) {
-        const res = await nbFetch("/games?season=2025&date=" + getESTDate(i));
-        found = res?.response || [];
-        if (found.length > 0) break;
-      }
-      // Si no encontró nada hacia adelante, buscar ayer
-      if (found.length === 0) {
-        const res = await nbFetch("/games?season=2025&date=" + getESTDate(-1));
-        found = res?.response || [];
-      }
-      setGames(found.slice(0, 12));
+      const res = await nbFetch("/games?season=2025&date=" + date);
+      const all = res?.response || [];
+      const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
+      const ns   = all.filter(g => g.status?.short === 1);
+      const done = all.filter(g => g.status?.short === 3);
+      setGames([...live, ...ns, ...done].slice(0, 15));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
@@ -349,11 +337,11 @@ export default function NBAPanel({ onClose }) {
         "LOCAL " + home + ": " + hSL + (topH ? " | Top jugadores: " + topH : "") + " | " +
         "VISITA " + away + ": " + aSL + (topA ? " | Top jugadores: " + topA : "") + " | " +
         "Lineas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
-        "Responde SOLO JSON, responde SOLO el objeto JSON sin texto extra: " +
-        JSON.stringify({resumen:"string",ganadorProbable:"string",probabilidades:{home:52,away:48},
-        apuestasDestacadas:[{tipo:"string",pick:"string",odds_sugerido:"string",confianza:75,razon:"string",categoria:"principal",jugador:null}],
-        valueBet:{existe:true,mercado:"string",explicacion:"string",odds_recomendado:"string"},
-        alertas:["string"],nivelConfianza:"ALTO",razonConfianza:"string"});
+        "Responde SOLO JSON sin backticks: " +
+        "{"resumen":"string","ganadorProbable":"string","probabilidades":{"home":52,"away":48}," +
+        ""apuestasDestacadas":[{"tipo":"string","pick":"string","odds_sugerido":"string","confianza":75,"razon":"string","categoria":"principal","jugador":null}]," +
+        ""valueBet":{"existe":true,"mercado":"string","explicacion":"string","odds_recomendado":"string"}," +
+        ""alertas":["string"],"nivelConfianza":"ALTO","razonConfianza":"string"}";
 
       const res = await fetch("/api/predict", {
         method: "POST",
@@ -387,8 +375,14 @@ export default function NBAPanel({ onClose }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={loadNBA} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 12px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-              🔄 Actualizar
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => { setSelectedDate(e.target.value); loadNBA(e.target.value); setSelectedGame(null); setAnalysis(null); setPreview(null); }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "5px 8px", color: "#e8eaf0", fontSize: 12, cursor: "pointer", colorScheme: "dark" }}
+            />
+            <button onClick={() => loadNBA(selectedDate)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 12px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+              🔄
             </button>
             <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "#aaa", cursor: "pointer", fontSize: 11 }}>
               ✕ Cerrar
