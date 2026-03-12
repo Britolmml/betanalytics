@@ -10,19 +10,10 @@ async function nbFetch(path) {
   return res.json();
 }
 
-function shiftDate(dateStr, days) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d + days);
-  return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
-}
-
 function getESTDate(offsetDays = 0) {
-  const base = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date());
-  const [y, m, d] = base.split("-").map(Number);
-  const dt = new Date(y, m - 1, d + offsetDays);
-  return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  return est.toISOString().split("T")[0];
 }
 
 function getRecentGames(res, teamId) {
@@ -206,31 +197,19 @@ export default function NBAPanel({ onClose }) {
   const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState("");
   const [allAnalyses, setAllAnalyses] = useState({});
+  const [selectedDate, setSelectedDate] = useState(getESTDate(0));
 
-  useEffect(() => { loadNBA(); }, []);
+  useEffect(() => { loadNBA(getESTDate(0)); }, []);
 
-  const loadNBA = async () => {
+  const loadNBA = async (dateStr) => {
     setLoading(true); setErr("");
     try {
-      const today    = getESTDate(0);
-      const tomorrow = getESTDate(1);
-      const [r1, r2] = await Promise.all([
-        nbFetch("/games?season=2025&date=" + today),
-        nbFetch("/games?season=2025&date=" + tomorrow),
-      ]);
-      const todayGames = r1?.response || [];
-      // De mañana solo los que empiezan antes de 9am UTC (nocturnos de hoy que la API guarda en fecha+1)
-      const nightGames = (r2?.response || []).filter(g => {
-        const h = new Date(g.date?.start).getUTCHours();
-        return h < 9;
-      });
-      const all = [...todayGames, ...nightGames];
-      const seen = new Set();
-      const unique = all.filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
-      // Solo en vivo y pendientes, ocultar terminados
-      const live = unique.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
-      const ns   = unique.filter(g => g.status?.short === 1).sort((a,b) => new Date(a.date?.start) - new Date(b.date?.start));
-      setGames([...live, ...ns].slice(0, 20));
+      const res = await nbFetch("/games?season=2025&date=" + (dateStr || selectedDate));
+      const all = res?.response || [];
+      const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
+      const ns   = all.filter(g => g.status?.short === 1);
+      const done = all.filter(g => g.status?.short === 3);
+      setGames([...live, ...ns, ...done].slice(0, 15));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
@@ -353,6 +332,9 @@ export default function NBAPanel({ onClose }) {
       const topA = players.away.slice(0, 3).map(p => p.name + " " + p.pts + "pts/" + p.reb + "reb/" + p.ast + "ast").join(", ");
 
       const prompt = "Analista NBA experto. " +
+        "IMPORTANTE: Los datos que recibes son en tiempo real de la temporada 2025-2026. " +
+        "Pueden haber trades recientes. Confía 100% en los datos proporcionados, NO en tu conocimiento de qué equipo es cada jugador. " +
+        "Si un jugador aparece en un equipo, ES porque está en ese equipo HOY. " +
         "Partido: " + home + " vs " + away + " | Estado: " + status + scorePart + " | " +
         "LOCAL " + home + ": " + hSL + (topH ? " | Top jugadores: " + topH : "") + " | " +
         "VISITA " + away + ": " + aSL + (topA ? " | Top jugadores: " + topA : "") + " | " +
@@ -410,8 +392,12 @@ export default function NBAPanel({ onClose }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={loadNBA} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 12px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-              🔄 Actualizar
+            <input type="date" value={selectedDate}
+              onChange={e => { setSelectedDate(e.target.value); loadNBA(e.target.value); setSelectedGame(null); setAnalysis(null); setPreview(null); }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "5px 8px", color: "#e8eaf0", fontSize: 12, colorScheme: "dark" }}
+            />
+            <button onClick={() => loadNBA(selectedDate)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 10px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+              🔄
             </button>
             <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "#aaa", cursor: "pointer", fontSize: 11 }}>
               ✕ Cerrar
