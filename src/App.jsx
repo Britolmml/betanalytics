@@ -351,6 +351,7 @@ export default function App() {
       let found = false;
       try {
         const nextData = await apiFetch("/fixtures?league=" + lg.id + "&next=15&season=" + SEASON);
+        console.log("[DEBUG next]", lg.id, nextData?.results, nextData?.response?.length, nextData?.errors);
         const games = nextData?.response || [];
         if (games.length > 0) {
           setTodayLabel("próximos");
