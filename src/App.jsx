@@ -350,7 +350,7 @@ export default function App() {
       // Primero intenta con &next= (más confiable, no depende de fecha exacta)
       let found = false;
       try {
-        const nextData = await apiFetch("/fixtures?league=" + lg.id + "&next=15&season=" + SEASON);
+        const nextData = await apiFetch("/fixtures?league=" + lg.id + "&next=15");
         console.log("[DEBUG next]", lg.id, nextData?.results, nextData?.response?.length, nextData?.errors);
         const games = nextData?.response || [];
         if (games.length > 0) {
