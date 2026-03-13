@@ -2133,7 +2133,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           <div style={{position:"relative",height:340,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {/* Fondo: imagen de estadio via unsplash */}
             <img
-              src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1400&q=80&auto=format&fit=crop"
+              src="/fondo.jpg"
               alt=""
               style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 30%",opacity:0.22}}
             />
