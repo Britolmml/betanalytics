@@ -1075,9 +1075,14 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                             <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700,flex:1}}>{f.teams?.away?.name}</span>
                           </div>
                           <button
-                            onClick={() => { const ht = teams.find(t=>t.name===f.teams?.home?.name||t.id===f.teams?.home?.id); const at = teams.find(t=>t.name===f.teams?.away?.name||t.id===f.teams?.away?.id); if(ht) setHomeTeam(ht); if(at) setAwayTeam(at); }}
+                            onClick={() => {
+                              const ht = {id: f.teams?.home?.id, name: f.teams?.home?.name};
+                              const at = {id: f.teams?.away?.id, name: f.teams?.away?.name};
+                              setHomeTeam(ht); setAwayTeam(at);
+                              selectTeam(ht, "home"); selectTeam(at, "away");
+                            }}
                             style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
-                            Analizar
+                            🔍 Analizar
                           </button>
                         </div>
                       );
@@ -1087,37 +1092,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               </div>
             )}
 
-            {/* Teams - selector compacto */}
-            {league && teams.length > 0 && (
-              <div style={{marginBottom:20}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                  <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>2 · Seleccionar partido manual</div>
-                  {teams.length>0 && (
-                    <button onClick={()=>setShowCompare(true)}
-                      style={{background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:7,padding:"4px 10px",color:"#a78bfa",cursor:"pointer",fontSize:10,fontWeight:700}}>
-                      ⚖️ Comparar equipos
-                    </button>
-                  )}
-                </div>
-                {loadingTeams ? <div style={{color:"#555",fontSize:12}}>⏳ Cargando...</div> : (
-                  <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                    {[{side:"home",label:"🏠 Local",color:"#10b981",selected:homeTeam},
-                      {side:"away",label:"✈️ Visitante",color:"#f59e0b",selected:awayTeam}].map(({side,label,color,selected})=>(
-                      <div key={side} style={{display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{fontSize:10,color,fontWeight:700,whiteSpace:"nowrap"}}>{label}:</span>
-                        <select
-                          value={selected?.id||""}
-                          onChange={e=>{const t=teams.find(t=>String(t.id)===e.target.value);if(t)selectTeam(t,side);}}
-                          style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"5px 8px",color:selected?color:"#666",fontSize:12,cursor:"pointer",minWidth:160}}>
-                          <option value="">-- elige equipo --</option>
-                          {teams.map(t=><option key={t.id} value={t.id} style={{background:"#1a1a2e"}}>{t.name}</option>)}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+
 
             {/* Tabs */}
             {(hStats||aStats||standings.length>0) && (
