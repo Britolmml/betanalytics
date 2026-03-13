@@ -338,44 +338,45 @@ export default function App() {
     setStandings([]); setH2h([]); setNextMatches({home:[],away:[]});
     setActiveTab("stats");
     setTodayGames([]);
-    // Cargar partidos de hoy para esta liga
+    // Cargar próximos partidos de esta liga
     setLoadingToday(true);
     try {
-      // Helper para obtener fecha en zona horaria México
       const getMXDate = (offsetDays = 0) => {
         const base = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
         const [y, m, d] = base.split("-").map(Number);
         const dt = new Date(y, m - 1, d + offsetDays);
         return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
       };
+      const todayStr = getMXDate(0);
 
-      // Buscar partidos: primero hoy (en vivo o programados), luego fechas cercanas
-      // PRIORIDAD: 1) en vivo hoy  2) pendientes hoy  3) mañana  4) ayer  5) demás
-      let bestGames = [];
-      let bestOffset = 0;
-      const searchOrder = [0, 1, -1, 2, -2];
-      for (const offset of searchOrder) {
-        const dateStr = getMXDate(offset);
-        const res = await apiFetch("/fixtures?league=" + lg.id + "&date=" + dateStr);
-        const games = res.response || [];
-        if (!games.length) continue;
-        const liveGames = games.filter(g => ["1H","2H","HT","ET","BT","P"].includes(g.fixture?.status?.short));
-        const pendingGames = games.filter(g => g.fixture?.status?.short === "NS");
-        // Si hay partidos en vivo, usar esta fecha inmediatamente
-        if (liveGames.length > 0) { bestGames = games; bestOffset = offset; break; }
-        // Si es hoy (offset=0) y hay partidos (pendientes o terminados), usar hoy siempre
-        if (offset === 0) { bestGames = games; bestOffset = 0; break; }
-        // Para otros días: solo usar si hoy no tuvo nada y este tiene pendientes
-        if (bestGames.length === 0 && pendingGames.length > 0) {
-          bestGames = games; bestOffset = offset;
-          break; // tomar el primero con partidos pendientes
+      // 1. Buscar partidos en vivo hoy
+      const liveRes = await apiFetch("/fixtures?league=" + lg.id + "&date=" + todayStr + "&status=1H-2H-HT-ET-BT-P");
+      const liveGames = liveRes?.response || [];
+      if (liveGames.length > 0) {
+        setTodayLabel("en vivo"); setTodayGames(liveGames.slice(0,15));
+      } else {
+        // 2. Usar next=15 para obtener próximos partidos sin importar la fecha
+        let found = false;
+        for (const season of [2025, 2024]) {
+          const nextRes = await apiFetch("/fixtures?league=" + lg.id + "&season=" + season + "&next=15");
+          const nextGames = nextRes?.response || [];
+          if (nextGames.length > 0) {
+            // Agrupar por fecha para mostrar label correcto
+            const firstDate = nextGames[0]?.fixture?.date?.split("T")[0] || "";
+            const diff = firstDate ? Math.round((new Date(firstDate+"T12:00:00") - new Date(todayStr+"T12:00:00")) / 86400000) : 0;
+            const labelMap = {0:"hoy", 1:"mañana", "-1":"ayer", 2:"pasado mañana", 3:"en 3 días", 4:"en 4 días", 5:"en 5 días", 6:"en 6 días", 7:"en 7 días"};
+            setTodayLabel(labelMap[String(diff)] || "próximos");
+            setTodayGames(nextGames.slice(0,15));
+            found = true; break;
+          }
         }
-        // Fallback: cualquier día con partidos
-        if (bestGames.length === 0) { bestGames = games; bestOffset = offset; }
+        if (!found) {
+          // 3. Fallback: buscar hoy con partidos terminados
+          const todayRes = await apiFetch("/fixtures?league=" + lg.id + "&date=" + todayStr);
+          const todayGames = todayRes?.response || [];
+          setTodayLabel("hoy"); setTodayGames(todayGames.slice(0,15));
+        }
       }
-      const labelMap = {"0":"hoy", "1":"mañana", "-1":"ayer", "2":"pasado mañana", "-2":"antes de ayer"};
-      setTodayLabel(labelMap[String(bestOffset)] || "próximos");
-      setTodayGames(bestGames.slice(0, 15));
     } catch(e) { /* silencioso */ }
     finally { setLoadingToday(false); }
     // Cargar equipos intentando varias temporadas
