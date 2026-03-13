@@ -213,11 +213,9 @@ export default function NBAPanel({ onClose }) {
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
-      console.log("standings raw sample:", JSON.stringify(rows[0]));
-      const getConf = r => r.group?.name || r.conference?.name || r.division?.conference || "";
       setStandings({
-        east: rows.filter(r => getConf(r).toLowerCase().includes("east")).sort((a, b) => a.position - b.position),
-        west: rows.filter(r => getConf(r).toLowerCase().includes("west")).sort((a, b) => a.position - b.position),
+        east: rows.filter(r => r.group?.name === "Eastern Conference").sort((a, b) => a.position - b.position),
+        west: rows.filter(r => r.group?.name === "Western Conference").sort((a, b) => a.position - b.position),
       });
     } catch (e) {
       setErr("Error cargando datos NBA: " + e.message);
@@ -596,13 +594,16 @@ export default function NBAPanel({ onClose }) {
                   <tbody>
                     {standings[conf].map((t, i) => {
                       const playoff = i < 8;
-                      const pct = t.games?.win?.percentage ? (parseFloat(t.games.win.percentage) * 100).toFixed(0) + "%" : "—";
+                       const w = t.win?.total ?? t.games?.win?.total ?? "—";
+                       const l = t.loss?.total ?? t.games?.lose?.total ?? "—";
+                       const pctRaw = t.win?.percentage ?? t.games?.win?.percentage;
+                       const pct = pctRaw ? (parseFloat(pctRaw) * 100).toFixed(0) + "%" : "—";
                       return (
                         <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                           <td style={{ padding: "5px 0", color: playoff ? "#f87171" : "#555", fontWeight: 700 }}>{t.position}</td>
                           <td style={{ padding: "5px 0", color: playoff ? "#e8eaf0" : "#777" }}>{t.team?.name}</td>
-                          <td style={{ textAlign: "center", color: "#10b981", fontWeight: 700 }}>{t.games?.win?.total}</td>
-                          <td style={{ textAlign: "center", color: "#ef4444" }}>{t.games?.lose?.total}</td>
+                           <td style={{ textAlign: "center", color: "#10b981", fontWeight: 700 }}>{w}</td>
+                           <td style={{ textAlign: "center", color: "#ef4444" }}>{l}</td>
                           <td style={{ textAlign: "center", color: "#aaa" }}>{pct}</td>
                         </tr>
                       );
