@@ -934,6 +934,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
   const [news, setNews] = useState([]);
   const [loadingNews, setLoadingNews] = useState(false);
 
+  // Auto-cargar estadísticas al entrar al inicio
+  useEffect(() => {
+    if (news.length === 0 && !loadingNews) loadNews();
+  }, []);
+
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
     <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
@@ -2122,35 +2127,116 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
 
       {activeSport === null && (
-        <div style={{maxWidth:860,margin:"0 auto",padding:"32px 16px",textAlign:"center"}}>
-          <div style={{fontSize:42,marginBottom:8}}>🏆</div>
-          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:38,color:"#e8eaf0",letterSpacing:3,marginBottom:6}}>BETANALYTICS</div>
-          <div style={{fontSize:13,color:"#555",marginBottom:36}}>Selecciona un deporte para empezar</div>
-          <div style={{display:"flex",gap:20,justifyContent:"center",marginBottom:48}}>
-            <button onClick={()=>setActiveSport("football")} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:16,padding:"28px 52px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(16,185,129,0.22)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(16,185,129,0.1)"}>
-              <span style={{fontSize:40}}>⚽</span>
-              <span style={{color:"#34d399",fontWeight:800,fontSize:13,letterSpacing:2}}>FÚTBOL</span>
-            </button>
-            <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:16,padding:"28px 52px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:10}} onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,0.22)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(239,68,68,0.1)"}>
-              <span style={{fontSize:40}}>🏀</span>
-              <span style={{color:"#f87171",fontWeight:800,fontSize:13,letterSpacing:2}}>NBA</span>
-            </button>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,textAlign:"left"}}>
-            <div style={{fontSize:11,color:"#555",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>📰 Tendencias del día</div>
-            <button onClick={loadNews} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,padding:"4px 10px",color:"#555",cursor:"pointer",fontSize:10}}>🔄 Cargar</button>
-          </div>
-          {loadingNews && <div style={{color:"#444",fontSize:12,padding:20}}>⏳ Cargando...</div>}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,textAlign:"left"}}>
-            {news.map((n,i)=>(
-              <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"14px 16px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,background:n.deporte==="NBA"?"rgba(239,68,68,0.15)":"rgba(16,185,129,0.15)",color:n.deporte==="NBA"?"#f87171":"#34d399"}}>{n.deporte}</span>
-                  <span style={{fontSize:12,fontWeight:700,color:"#e8eaf0"}}>{n.titulo}</span>
-                </div>
-                <div style={{fontSize:11,color:"#666",lineHeight:1.6}}>{n.dato}</div>
+        <div style={{minHeight:"calc(100vh - 62px)",background:"#080b14",position:"relative",overflow:"hidden"}}>
+
+          {/* ── HERO con fondo tipo estadio ── */}
+          <div style={{position:"relative",height:340,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {/* Fondo: imagen de estadio via unsplash */}
+            <img
+              src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1400&q=80&auto=format&fit=crop"
+              alt=""
+              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 30%",opacity:0.22}}
+            />
+            {/* Overlay gradiente */}
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(8,11,20,0.3) 0%, rgba(8,11,20,0.6) 60%, rgba(8,11,20,1) 100%)"}}/>
+            {/* Glow verde */}
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 60% at 50% 50%, rgba(16,185,129,0.12) 0%, transparent 70%)"}}/>
+
+            {/* Contenido hero */}
+            <div style={{position:"relative",textAlign:"center",padding:"0 24px"}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:30,padding:"5px 16px",fontSize:10,color:"#34d399",fontWeight:800,letterSpacing:3,marginBottom:16}}>
+                ⚡ ANÁLISIS EN TIEMPO REAL
               </div>
-            ))}
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:72,background:"linear-gradient(135deg,#ffffff 20%,#34d399 60%,#06b6d4 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:1,marginBottom:10}}>BETANALYTICS</div>
+              <div style={{fontSize:14,color:"#4a5568",letterSpacing:2}}>ESTADÍSTICAS · PREDICCIONES IA · JORNADAS</div>
+            </div>
+          </div>
+
+          {/* ── Botones deportes ── */}
+          <div style={{maxWidth:900,margin:"-30px auto 0",padding:"0 24px 40px",position:"relative",zIndex:2}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:40}}>
+
+              {/* Fútbol */}
+              <button onClick={()=>setActiveSport("football")}
+                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"none",padding:0,cursor:"pointer",height:180,display:"block",transition:"transform 0.2s"}}
+                onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"}
+                onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+                <img src="https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&q=80&auto=format&fit=crop" alt="Fútbol"
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(16,185,129,0.75) 0%,rgba(6,182,212,0.4) 100%)"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:44}}>⚽</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"#fff",letterSpacing:4,textShadow:"0 2px 12px rgba(0,0,0,0.5)"}}>FÚTBOL</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:1}}>Ligas · Jornadas · IA</div>
+                  <div style={{marginTop:4,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"#fff",fontWeight:700,backdropFilter:"blur(4px)"}}>ENTRAR →</div>
+                </div>
+              </button>
+
+              {/* NBA */}
+              <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}}
+                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"none",padding:0,cursor:"pointer",height:180,display:"block",transition:"transform 0.2s"}}
+                onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"}
+                onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+                <img src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&q=80&auto=format&fit=crop" alt="NBA"
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(239,68,68,0.75) 0%,rgba(245,158,11,0.4) 100%)"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:44}}>🏀</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"#fff",letterSpacing:4,textShadow:"0 2px 12px rgba(0,0,0,0.5)"}}>NBA</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:1}}>Partidos · Stats · Picks</div>
+                  <div style={{marginTop:4,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"#fff",fontWeight:700,backdropFilter:"blur(4px)"}}>ENTRAR →</div>
+                </div>
+              </button>
+            </div>
+
+            {/* ── Estadísticas del día ── */}
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:3,height:20,background:"linear-gradient(#34d399,#06b6d4)",borderRadius:2}}/>
+                  <span style={{fontSize:12,color:"#e8eaf0",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📊 Estadísticas del día</span>
+                </div>
+                <button onClick={loadNews} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 14px",color:"#666",cursor:"pointer",fontSize:11,fontWeight:600}}>
+                  {loadingNews ? "⏳ Cargando..." : "🔄 Actualizar"}
+                </button>
+              </div>
+
+              {loadingNews && (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+                  {[0,1,2,3,4,5].map(i=>(
+                    <div key={i} style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,padding:"18px 16px",height:90,animation:"pulse 1.5s ease-in-out infinite"}}/>
+                  ))}
+                </div>
+              )}
+
+              {!loadingNews && news.length === 0 && (
+                <div style={{textAlign:"center",padding:"40px 0",color:"#2a2a3a",fontSize:13}}>
+                  No se pudieron cargar las estadísticas
+                </div>
+              )}
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+                {news.map((n,i)=>{
+                  const isNBA = n.deporte==="NBA";
+                  const accent = isNBA?"#f87171":"#34d399";
+                  const icons=["📊","⚡","🎯","🔥","📈","💡"];
+                  return (
+                    <div key={i} style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"16px",position:"relative",overflow:"hidden",transition:"border 0.2s"}}
+                      onMouseEnter={e=>e.currentTarget.style.border="1px solid rgba(255,255,255,0.14)"}
+                      onMouseLeave={e=>e.currentTarget.style.border="1px solid rgba(255,255,255,0.07)"}>
+                      {/* Acento lateral */}
+                      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:accent,borderRadius:"14px 0 0 14px"}}/>
+                      <div style={{position:"absolute",top:10,right:12,fontSize:24,opacity:0.08}}>{icons[i%icons.length]}</div>
+                      <div style={{marginBottom:6,paddingLeft:8}}>
+                        <span style={{fontSize:9,fontWeight:800,padding:"2px 8px",borderRadius:20,background:isNBA?"rgba(239,68,68,0.15)":"rgba(16,185,129,0.15)",color:accent,letterSpacing:1}}>{n.deporte}</span>
+                      </div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#e8eaf0",marginBottom:5,lineHeight:1.4,paddingLeft:8}}>{n.titulo}</div>
+                      <div style={{fontSize:11,color:"#4a5568",lineHeight:1.6,paddingLeft:8}}>{n.dato}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
