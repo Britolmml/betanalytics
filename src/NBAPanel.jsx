@@ -213,9 +213,11 @@ export default function NBAPanel({ onClose }) {
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
+      console.log("standings raw sample:", JSON.stringify(rows[0]));
+      const getConf = r => r.group?.name || r.conference?.name || r.division?.conference || "";
       setStandings({
-        east: rows.filter(r => r.group?.name === "Eastern Conference").sort((a, b) => a.position - b.position),
-        west: rows.filter(r => r.group?.name === "Western Conference").sort((a, b) => a.position - b.position),
+        east: rows.filter(r => getConf(r).toLowerCase().includes("east")).sort((a, b) => a.position - b.position),
+        west: rows.filter(r => getConf(r).toLowerCase().includes("west")).sort((a, b) => a.position - b.position),
       });
     } catch (e) {
       setErr("Error cargando datos NBA: " + e.message);
