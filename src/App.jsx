@@ -161,7 +161,7 @@ export default function App() {
   const [apiSource,   setApiSource]   = useState("rapidapi");
   const [apiStatus,   setApiStatus]   = useState("idle");
   const [apiMsg,      setApiMsg]      = useState("");
-  const [showPanel,   setShowPanel]   = useState(true);
+  const [showPanel,   setShowPanel]   = useState(false);
 
   // App state
   const [league,        setLeague]        = useState(null);
