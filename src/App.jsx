@@ -1087,11 +1087,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
               </div>
             )}
 
-            {/* Teams */}
-            {league && (
+            {/* Teams - selector compacto */}
+            {league && teams.length > 0 && (
               <div style={{marginBottom:20}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>2 · Equipos</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>2 · Seleccionar partido manual</div>
                   {teams.length>0 && (
                     <button onClick={()=>setShowCompare(true)}
                       style={{background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:7,padding:"4px 10px",color:"#a78bfa",cursor:"pointer",fontSize:10,fontWeight:700}}>
@@ -1099,25 +1099,19 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
                     </button>
                   )}
                 </div>
-                {loadingTeams ? <div style={{color:"#555",fontSize:13}}>⏳ Cargando equipos...</div> : (
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {loadingTeams ? <div style={{color:"#555",fontSize:12}}>⏳ Cargando...</div> : (
+                  <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
                     {[{side:"home",label:"🏠 Local",color:"#10b981",selected:homeTeam},
                       {side:"away",label:"✈️ Visitante",color:"#f59e0b",selected:awayTeam}].map(({side,label,color,selected})=>(
-                      <div key={side} style={C.card}>
-                        <div style={{fontSize:10,color,fontWeight:700,marginBottom:10,textTransform:"uppercase",letterSpacing:1}}>{label}</div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                          {teams.map(t=>{
-                            const active=selected?.id===t.id;
-                            return (
-                              <button key={t.id} onClick={()=>selectTeam(t,side)}
-                                style={{background:active?`rgba(${side==="home"?"16,185,129":"245,158,11"},0.16)`:"rgba(255,255,255,0.04)",
-                                        border:`1px solid ${active?`rgba(${side==="home"?"16,185,129":"245,158,11"},0.42)`:"rgba(255,255,255,0.07)"}`,
-                                        borderRadius:8,padding:"6px 11px",color:active?color:"#999",cursor:"pointer",fontSize:12,fontWeight:600}}>
-                                {t.name}
-                              </button>
-                            );
-                          })}
-                        </div>
+                      <div key={side} style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{fontSize:10,color,fontWeight:700,whiteSpace:"nowrap"}}>{label}:</span>
+                        <select
+                          value={selected?.id||""}
+                          onChange={e=>{const t=teams.find(t=>String(t.id)===e.target.value);if(t)selectTeam(t,side);}}
+                          style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,padding:"5px 8px",color:selected?color:"#666",fontSize:12,cursor:"pointer",minWidth:160}}>
+                          <option value="">-- elige equipo --</option>
+                          {teams.map(t=><option key={t.id} value={t.id} style={{background:"#1a1a2e"}}>{t.name}</option>)}
+                        </select>
                       </div>
                     ))}
                   </div>
