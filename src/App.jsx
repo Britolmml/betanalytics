@@ -350,7 +350,7 @@ export default function App() {
       let found = false;
 
       // 1. Obtener la jornada actual/siguiente de la liga
-      for (const season of [2026, 2025]) {
+      for (const season of [2025, 2026]) {
         try {
           const roundsData = await apiFetch("/fixtures/rounds?league=" + lg.id + "&season=" + season + "&current=true");
           const currentRound = roundsData?.response?.[0];
