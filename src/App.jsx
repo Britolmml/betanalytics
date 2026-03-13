@@ -347,18 +347,32 @@ export default function App() {
         const dt = new Date(y, m - 1, d + offsetDays);
         return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
       };
-      const offsets = [0,1,2,3,4,5,6,7];
-      const results = await Promise.all(
-        offsets.map(off => apiFetch("/fixtures?league=" + lg.id + "&date=" + getMXDate(off)).catch(()=>null))
-      );
+      // Primero intenta con &next= (más confiable, no depende de fecha exacta)
       let found = false;
-      for (let i = 0; i < results.length; i++) {
-        const games = results[i]?.response || [];
+      try {
+        const nextData = await apiFetch("/fixtures?league=" + lg.id + "&next=15&season=" + SEASON);
+        const games = nextData?.response || [];
         if (games.length > 0) {
-          const labelMap = {0:"hoy",1:"mañana",2:"pasado mañana"};
-          setTodayLabel(labelMap[i] || "próximos");
-          setTodayGames(games.slice(0,15));
-          found = true; break;
+          setTodayLabel("próximos");
+          setTodayGames(games.slice(0, 15));
+          found = true;
+        }
+      } catch(e) { /* silencioso */ }
+
+      // Fallback: busca día a día incluyendo &season=
+      if (!found) {
+        const offsets = [0,1,2,3,4,5,6,7];
+        const results = await Promise.all(
+          offsets.map(off => apiFetch("/fixtures?league=" + lg.id + "&season=" + SEASON + "&date=" + getMXDate(off)).catch(()=>null))
+        );
+        for (let i = 0; i < results.length; i++) {
+          const games = results[i]?.response || [];
+          if (games.length > 0) {
+            const labelMap = {0:"hoy",1:"mañana",2:"pasado mañana"};
+            setTodayLabel(labelMap[i] || "próximos");
+            setTodayGames(games.slice(0,15));
+            found = true; break;
+          }
         }
       }
       if (!found) setTodayGames([]);
