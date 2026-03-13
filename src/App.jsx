@@ -347,35 +347,61 @@ export default function App() {
         const dt = new Date(y, m - 1, d + offsetDays);
         return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
       };
-      // Primero intenta con &next= (más confiable, no depende de fecha exacta)
       let found = false;
-      try {
-        const nextData = await apiFetch("/fixtures?league=" + lg.id + "&next=15");
-        console.log("[DEBUG next]", lg.id, nextData?.results, nextData?.response?.length, nextData?.errors);
-        const games = nextData?.response || [];
-        if (games.length > 0) {
-          setTodayLabel("próximos");
-          setTodayGames(games.slice(0, 15));
-          found = true;
-        }
-      } catch(e) { /* silencioso */ }
 
-      // Fallback: busca día a día incluyendo &season=
-      if (!found) {
-        const offsets = [0,1,2,3,4,5,6,7];
-        const results = await Promise.all(
-          offsets.map(off => apiFetch("/fixtures?league=" + lg.id + "&season=" + SEASON + "&date=" + getMXDate(off)).catch(()=>null))
-        );
-        for (let i = 0; i < results.length; i++) {
-          const games = results[i]?.response || [];
-          if (games.length > 0) {
-            const labelMap = {0:"hoy",1:"mañana",2:"pasado mañana"};
-            setTodayLabel(labelMap[i] || "próximos");
-            setTodayGames(games.slice(0,15));
-            found = true; break;
+      // 1. Obtener la jornada actual/siguiente de la liga
+      for (const season of [2026, 2025]) {
+        try {
+          const roundsData = await apiFetch("/fixtures/rounds?league=" + lg.id + "&season=" + season + "&current=true");
+          const currentRound = roundsData?.response?.[0];
+          if (currentRound) {
+            // Pedir todos los partidos de esa jornada
+            const fixturesData = await apiFetch(
+              "/fixtures?league=" + lg.id + "&season=" + season + "&round=" + encodeURIComponent(currentRound)
+            );
+            let games = fixturesData?.response || [];
+            // Si todos los partidos de la jornada ya terminaron, buscar la siguiente
+            const allDone = games.every(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short));
+            if (allDone && games.length > 0) {
+              // Obtener todas las jornadas y avanzar una
+              const allRounds = await apiFetch("/fixtures/rounds?league=" + lg.id + "&season=" + season);
+              const rounds = allRounds?.response || [];
+              const idx = rounds.indexOf(currentRound);
+              const nextRound = rounds[idx + 1];
+              if (nextRound) {
+                const nextData = await apiFetch(
+                  "/fixtures?league=" + lg.id + "&season=" + season + "&round=" + encodeURIComponent(nextRound)
+                );
+                games = nextData?.response || [];
+                if (games.length > 0) {
+                  setTodayLabel("Jornada: " + nextRound.replace("Regular Season - ",""));
+                  setTodayGames(games);
+                  found = true; break;
+                }
+              }
+            } else if (games.length > 0) {
+              setTodayLabel("Jornada: " + currentRound.replace("Regular Season - ",""));
+              setTodayGames(games);
+              found = true; break;
+            }
           }
-        }
+        } catch(e) { /* silencioso */ }
+        if (found) break;
       }
+
+      // Fallback: próximos 15 partidos sin importar jornada
+      if (!found) {
+        try {
+          const nextData = await apiFetch("/fixtures?league=" + lg.id + "&next=15");
+          const games = nextData?.response || [];
+          if (games.length > 0) {
+            setTodayLabel("próximos");
+            setTodayGames(games);
+            found = true;
+          }
+        } catch(e) { /* silencioso */ }
+      }
+
       if (!found) setTodayGames([]);
     } catch(e) { /* silencioso */ }
     finally { setLoadingToday(false); }
