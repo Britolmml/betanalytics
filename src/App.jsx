@@ -689,7 +689,15 @@ export default function App() {
     const oddsBlock = () => {
       const key1 = `${homeTeam.name}|${awayTeam.name}`;
       const key2 = `${awayTeam.name}|${homeTeam.name}`;
-      const gameOdds = odds[key1] || odds[key2];
+      let gameOdds = odds[key1] || odds[key2];
+      if (!gameOdds) {
+        const oddsKey = Object.keys(odds).find(k => {
+          const [h, a] = k.split("|");
+          return (fuzzyMatch(h, homeTeam.name) && fuzzyMatch(a, awayTeam.name)) ||
+                 (fuzzyMatch(h, awayTeam.name) && fuzzyMatch(a, homeTeam.name));
+        });
+        if (oddsKey) gameOdds = odds[oddsKey];
+      }
       if (!gameOdds || gameOdds.length === 0) return "Momios no disponibles (presiona Cargar momios antes de analizar)";
       const h2hM = gameOdds.find(m=>m.key==="h2h");
       const totalsM = gameOdds.find(m=>m.key==="totals");
@@ -903,12 +911,30 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
   // Odds API
   const LEAGUE_SPORT_MAP = {
-    39:  "soccer_england_league1",
+    39:  "soccer_epl",
     140: "soccer_spain_la_liga",
     78:  "soccer_germany_bundesliga",
     135: "soccer_italy_serie_a",
+    61:  "soccer_france_ligue_one",
     2:   "soccer_uefa_champs_league",
+    3:   "soccer_uefa_europa_league",
     262: "soccer_mexico_ligamx",
+    253: "soccer_usa_mls",
+    71:  "soccer_brazil_campeonato",
+    88:  "soccer_netherlands_eredivisie",
+    94:  "soccer_portugal_primeira_liga",
+  };
+
+  // Fuzzy match team name (handles "Wolves" vs "Wolverhampton Wanderers" etc)
+  const fuzzyMatch = (a, b) => {
+    if (!a || !b) return false;
+    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
+    const na = norm(a), nb = norm(b);
+    if (na === nb) return true;
+    if (na.includes(nb) || nb.includes(na)) return true;
+    // Check if first word matches
+    const wa = na.slice(0,5), wb = nb.slice(0,5);
+    return wa === wb && wa.length >= 4;
   };
 
   const loadOdds = async () => {
@@ -1657,7 +1683,15 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {(()=>{
                 const key1 = `${homeTeam?.name}|${awayTeam?.name}`;
                 const key2 = `${awayTeam?.name}|${homeTeam?.name}`;
-                const gameOdds = odds[key1] || odds[key2];
+                let gameOdds = odds[key1] || odds[key2];
+                if (!gameOdds) {
+                  const oddsKey = Object.keys(odds).find(k => {
+                    const [h, a] = k.split("|");
+                    return (fuzzyMatch(h, homeTeam?.name) && fuzzyMatch(a, awayTeam?.name)) ||
+                           (fuzzyMatch(h, awayTeam?.name) && fuzzyMatch(a, homeTeam?.name));
+                  });
+                  if (oddsKey) gameOdds = odds[oddsKey];
+                }
                 const h2hMarket = gameOdds?.find(m=>m.key==="h2h");
                 const totalsMarket = gameOdds?.find(m=>m.key==="totals");
                 if (!h2hMarket && !totalsMarket) return (
