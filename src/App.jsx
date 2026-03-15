@@ -1768,7 +1768,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {l:`Menos ${totalLine}`,v:underOdd,highlight:false},
                       ].map(({l,v,highlight})=>v?(
                         <div key={l} style={{textAlign:"center",padding:"10px 6px",background:highlight?"rgba(245,158,11,0.1)":"rgba(255,255,255,0.03)",borderRadius:8,border:highlight?"1px solid rgba(245,158,11,0.3)":"1px solid transparent"}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:highlight?"#f59e0b":"#bbb",lineHeight:1}}>{v?.toFixed(2)}</div>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:highlight?"#f59e0b":"#bbb",lineHeight:1}}>{v>=2 ? "+"+(Math.round((v-1)*100)) : "-"+(Math.round(100/(v-1)))}</div>
                           <div style={{fontSize:9,color:"#555",marginTop:2}}>{l}</div>
                         </div>
                       ):null)}
