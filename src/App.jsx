@@ -940,15 +940,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
   // Fuzzy match - handles name differences between APIs (e.g. "Wolves" vs "Wolverhampton Wanderers")
   const fuzzyMatch = (a, b) => {
     if (!a || !b) return false;
-    // Strip common prefixes that differ between APIs
     const clean = s => s.toLowerCase()
-      .replace(/\b(fc|cf|ac|sc|rc|cd|sd|ud|ca|club|atletico|atleticode|deportivo|real|sporting)\b/g, "")
-      .replace(/[^a-z0-9]/g, "").trim();
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")  // remove accents
+      .replace(/\b(fc|cf|ac|sc|rc|cd|sd|ud|ca|club|atletico|deportivo|real|sporting|united|city|hotspur)\b/g,"")
+      .replace(/[^a-z0-9]/g,"").trim();
     const na = clean(a), nb = clean(b);
     if (!na || !nb) return false;
     if (na === nb) return true;
     if (na.includes(nb) || nb.includes(na)) return true;
-    // First 5 chars match
     const wa = na.slice(0,5), wb = nb.slice(0,5);
     return wa === wb && wa.length >= 4;
   };
