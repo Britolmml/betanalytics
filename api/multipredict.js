@@ -79,7 +79,7 @@ async function callGroq(prompt) {
 
 async function callGemini(prompt) {
   if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY no configurada");
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
     body: JSON.stringify({ contents:[{ parts:[{text:prompt}] }], generationConfig:{maxOutputTokens:1500} }),
@@ -110,7 +110,9 @@ async function callDeepSeek(prompt) {
   });
   const d = await r.json();
   if (d.error) throw new Error(d.error.message);
-  return d.choices?.[0]?.message?.content?.replace(/```json|```/g,"").trim() || "";
+  const msg = d.choices?.[0]?.message;
+  const text = msg?.content || msg?.reasoning_content || "";
+  return text.replace(/```json|```/g,"").replace(/<think>[\s\S]*?<\/think>/g,"").trim() || "";
 }
 
 async function callOpenAI(prompt) {
@@ -130,7 +132,7 @@ async function callCohere(prompt) {
   const r = await fetch("https://api.cohere.com/v1/chat", {
     method: "POST",
     headers: { "Content-Type":"application/json", "Authorization":"Bearer "+process.env.COHERE_API_KEY },
-    body: JSON.stringify({ model:"command-r-plus", max_tokens:1500, message:prompt }),
+    body: JSON.stringify({ model:"command-r-plus-08-2024", max_tokens:1500, message:prompt }),
   });
   const d = await r.json();
   if (d.message) throw new Error(d.message);
