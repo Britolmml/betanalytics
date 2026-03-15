@@ -2342,7 +2342,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             </div>
                           );
                         } catch(e) {
-                          return <div style={{fontSize:11,color:"#555",lineHeight:1.5}}>{r.result?.slice(0,200)}</div>;
+                          const safe = typeof r.result === "string" ? r.result : JSON.stringify(r.result);
+                          return <div style={{fontSize:11,color:"#555",lineHeight:1.5}}>{safe?.slice(0,200)}</div>;
                         }
                       })()}
                       {!r.success && <div style={{fontSize:11,color:"#ef4444",marginTop:4}}>{r.error}</div>}
@@ -2352,7 +2353,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
                 {multiResult.consensus && (()=>{
                   try {
-                    const c = JSON.parse(multiResult.consensus);
+                    const c = typeof multiResult.consensus === "string" ? JSON.parse(multiResult.consensus) : multiResult.consensus;
                     return (
                       <div style={{background:"linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:16,padding:20}}>
                         <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
@@ -2380,7 +2381,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                       </div>
                     );
                   } catch(e) {
-                    return <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:12,padding:16,fontSize:12,color:"#888",lineHeight:1.6}}>{multiResult.consensus?.slice(0,400)}</div>;
+                    const safeC = typeof multiResult.consensus === "string" ? multiResult.consensus : JSON.stringify(multiResult.consensus);
+                    return <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:12,padding:16,fontSize:12,color:"#888",lineHeight:1.6}}>{safeC?.slice(0,400)}</div>;
                   }
                 })()}
               </div>
