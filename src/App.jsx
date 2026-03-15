@@ -2368,30 +2368,49 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {multiResult.consensus && (()=>{
                   try {
                     const c = typeof multiResult.consensus === "string" ? JSON.parse(multiResult.consensus) : multiResult.consensus;
+                    const ss = v => (v === null || v === undefined) ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v));
+                    const marcador = ss(c.prediccionMarcador || c.marcador || c.score || "?");
+                    const probs = c.probabilidades || c.probabilidad || null;
+                    const lPct = probs?.local ?? probs?.home ?? null;
+                    const ePct = probs?.empate ?? probs?.draw ?? null;
+                    const vPct = probs?.visitante ?? probs?.away ?? null;
+                    const consensoPct = typeof c.consenso === "number" ? c.consenso : null;
+                    const votos = c.votos ? ss(c.votos) : null;
+                    const resumen = typeof c.resumen === "string" ? c.resumen : "";
+                    const apuestas = c.apuestasDestacadas || (c.apuestaDestacada ? [c.apuestaDestacada] : []);
                     return (
                       <div style={{background:"linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:16,padding:20}}>
                         <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
                         <div style={{display:"flex",gap:20,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:42,color:"#a78bfa",lineHeight:1}}>{c.prediccionMarcador||"?"}</div>
-                          {c.consenso!==undefined && (
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:42,color:"#a78bfa",lineHeight:1}}>{marcador}</div>
+                          {consensoPct !== null && (
                             <div style={{textAlign:"center"}}>
-                              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:c.consenso>=70?"#10b981":c.consenso>=50?"#f59e0b":"#ef4444"}}>{c.consenso}%</div>
+                              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:consensoPct>=70?"#10b981":consensoPct>=50?"#f59e0b":"#ef4444"}}>{consensoPct}%</div>
                               <div style={{fontSize:10,color:"#555"}}>CONSENSO</div>
                             </div>
                           )}
-                          {c.votos && <div style={{background:"rgba(255,255,255,0.06)",borderRadius:8,padding:"6px 14px",fontSize:12,color:"#e8eaf0",fontWeight:700}}>🗳 Más votado: {c.votos}</div>}
+                          {votos && <div style={{background:"rgba(255,255,255,0.06)",borderRadius:8,padding:"6px 14px",fontSize:12,color:"#e8eaf0",fontWeight:700}}>🗳 Más votado: {votos}</div>}
                         </div>
-                        {c.probabilidades && (
+                        {(lPct !== null) && (
                           <div style={{display:"flex",gap:12,marginBottom:12}}>
-                            {[["Local",c.probabilidades.local,"#10b981"],["Empate",c.probabilidades.empate,"#f59e0b"],["Visitante",c.probabilidades.visitante,"#ef4444"]].map(([l,v,col])=>(
+                            {[["Local",lPct,"#10b981"],["Empate",ePct,"#f59e0b"],["Visitante",vPct,"#ef4444"]].map(([l,v,col])=>(
                               <div key={l} style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 0",textAlign:"center"}}>
-                                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:col}}>{v}%</div>
+                                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:col}}>{ss(v)}%</div>
                                 <div style={{fontSize:10,color:"#555"}}>{l}</div>
                               </div>
                             ))}
                           </div>
                         )}
-                        {c.resumen && <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>{c.resumen}</div>}
+                        {apuestas.length > 0 && (
+                          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>
+                            {apuestas.slice(0,5).map((a,ai)=>(
+                              <span key={ai} style={{fontSize:10,color:"#a78bfa",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:6,padding:"2px 8px"}}>
+                                {ss(a.tipo)}: {ss(a.pick||a.seleccion)} {a.confianza?`(${ss(a.confianza)}%)`:""}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {resumen && <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>{resumen}</div>}
                       </div>
                     );
                   } catch(e) {
