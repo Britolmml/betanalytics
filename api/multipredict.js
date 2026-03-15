@@ -79,7 +79,7 @@ async function callGroq(prompt) {
 
 async function callGemini(prompt) {
   if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY no configurada");
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
     body: JSON.stringify({ contents:[{ parts:[{text:prompt}] }], generationConfig:{maxOutputTokens:1500} }),
@@ -127,19 +127,14 @@ async function callOpenAI(prompt) {
 
 async function callCohere(prompt) {
   if (!process.env.COHERE_API_KEY) throw new Error("COHERE_API_KEY no configurada");
-  const r = await fetch("https://api.cohere.com/v2/chat", {
+  const r = await fetch("https://api.cohere.com/v1/chat", {
     method: "POST",
     headers: { "Content-Type":"application/json", "Authorization":"Bearer "+process.env.COHERE_API_KEY },
-    body: JSON.stringify({ model:"command-r-plus", max_tokens:1500, messages:[{role:"user",content:prompt}] }),
+    body: JSON.stringify({ model:"command-r-plus", max_tokens:1500, message:prompt }),
   });
   const d = await r.json();
-  if (d.error) throw new Error(typeof d.error === "string" ? d.error : JSON.stringify(d.error));
-  // Cohere v2 puede devolver el texto en distintas rutas
-  const text = d.message?.content?.[0]?.text
-    || d.text
-    || d.generations?.[0]?.text
-    || d.chat_history?.[d.chat_history.length-1]?.message
-    || "";
+  if (d.message) throw new Error(d.message);
+  const text = d.text || d.chat_history?.[d.chat_history.length-1]?.message || "";
   return text.replace(/```json|```/g,"").trim();
 }
 
