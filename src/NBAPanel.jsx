@@ -348,17 +348,38 @@ export default function NBAPanel({ onClose }) {
       const topH = players.home.slice(0, 3).map(p => p.name + " " + p.pts + "pts/" + p.reb + "reb/" + p.ast + "ast").join(", ");
       const topA = players.away.slice(0, 3).map(p => p.name + " " + p.pts + "pts/" + p.reb + "reb/" + p.ast + "ast").join(", ");
 
-      const prompt = "Analista NBA experto. " +
-        "IMPORTANTE: Los datos que recibes son en tiempo real de la temporada 2025-2026. " +
-        "Pueden haber trades recientes. Confía 100% en los datos proporcionados, NO en tu conocimiento de qué equipo es cada jugador. " +
-        "Si un jugador aparece en un equipo, ES porque está en ese equipo HOY. " +
-        "Partido: " + home + " vs " + away + " | Estado: " + status + scorePart + " | " +
-        "LOCAL " + home + ": " + hSL + (topH ? " | Top jugadores: " + topH : "") + " | " +
-        "VISITA " + away + ": " + aSL + (topA ? " | Top jugadores: " + topA : "") + " | " +
-        "Lineas: Total=" + totalLine + " Local=" + hLine + " Visita=" + aLine + ". " +
-        "Eres analista NBA experto en apuestas. Genera un análisis DETALLADO con MÍNIMO 6 apuestas en diferentes mercados. " +
-        "Responde SOLO JSON sin texto extra: " + JSON.stringify({
-          resumen:"análisis detallado 3-4 oraciones",
+      // Build H2H summary if available (reuse last 5 games data as proxy)
+      const h2hNote = "Sin historial H2H disponible en este análisis";
+
+      const prompt = `Eres un analista NBA experto con especialidad en apuestas deportivas y detección de value bets.
+IMPORTANTE: Datos en tiempo real temporada 2025-2026. Confía 100% en los datos proporcionados, NO en tu conocimiento previo.
+
+PARTIDO: ${home} vs ${away} | Estado: ${status}${scorePart}
+
+════ ${home} (LOCAL) ════
+Stats: ${hSL}
+Top jugadores: ${topH || "Sin datos"}
+Puntos esperados (modelo): ${hLine}
+
+════ ${away} (VISITANTE) ════
+Stats: ${aSL}
+Top jugadores: ${topA || "Sin datos"}
+Puntos esperados (modelo): ${aLine}
+
+════ LÍNEAS DE MERCADO ════
+Total proyectado: ${totalLine} pts
+${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
+
+════ INSTRUCCIONES DE ANÁLISIS ════
+PASO 1 — Analiza el rendimiento ofensivo/defensivo de cada equipo
+PASO 2 — Evalúa el impacto de los jugadores clave disponibles
+PASO 3 — Detecta tendencias: ¿Over/Under consistente? ¿Equipo con racha?
+PASO 4 — Detecta errores de línea: si el total proyectado difiere >10pts del mercado, hay valor
+PASO 5 — Identifica value bets: probabilidad calculada vs implícita en los momios
+PASO 6 — Genera el JSON final
+
+Responde SOLO JSON sin texto extra: ` + JSON.stringify({
+          resumen:"análisis detallado 3-4 oraciones con razonamiento",
           ganadorProbable:"equipo",
           probabilidades:{home:52,away:48},
           apuestasDestacadas:[
@@ -371,7 +392,9 @@ export default function NBAPanel({ onClose }) {
             {tipo:"Primera Mitad",pick:"",odds_sugerido:"",confianza:65,razon:"",categoria:"mitad",jugador:null},
             {tipo:"Doble Oportunidad",pick:"",odds_sugerido:"",confianza:70,razon:"",categoria:"alternativo",jugador:null}
           ],
-          valueBet:{existe:true,mercado:"",explicacion:"",odds_recomendado:""},
+          valueBet:{existe:true,mercado:"",explicacion:"",odds_recomendado:"",edge:""},
+          erroresLinea:[{descripcion:"",mercado:"",contradiccion:""}],
+          tendenciasDetectadas:["tendencia concreta 1","tendencia concreta 2"],
           alertas:[""],
           nivelConfianza:"ALTO",
           razonConfianza:""
@@ -565,6 +588,41 @@ export default function NBAPanel({ onClose }) {
                           </div>
                         )}
                         <NivelConfianza nivel={analysis.nivelConfianza} razon={analysis.razonConfianza} />
+
+                        {/* Value Bet con Edge */}
+                        {analysis.valueBet?.existe && analysis.valueBet?.edge && (
+                          <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700, marginBottom: 4 }}>💎 VALUE BET — {analysis.valueBet.mercado} | Edge: {analysis.valueBet.edge}</div>
+                            <div style={{ fontSize: 12, color: "#aaa" }}>{analysis.valueBet.explicacion}</div>
+                          </div>
+                        )}
+
+                        {/* Errores de línea */}
+                        {(analysis.erroresLinea||[]).filter(e=>e.descripcion).length > 0 && (
+                          <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 700, marginBottom: 6 }}>⚠️ ERRORES DE LÍNEA DETECTADOS</div>
+                            {analysis.erroresLinea.filter(e=>e.descripcion).map((e,i)=>(
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700 }}>{e.descripcion}</div>
+                                {e.contradiccion && <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{e.contradiccion}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Tendencias */}
+                        {(analysis.tendenciasDetectadas||[]).length > 0 && (
+                          <div style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "#06b6d4", fontWeight: 700, marginBottom: 6 }}>📈 TENDENCIAS DETECTADAS</div>
+                            {analysis.tendenciasDetectadas.map((t,i)=>(
+                              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                                <span style={{ color: "#06b6d4", flexShrink: 0 }}>→</span>
+                                <span style={{ fontSize: 11, color: "#aaa", lineHeight: 1.5 }}>{t}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         <div style={{ marginTop: 12, textAlign: "center", fontSize: 11 }}>
                           {saving && <span style={{ color: "#60a5fa" }}>💾 Guardando...</span>}
                           {saved && <span style={{ color: "#10b981" }}>✅ Guardado automáticamente en historial</span>}
