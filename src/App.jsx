@@ -731,8 +731,8 @@ export default function App() {
       let result = "";
       if (h2hM) {
         const outcomes = h2hM.outcomes || [];
-        const home = outcomes.find(o=>o.name===homeTeam.name);
-        const away = outcomes.find(o=>o.name===awayTeam.name);
+        const home = outcomes.find(o=>fuzzyMatch(o.name, homeTeam.name));
+        const away = outcomes.find(o=>fuzzyMatch(o.name, awayTeam.name));
         const draw = outcomes.find(o=>o.name==="Draw");
         result += `Resultado 1X2: ${homeTeam.name}=${home?.price||"N/D"} | Empate=${draw?.price||"N/D"} | ${awayTeam.name}=${away?.price||"N/D"}`;
         // Detect line errors
@@ -1744,8 +1744,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   </div>
                 );
                 const outcomes = h2hMarket?.outcomes || [];
-                const homeOdd = outcomes.find(o=>o.name===homeTeam?.name)?.price;
-                const awayOdd = outcomes.find(o=>o.name===awayTeam?.name)?.price;
+                const homeOdd = outcomes.find(o=>fuzzyMatch(o.name, homeTeam?.name))?.price;
+                const awayOdd = outcomes.find(o=>fuzzyMatch(o.name, awayTeam?.name))?.price;
                 const drawOdd = outcomes.find(o=>o.name==="Draw")?.price;
                 const overOdd = totalsMarket?.outcomes?.find(o=>o.name==="Over")?.price;
                 const underOdd = totalsMarket?.outcomes?.find(o=>o.name==="Under")?.price;
