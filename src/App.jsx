@@ -674,6 +674,7 @@ export default function App() {
     // ── Construir prompt enriquecido ───────────────────────────
     // H2H block
     const h2hBlock = () => {
+      console.log("[H2H DEBUG]", h2h?.length, JSON.stringify(h2h?.slice(0,2)));
       if (!h2h || h2h.length === 0) return "Sin historial de duelos directos disponible";
       const hw = h2h.filter(m=>(m.home===homeTeam.name&&m.homeGoals>m.awayGoals)||(m.away===homeTeam.name&&m.awayGoals>m.homeGoals)).length;
       const aw = h2h.filter(m=>(m.home===awayTeam.name&&m.homeGoals>m.awayGoals)||(m.away===awayTeam.name&&m.awayGoals>m.homeGoals)).length;
