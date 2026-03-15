@@ -940,10 +940,15 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
   // Fuzzy match - handles name differences between APIs (e.g. "Wolves" vs "Wolverhampton Wanderers")
   const fuzzyMatch = (a, b) => {
     if (!a || !b) return false;
-    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
-    const na = norm(a), nb = norm(b);
+    // Strip common prefixes that differ between APIs
+    const clean = s => s.toLowerCase()
+      .replace(/\b(fc|cf|ac|sc|rc|cd|sd|ud|ca|club|atletico|atleticode|deportivo|real|sporting)\b/g, "")
+      .replace(/[^a-z0-9]/g, "").trim();
+    const na = clean(a), nb = clean(b);
+    if (!na || !nb) return false;
     if (na === nb) return true;
     if (na.includes(nb) || nb.includes(na)) return true;
+    // First 5 chars match
     const wa = na.slice(0,5), wb = nb.slice(0,5);
     return wa === wb && wa.length >= 4;
   };
@@ -1724,14 +1729,12 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 const key1 = `${homeTeam?.name}|${awayTeam?.name}`;
                 const key2 = `${awayTeam?.name}|${homeTeam?.name}`;
                 let gameOdds = odds[key1] || odds[key2];
-                console.log("[RENDER ODDS] keys:", Object.keys(odds).length, "key1:", key1, "direct:", !!gameOdds);
                 if (!gameOdds) {
                   const oddsKey = Object.keys(odds).find(k => {
                     const [h, a] = k.split("|");
                     return (fuzzyMatch(h, homeTeam?.name) && fuzzyMatch(a, awayTeam?.name)) ||
                            (fuzzyMatch(h, awayTeam?.name) && fuzzyMatch(a, homeTeam?.name));
                   });
-                  console.log("[RENDER ODDS] fuzzy found:", oddsKey);
                   if (oddsKey) gameOdds = odds[oddsKey];
                 }
                 const h2hMarket = gameOdds?.find(m=>m.key==="h2h");
