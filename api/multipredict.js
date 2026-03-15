@@ -133,8 +133,14 @@ async function callCohere(prompt) {
     body: JSON.stringify({ model:"command-r-plus", max_tokens:1500, messages:[{role:"user",content:prompt}] }),
   });
   const d = await r.json();
-  if (d.error) throw new Error(d.error);
-  return d.message?.content?.[0]?.text?.replace(/```json|```/g,"").trim() || "";
+  if (d.error) throw new Error(typeof d.error === "string" ? d.error : JSON.stringify(d.error));
+  // Cohere v2 puede devolver el texto en distintas rutas
+  const text = d.message?.content?.[0]?.text
+    || d.text
+    || d.generations?.[0]?.text
+    || d.chat_history?.[d.chat_history.length-1]?.message
+    || "";
+  return text.replace(/```json|```/g,"").trim();
 }
 
 // Consolida las respuestas de todos los modelos en una predicción final
