@@ -687,6 +687,19 @@ export default function App() {
     };
 
     // Odds block
+
+  // Fuzzy match team name (handles "Wolves" vs "Wolverhampton Wanderers" etc)
+  const fuzzyMatch = (a, b) => {
+    if (!a || !b) return false;
+    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
+    const na = norm(a), nb = norm(b);
+    if (na === nb) return true;
+    if (na.includes(nb) || nb.includes(na)) return true;
+    // Check if first word matches
+    const wa = na.slice(0,5), wb = nb.slice(0,5);
+    return wa === wb && wa.length >= 4;
+  };
+
     const oddsBlock = () => {
       const key1 = `${homeTeam.name}|${awayTeam.name}`;
       const key2 = `${awayTeam.name}|${homeTeam.name}`;
@@ -939,17 +952,6 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
     98:  "soccer_japan_j_league",             // J1 League
   };
 
-  // Fuzzy match team name (handles "Wolves" vs "Wolverhampton Wanderers" etc)
-  const fuzzyMatch = (a, b) => {
-    if (!a || !b) return false;
-    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
-    const na = norm(a), nb = norm(b);
-    if (na === nb) return true;
-    if (na.includes(nb) || nb.includes(na)) return true;
-    // Check if first word matches
-    const wa = na.slice(0,5), wb = nb.slice(0,5);
-    return wa === wb && wa.length >= 4;
-  };
 
   const loadOdds = async () => {
     if (!league) return;
