@@ -978,16 +978,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
 
   const loadOdds = async () => {
-    console.log("[ODDS DEBUG] league:", league?.name, "id:", league?.id);
-    if (!league) { console.warn("[ODDS] No league"); return; }
+    if (!league) return;
     const sport = LEAGUE_SPORT_MAP[league.id];
-    console.log("[ODDS DEBUG] sport:", sport);
-    if (!sport) { console.warn("[ODDS] No sport for league", league.id); return; }
+    if (!sport) return;
     setLoadingOdds(true);
     try {
       const res = await fetch(`/api/odds?sport=${sport}&markets=h2h,totals&regions=eu`);
       const data = await res.json();
-      console.log("[ODDS DEBUG] data type:", typeof data, Array.isArray(data), data?.length);
       if (Array.isArray(data)) {
         const map = {};
         data.forEach(g => {
@@ -1727,12 +1724,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 const key1 = `${homeTeam?.name}|${awayTeam?.name}`;
                 const key2 = `${awayTeam?.name}|${homeTeam?.name}`;
                 let gameOdds = odds[key1] || odds[key2];
+                console.log("[RENDER ODDS] keys:", Object.keys(odds).length, "key1:", key1, "direct:", !!gameOdds);
                 if (!gameOdds) {
                   const oddsKey = Object.keys(odds).find(k => {
                     const [h, a] = k.split("|");
                     return (fuzzyMatch(h, homeTeam?.name) && fuzzyMatch(a, awayTeam?.name)) ||
                            (fuzzyMatch(h, awayTeam?.name) && fuzzyMatch(a, homeTeam?.name));
                   });
+                  console.log("[RENDER ODDS] fuzzy found:", oddsKey);
                   if (oddsKey) gameOdds = odds[oddsKey];
                 }
                 const h2hMarket = gameOdds?.find(m=>m.key==="h2h");
