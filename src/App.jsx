@@ -778,7 +778,7 @@ PARTIDO: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name}
 ${homeTeam.name} (local): Goles prom ${hS.avgScored}/${hS.avgConceded} | Forma: ${hS.results.join("-")} | BTTS: ${hS.btts}/5 | +2.5: ${hS.over25}/5
 ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | Forma: ${aS.results.join("-")} | BTTS: ${aS.btts}/5 | +2.5: ${aS.over25}/5
 
-{"resumen":"Análisis de 2-3 oraciones","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","confianza":82},{"tipo":"Total goles","pick":"Más/Menos 2.5","confianza":74},{"tipo":"BTTS","pick":"Sí/No","confianza":70},{"tipo":"Corners","pick":"Más/Menos 9.5","confianza":65},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","confianza":60}],"alertas":["alerta basada en datos"]}`;
+{"resumen":"...","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"apuestaDestacada":{"tipo":"Resultado","pick":"...","confianza":82},"alertas":["..."]}`;
     try {
       const res = await fetch("/api/multipredict", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt}) });
       const data = await res.json();
@@ -2327,20 +2327,32 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                       {r.success && r.result && (()=>{
                         try {
                           const p = JSON.parse(r.result);
+                          // Normalizar campos que distintos modelos pueden usar con nombres diferentes
+                          const marcador = p.prediccionMarcador || p.marcador || p.score || "?";
+                          const probs = p.probabilidades || p.probabilidad || null;
+                          const localPct = probs?.local ?? probs?.home ?? probs?.Local ?? null;
+                          const empatePct = probs?.empate ?? probs?.draw ?? probs?.Empate ?? null;
+                          const visitPct = probs?.visitante ?? probs?.away ?? probs?.Visitante ?? null;
+                          const apuestas = p.apuestasDestacadas || (p.apuestaDestacada ? [p.apuestaDestacada] : []);
+                          const resumen = typeof p.resumen === "string" ? p.resumen : "";
                           return (
-                            <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
-                              <span style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:"#a78bfa"}}>{p.prediccionMarcador||"?"}</span>
-                              {p.probabilidades && (
-                                <div style={{display:"flex",gap:8,fontSize:11}}>
-                                  <span style={{color:"#10b981"}}>L:{p.probabilidades.local}%</span>
-                                  <span style={{color:"#f59e0b"}}>E:{p.probabilidades.empate}%</span>
-                                  <span style={{color:"#ef4444"}}>V:{p.probabilidades.visitante}%</span>
+                            <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap"}}>
+                              <span style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:"#a78bfa",flexShrink:0}}>{marcador}</span>
+                              {localPct !== null && (
+                                <div style={{display:"flex",gap:6,fontSize:11,flexShrink:0}}>
+                                  <span style={{color:"#10b981"}}>L:{localPct}%</span>
+                                  <span style={{color:"#f59e0b"}}>E:{empatePct}%</span>
+                                  <span style={{color:"#ef4444"}}>V:{visitPct}%</span>
                                 </div>
                               )}
-                              {(p.apuestasDestacadas||[p.apuestaDestacada].filter(Boolean)).slice(0,3).map((a,ai)=>(
-                                <span key={ai} style={{fontSize:10,color:"#888",background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"2px 8px"}}>{a.tipo}: {a.pick} ({a.confianza}%)</span>
-                              ))}
-                              {p.resumen && <div style={{fontSize:11,color:"#555",width:"100%",marginTop:4,lineHeight:1.5}}>{p.resumen.slice(0,150)}...</div>}
+                              <div style={{display:"flex",gap:4,flexWrap:"wrap",width:"100%",marginTop:4}}>
+                                {apuestas.slice(0,5).map((a,ai)=>(
+                                  <span key={ai} style={{fontSize:10,color:"#888",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:6,padding:"2px 7px"}}>
+                                    {String(a.tipo||"")}: {String(a.pick||a.seleccion||"")} {a.confianza?`(${a.confianza}%)`:""}
+                                  </span>
+                                ))}
+                              </div>
+                              {resumen && <div style={{fontSize:11,color:"#555",width:"100%",marginTop:4,lineHeight:1.5}}>{resumen.slice(0,160)}...</div>}
                             </div>
                           );
                         } catch(e) {
