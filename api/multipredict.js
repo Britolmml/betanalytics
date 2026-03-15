@@ -79,7 +79,7 @@ async function callGroq(prompt) {
 
 async function callGemini(prompt) {
   if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY no configurada");
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type":"application/json" },
     body: JSON.stringify({ contents:[{ parts:[{text:prompt}] }], generationConfig:{maxOutputTokens:1500} }),
