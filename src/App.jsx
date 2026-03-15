@@ -673,32 +673,45 @@ export default function App() {
 
     // ── Construir prompt enriquecido ───────────────────────────
     // H2H block
+    // Use h2h state or fetch fresh if empty
+    let currentH2H = h2h;
+    if (!currentH2H || currentH2H.length === 0) {
+      try {
+        for (const season of [2026, 2025, 2024, 2023]) {
+          const d = await apiFetch(`/fixtures?h2h=${homeTeam.id}-${awayTeam.id}&season=${season}`);
+          const items = (d.response||[])
+            .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+            .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+            .slice(0,5);
+          if (items.length) {
+            currentH2H = items.map(f => ({
+              date: f.fixture?.date?.split("T")[0] ?? "",
+              home: f.teams?.home?.name ?? "",
+              away: f.teams?.away?.name ?? "",
+              homeGoals: f.goals?.home ?? 0,
+              awayGoals: f.goals?.away ?? 0,
+            }));
+            setH2h(currentH2H);
+            break;
+          }
+        }
+      } catch(e) { console.warn("H2H fetch in predict:", e.message); }
+    }
+
     const h2hBlock = () => {
-      console.log("[H2H DEBUG]", h2h?.length, JSON.stringify(h2h?.slice(0,2)));
-      if (!h2h || h2h.length === 0) return "Sin historial de duelos directos disponible";
-      const hw = h2h.filter(m=>(m.home===homeTeam.name&&m.homeGoals>m.awayGoals)||(m.away===homeTeam.name&&m.awayGoals>m.homeGoals)).length;
-      const aw = h2h.filter(m=>(m.home===awayTeam.name&&m.homeGoals>m.awayGoals)||(m.away===awayTeam.name&&m.awayGoals>m.homeGoals)).length;
-      const dr = h2h.length - hw - aw;
-      const bttsH2H = h2h.filter(m=>m.homeGoals>0&&m.awayGoals>0).length;
-      const over25H2H = h2h.filter(m=>m.homeGoals+m.awayGoals>2.5).length;
-      const avgGoals = (h2h.reduce((s,m)=>s+m.homeGoals+m.awayGoals,0)/h2h.length).toFixed(1);
-      const matches = h2h.map(m=>`${m.date}: ${m.home} ${m.homeGoals}-${m.awayGoals} ${m.away}`).join(" | ");
-      return `Últimos ${h2h.length} duelos: ${homeTeam.name} ${hw}V ${dr}E ${aw}D | BTTS en H2H: ${bttsH2H}/${h2h.length} | Over 2.5 en H2H: ${over25H2H}/${h2h.length} | Prom goles: ${avgGoals}\nDetalle: ${matches}`;
+      if (!currentH2H || currentH2H.length === 0) return "Sin historial de duelos directos disponible";
+      const hw = currentH2H.filter(m=>(m.home===homeTeam.name&&m.homeGoals>m.awayGoals)||(m.away===homeTeam.name&&m.awayGoals>m.homeGoals)).length;
+      const aw = currentH2H.filter(m=>(m.home===awayTeam.name&&m.homeGoals>m.awayGoals)||(m.away===awayTeam.name&&m.awayGoals>m.homeGoals)).length;
+      const dr = currentH2H.length - hw - aw;
+      const bttsH2H = currentH2H.filter(m=>m.homeGoals>0&&m.awayGoals>0).length;
+      const over25H2H = currentH2H.filter(m=>m.homeGoals+m.awayGoals>2.5).length;
+      const avgGoals = (currentH2H.reduce((s,m)=>s+m.homeGoals+m.awayGoals,0)/currentH2H.length).toFixed(1);
+      const matches = currentH2H.map(m=>`${m.date}: ${m.home} ${m.homeGoals}-${m.awayGoals} ${m.away}`).join(" | ");
+      return `Últimos ${currentH2H.length} duelos: ${homeTeam.name} ${hw}V ${dr}E ${aw}D | BTTS en H2H: ${bttsH2H}/${currentH2H.length} | Over 2.5 en H2H: ${over25H2H}/${currentH2H.length} | Prom goles: ${avgGoals}\nDetalle: ${matches}`;
     };
 
     // Odds block
 
-  // Fuzzy match team name (handles "Wolves" vs "Wolverhampton Wanderers" etc)
-  const fuzzyMatch = (a, b) => {
-    if (!a || !b) return false;
-    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
-    const na = norm(a), nb = norm(b);
-    if (na === nb) return true;
-    if (na.includes(nb) || nb.includes(na)) return true;
-    // Check if first word matches
-    const wa = na.slice(0,5), wb = nb.slice(0,5);
-    return wa === wb && wa.length >= 4;
-  };
 
     const oddsBlock = () => {
       const key1 = `${homeTeam.name}|${awayTeam.name}`;
@@ -924,6 +937,17 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
   };
 
   // Odds API
+  // Fuzzy match - handles name differences between APIs (e.g. "Wolves" vs "Wolverhampton Wanderers")
+  const fuzzyMatch = (a, b) => {
+    if (!a || !b) return false;
+    const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,"");
+    const na = norm(a), nb = norm(b);
+    if (na === nb) return true;
+    if (na.includes(nb) || nb.includes(na)) return true;
+    const wa = na.slice(0,5), wb = nb.slice(0,5);
+    return wa === wb && wa.length >= 4;
+  };
+
   const LEAGUE_SPORT_MAP = {
     // Europa
     39:  "soccer_epl",                        // Premier League
