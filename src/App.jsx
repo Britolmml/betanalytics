@@ -1751,8 +1751,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 const homeOdd = outcomes.find(o=>fuzzyMatch(o.name, homeTeam?.name))?.price;
                 const awayOdd = outcomes.find(o=>fuzzyMatch(o.name, awayTeam?.name))?.price;
                 const drawOdd = outcomes.find(o=>o.name==="Draw")?.price;
-                const overOdd = totalsMarket?.outcomes?.find(o=>o.name==="Over")?.price;
-                const underOdd = totalsMarket?.outcomes?.find(o=>o.name==="Under")?.price;
+                const overOutcome = totalsMarket?.outcomes?.find(o=>o.name==="Over");
+                const underOutcome = totalsMarket?.outcomes?.find(o=>o.name==="Under");
+                const overOdd = overOutcome?.price;
+                const underOdd = underOutcome?.price;
+                const totalLine = overOutcome?.point ?? underOutcome?.point ?? "2.5";
                 return (
                   <div style={{...C.card,marginBottom:14}}>
                     <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>💰 Momios reales — Bet365/Pinnacle</div>
@@ -1761,8 +1764,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {l:homeTeam?.name?.split(" ").slice(-1)[0],v:homeOdd,highlight:p.local>p.visitante},
                         {l:"Empate",v:drawOdd,highlight:false},
                         {l:awayTeam?.name?.split(" ").slice(-1)[0],v:awayOdd,highlight:p.visitante>p.local},
-                        {l:"Over 2.5",v:overOdd,highlight:false},
-                        {l:"Under 2.5",v:underOdd,highlight:false},
+                        {l:`Ús ${totalLine}`,v:overOdd,highlight:false},
+                        {l:`Menos ${totalLine}`,v:underOdd,highlight:false},
                       ].map(({l,v,highlight})=>v?(
                         <div key={l} style={{textAlign:"center",padding:"10px 6px",background:highlight?"rgba(245,158,11,0.1)":"rgba(255,255,255,0.03)",borderRadius:8,border:highlight?"1px solid rgba(245,158,11,0.3)":"1px solid transparent"}}>
                           <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:highlight?"#f59e0b":"#bbb",lineHeight:1}}>{v?.toFixed(2)}</div>
