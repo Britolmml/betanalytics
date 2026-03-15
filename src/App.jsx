@@ -672,6 +672,49 @@ export default function App() {
     } catch(e) { console.warn("Error cargando jugadores:", e.message); }
 
     // ── Construir prompt enriquecido ───────────────────────────
+    // H2H block
+    const h2hBlock = () => {
+      if (!h2h || h2h.length === 0) return "Sin historial de duelos directos disponible";
+      const hw = h2h.filter(m=>(m.home===homeTeam.name&&m.homeGoals>m.awayGoals)||(m.away===homeTeam.name&&m.awayGoals>m.homeGoals)).length;
+      const aw = h2h.filter(m=>(m.home===awayTeam.name&&m.homeGoals>m.awayGoals)||(m.away===awayTeam.name&&m.awayGoals>m.homeGoals)).length;
+      const dr = h2h.length - hw - aw;
+      const bttsH2H = h2h.filter(m=>m.homeGoals>0&&m.awayGoals>0).length;
+      const over25H2H = h2h.filter(m=>m.homeGoals+m.awayGoals>2.5).length;
+      const avgGoals = (h2h.reduce((s,m)=>s+m.homeGoals+m.awayGoals,0)/h2h.length).toFixed(1);
+      const matches = h2h.map(m=>`${m.date}: ${m.home} ${m.homeGoals}-${m.awayGoals} ${m.away}`).join(" | ");
+      return `Últimos ${h2h.length} duelos: ${homeTeam.name} ${hw}V ${dr}E ${aw}D | BTTS en H2H: ${bttsH2H}/${h2h.length} | Over 2.5 en H2H: ${over25H2H}/${h2h.length} | Prom goles: ${avgGoals}\nDetalle: ${matches}`;
+    };
+
+    // Odds block
+    const oddsBlock = () => {
+      const key1 = `${homeTeam.name}|${awayTeam.name}`;
+      const key2 = `${awayTeam.name}|${homeTeam.name}`;
+      const gameOdds = odds[key1] || odds[key2];
+      if (!gameOdds || gameOdds.length === 0) return "Momios no disponibles (presiona Cargar momios antes de analizar)";
+      const h2hM = gameOdds.find(m=>m.key==="h2h");
+      const totalsM = gameOdds.find(m=>m.key==="totals");
+      let result = "";
+      if (h2hM) {
+        const outcomes = h2hM.outcomes || [];
+        const home = outcomes.find(o=>o.name===homeTeam.name);
+        const away = outcomes.find(o=>o.name===awayTeam.name);
+        const draw = outcomes.find(o=>o.name==="Draw");
+        result += `Resultado 1X2: ${homeTeam.name}=${home?.price||"N/D"} | Empate=${draw?.price||"N/D"} | ${awayTeam.name}=${away?.price||"N/D"}`;
+        // Detect line errors
+        if (home?.price && away?.price && draw?.price) {
+          const impliedHome = 1/home.price, impliedDraw = 1/draw.price, impliedAway = 1/away.price;
+          const margin = ((impliedHome+impliedDraw+impliedAway)-1)*100;
+          result += ` (margen casa: ${margin.toFixed(1)}%)`;
+        }
+      }
+      if (totalsM) {
+        const over = totalsM.outcomes?.find(o=>o.name==="Over");
+        const under = totalsM.outcomes?.find(o=>o.name==="Under");
+        if (over) result += ` | Total goles Over ${over.point}=${over.price} Under=${under?.price||"N/D"}`;
+      }
+      return result || "Sin momios disponibles";
+    };
+
     const standingBlock = (name, s) => s
       ? `Posición: ${s.pos}° | Puntos: ${s.pts} | PJ: ${s.played} | GF: ${s.gf} | GC: ${s.ga} | Forma reciente (oficial): ${s.form}`
       : "Posición en tabla no disponible";
@@ -710,6 +753,12 @@ BTTS: ${aS.btts}/5 | Over 2.5: ${aS.over25}/5 | Clean Sheets: ${aS.cleanSheets}/
 ${injuryBlock(awayTeam.name, awayInjuries)}
 JUGADORES CLAVE: ${playersBlock(awayPlayers)}
 
+════ DUELOS DIRECTOS H2H ════
+${h2hBlock()}
+
+════ MOMIOS DE CASAS DE APUESTA ════
+${oddsBlock()}
+
 ════ INSTRUCCIONES DE RAZONAMIENTO ════
 Antes de generar el JSON, razona internamente siguiendo ESTOS PASOS en orden:
 
@@ -723,18 +772,29 @@ PASO 2 — Analiza ${awayTeam.name} como visitante:
   · ¿Tiene bajas importantes que afecten su ataque o defensa?
   · ¿Su forma general es ascendente o descendente?
 
-PASO 3 — Compara y encuentra desequilibrios:
+PASO 3 — Analiza el H2H:
+  · ¿Qué equipo domina históricamente este duelo?
+  · ¿Cuál es la tendencia de goles en duelos directos (over/under, BTTS)?
+  · ¿El H2H confirma o contradice la forma actual de los equipos?
+
+PASO 4 — Analiza los momios y detecta errores de línea:
+  · Convierte cada cuota a probabilidad implícita (1/cuota)
+  · Compara con tu probabilidad calculada: si tu prob > prob_implícita → HAY VALUE BET
+  · Detecta inconsistencias: si BTTS Over está a 1.50 pero Total Under 2.5 a 1.60, hay contradicción → error de línea
+  · Detecta cuotas anormalmente bajas o altas vs tu análisis
+
+PASO 5 — Compara y encuentra desequilibrios:
   · ¿Hay una diferencia clara de nivel entre ambos equipos?
   · ¿Algún factor cambia el balance (bajas importantes, diferencia en tabla)?
   · ¿Los datos de corners y tarjetas son consistentes para apostar en esos mercados?
 
-PASO 4 — Identifica value bets:
+PASO 6 — Identifica value bets:
   · Si el resultado 1X2 es muy parejo (menos de 10% de diferencia entre las 3 opciones), marca ese mercado como bajo valor y busca mercados alternativos.
   · Solo asigna confianza 80%+ cuando AL MENOS 3 factores apuntan en la misma dirección.
   · Confianza 90%+ solo si hay 4+ factores alineados Y no hay factores en contra.
   · Si hay incertidumbre alta, baja la confianza honestamente aunque la pick sea válida.
 
-PASO 5 — Genera el JSON final con tus conclusiones.
+PASO 7 — Genera el JSON final con tus conclusiones.
 
 ════ REGLAS DE CONFIANZA (MUY IMPORTANTE) ════
 - 90-95%: 4+ factores alineados, sin bajas clave, forma consistente → apuesta segura
@@ -743,7 +803,7 @@ PASO 5 — Genera el JSON final con tus conclusiones.
 - <60%: demasiada incertidumbre → mejor "PASO" en ese mercado
 
 Responde SOLO con JSON válido sin texto extra ni backticks markdown:
-{"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":82,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":74,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":70,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":65,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":60,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":85,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"ALTO/MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]}}`;
+{"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":82,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":74,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":70,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":65,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":60,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":85,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"ALTO/MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]},"h2hResumen":{"dominador":"...","tendenciaGoles":"over/under","bttsH2H":true,"alertaH2H":"..."},"momiosAnalisis":{"valueBetsDetectados":[{"mercado":"...","cuotaReal":"1.90","probImplicita":"52%","probCalculada":"65%","valorEdge":"13%"}],"erroresLinea":[{"descripcion":"...","mercado1":"...","mercado2":"...","contradiccion":"..."}],"recomendacionMomios":"..."},"tendenciasDetectadas":["Tendencia concreta 1 basada en datos","Tendencia concreta 2","Tendencia concreta 3"]}}`;
 
     try {
       const res = await fetch("/api/predict", {
@@ -1373,6 +1433,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* CTA */}
             {homeTeam && awayTeam && hStats && aStats && (
               <div style={{textAlign:"center",marginBottom:20}}>
+                {/* Cargar momios antes de analizar */}
+                <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
+                  <button onClick={loadOdds} disabled={loadingOdds}
+                    style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:10,padding:"8px 20px",color:"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                    {loadingOdds?"⏳ Cargando momios...":"💹 Cargar momios (opcional)"}
+                  </button>
+                </div>
                 <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
                   <button onClick={predict} disabled={loadingAI||loadingMulti}
                     style={{background:loadingAI?"rgba(16,185,129,0.28)":"linear-gradient(135deg,#10b981,#059669)",
@@ -1722,6 +1789,65 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <span style={{fontFamily:"'Bebas Neue',cursive",color:"#f59e0b",fontSize:14}}>{awayTeam?.name}</span>
                 </div>
               </div>
+
+              {/* H2H Analysis */}
+              {analysis.h2hResumen && (
+                <div style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>⚔️ Duelos Directos H2H</div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:8}}>
+                    {analysis.h2hResumen.dominador && <span style={{fontSize:11,color:"#e8eaf0",background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"3px 10px"}}>🏆 Dominador histórico: {analysis.h2hResumen.dominador}</span>}
+                    {analysis.h2hResumen.tendenciaGoles && <span style={{fontSize:11,color:"#e8eaf0",background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"3px 10px"}}>⚽ Tendencia: {analysis.h2hResumen.tendenciaGoles}</span>}
+                    {analysis.h2hResumen.bttsH2H !== undefined && <span style={{fontSize:11,color:analysis.h2hResumen.bttsH2H?"#10b981":"#ef4444",background:analysis.h2hResumen.bttsH2H?"rgba(16,185,129,0.1)":"rgba(239,68,68,0.1)",border:`1px solid ${analysis.h2hResumen.bttsH2H?"rgba(16,185,129,0.2)":"rgba(239,68,68,0.2)"}`,borderRadius:8,padding:"3px 10px"}}>BTTS histórico: {analysis.h2hResumen.bttsH2H?"Sí":"No"}</span>}
+                  </div>
+                  {analysis.h2hResumen.alertaH2H && <div style={{fontSize:11,color:"#f59e0b",background:"rgba(245,158,11,0.06)",borderRadius:8,padding:"8px 10px"}}>⚠️ {analysis.h2hResumen.alertaH2H}</div>}
+                </div>
+              )}
+
+              {/* Momios Analysis */}
+              {analysis.momiosAnalisis && (
+                <div style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>💹 Análisis de Momios</div>
+                  {(analysis.momiosAnalisis.valueBetsDetectados||[]).length > 0 && (
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:10,color:"#a78bfa",marginBottom:6,fontWeight:700}}>VALUE BETS DETECTADOS</div>
+                      {analysis.momiosAnalisis.valueBetsDetectados.map((v,i)=>(
+                        <div key={i} style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:8,padding:"8px 12px",marginBottom:6}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700}}>{v.mercado}</span>
+                            <span style={{fontSize:11,color:"#10b981",fontWeight:800}}>Edge: {v.valorEdge}</span>
+                          </div>
+                          <div style={{fontSize:11,color:"#666",marginTop:3}}>Cuota: {v.cuotaReal} | Prob implícita: {v.probImplicita} | Tu prob: {v.probCalculada}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(analysis.momiosAnalisis.erroresLinea||[]).length > 0 && (
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:10,color:"#ef4444",marginBottom:6,fontWeight:700}}>⚠️ ERRORES DE LÍNEA DETECTADOS</div>
+                      {analysis.momiosAnalisis.erroresLinea.map((e,i)=>(
+                        <div key={i} style={{background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"8px 12px",marginBottom:6}}>
+                          <div style={{fontSize:11,color:"#f87171",fontWeight:700}}>{e.descripcion}</div>
+                          {e.contradiccion && <div style={{fontSize:11,color:"#666",marginTop:3}}>{e.contradiccion}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {analysis.momiosAnalisis.recomendacionMomios && <div style={{fontSize:11,color:"#888",lineHeight:1.6}}>{analysis.momiosAnalisis.recomendacionMomios}</div>}
+                </div>
+              )}
+
+              {/* Tendencias detectadas */}
+              {(analysis.tendenciasDetectadas||[]).length > 0 && (
+                <div style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#06b6d4",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>📈 Tendencias Detectadas</div>
+                  {analysis.tendenciasDetectadas.map((t,i)=>(
+                    <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6,padding:"6px 0",borderBottom:i<analysis.tendenciasDetectadas.length-1?"1px solid rgba(255,255,255,0.04)":"none"}}>
+                      <span style={{color:"#06b6d4",flexShrink:0}}>→</span>
+                      <span style={{fontSize:12,color:"#aaa",lineHeight:1.5}}>{t}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:16}}>
                 <div style={{fontSize:10,color:"#222"}}>⚠️ Análisis orientativo — apuesta siempre con responsabilidad</div>

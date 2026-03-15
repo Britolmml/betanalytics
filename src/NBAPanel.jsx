@@ -193,6 +193,8 @@ export default function NBAPanel({ onClose }) {
   const [loadingMulti, setLoadingMulti] = useState(false);
   const [multiResult, setMultiResult] = useState(null);
   const [showMulti, setShowMulti] = useState(false);
+  const [nbaOdds, setNbaOdds] = useState(null);
+  const [loadingOdds, setLoadingOdds] = useState(false);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -305,6 +307,28 @@ export default function NBAPanel({ onClose }) {
     } catch (e) { /* silencioso */ }
   };
 
+  const loadNBAOdds = async () => {
+    if (!selectedGame) return;
+    setLoadingOdds(true);
+    try {
+      const home = selectedGame.teams?.home?.name;
+      const away = selectedGame.teams?.visitors?.name;
+      const res = await fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const game = data.find(g =>
+          (g.home_team?.includes(home?.split(" ").pop()) || g.away_team?.includes(away?.split(" ").pop()))
+        );
+        if (game) {
+          const h2hM = game.bookmakers?.[0]?.markets?.find(m=>m.key==="h2h");
+          const totalsM = game.bookmakers?.[0]?.markets?.find(m=>m.key==="totals");
+          setNbaOdds({ h2h: h2hM, totals: totalsM, raw: game });
+        }
+      }
+    } catch(e) { console.warn("NBA odds error:", e.message); }
+    finally { setLoadingOdds(false); }
+  };
+
   const runAIMulti = async () => {
     if (!preview) return;
     setLoadingMulti(true); setMultiResult(null); setShowMulti(true);
@@ -369,6 +393,7 @@ Puntos esperados (modelo): ${aLine}
 ════ LÍNEAS DE MERCADO ════
 Total proyectado: ${totalLine} pts
 ${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
+${nbaOdds ? "MOMIOS REALES: Moneyline " + (nbaOdds.h2h?.outcomes?.map(o=>o.name+" "+o.price).join(" | ") || "N/D") + " | Total " + (nbaOdds.totals?.outcomes?.map(o=>o.name+" "+o.point+" @"+o.price).join(" | ") || "N/D") : "Momios no cargados (opcional: presiona Cargar momios NBA)"}
 
 ════ INSTRUCCIONES DE ANÁLISIS ════
 PASO 1 — Analiza el rendimiento ofensivo/defensivo de cada equipo
@@ -543,6 +568,13 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       </div>
                     )}
 
+                    <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
+                      <button onClick={loadNBAOdds} disabled={loadingOdds}
+                        style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"6px 16px",color:"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:11,fontWeight:700}}>
+                        {loadingOdds?"⏳ Cargando...":"💹 Cargar momios NBA (opcional)"}
+                        {nbaOdds && " ✓"}
+                      </button>
+                    </div>
                     <div style={{display:"flex",gap:8}}>
                       <button onClick={runAI} disabled={loadingAI||loadingMulti} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingMulti)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer"}}>
                         {loadingAI?"⏳ ANALIZANDO...":"🤖 PREDICCIÓN IA"}
