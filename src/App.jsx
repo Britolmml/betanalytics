@@ -912,18 +912,31 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
   // Odds API
   const LEAGUE_SPORT_MAP = {
-    39:  "soccer_epl",
-    140: "soccer_spain_la_liga",
-    78:  "soccer_germany_bundesliga",
-    135: "soccer_italy_serie_a",
-    61:  "soccer_france_ligue_one",
-    2:   "soccer_uefa_champs_league",
-    3:   "soccer_uefa_europa_league",
-    262: "soccer_mexico_ligamx",
-    253: "soccer_usa_mls",
-    71:  "soccer_brazil_campeonato",
-    88:  "soccer_netherlands_eredivisie",
-    94:  "soccer_portugal_primeira_liga",
+    // Europa
+    39:  "soccer_epl",                        // Premier League
+    140: "soccer_spain_la_liga",              // La Liga
+    78:  "soccer_germany_bundesliga",         // Bundesliga
+    135: "soccer_italy_serie_a",             // Serie A
+    61:  "soccer_france_ligue_one",           // Ligue 1
+    2:   "soccer_uefa_champs_league",         // Champions League
+    3:   "soccer_uefa_europa_league",         // Europa League
+    88:  "soccer_netherlands_eredivisie",     // Eredivisie
+    94:  "soccer_portugal_primeira_liga",     // Primeira Liga
+    203: "soccer_turkey_super_league",        // Süper Lig
+    // Norteamérica
+    262: "soccer_mexico_ligamx",              // Liga MX
+    253: "soccer_usa_mls",                    // MLS
+    // Sudamérica
+    71:  "soccer_brazil_campeonato",          // Brasileirao A
+    128: "soccer_argentina_primera_division", // Liga Profesional Argentina
+    239: "soccer_colombia_primera_a",         // Primera A Colombia
+    265: "soccer_chile_primera_division",     // Primera División Chile
+    // Copas
+    13:  "soccer_conmebol_copa_libertadores", // Copa Libertadores
+    // Asia/Océanía
+    188: "soccer_australia_aleague",          // A-League
+    307: "soccer_saudi_professional_league",  // Saudi Pro League
+    98:  "soccer_japan_j_league",             // J1 League
   };
 
   // Fuzzy match team name (handles "Wolves" vs "Wolverhampton Wanderers" etc)
