@@ -310,14 +310,12 @@ export default function NBAPanel({ onClose }) {
     setLoadingMulti(true); setMultiResult(null); setShowMulti(true);
     const home = selectedGame.teams?.home?.name;
     const away = selectedGame.teams?.visitors?.name;
-    const hS = preview.home;
-    const aS = preview.away;
-    const prompt = `Eres un experto analista de NBA. Responde SOLO con JSON válido sin texto extra ni backticks:\n\nPARTIDO NBA: ${home} vs ${away}\n${home}: ${hS?.avgPts} pts/partido | ${hS?.avgPtsCon} recibidos | Forma: ${hS?.results} | ${hS?.wins}V/${(hS?.games||5)-hS?.wins}D últimos 5\n${away}: ${aS?.avgPts} pts/partido | ${aS?.avgPtsCon} recibidos | Forma: ${aS?.results} | ${aS?.wins}V/${(aS?.games||5)-aS?.wins}D últimos 5\n\n{"resumen":"...","marcadorEstimado":"${home} 115 - ${away} 108","probabilidades":{"home":55,"away":45},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","confianza":72},{"tipo":"Total puntos","pick":"Más/Menos 220.5","confianza":68},{"tipo":"Handicap","pick":"...","confianza":65}],"alertas":["..."]}`;
+    const hS = preview.home; const aS = preview.away;
+    const prompt = `NBA: ${home} vs ${away}. ${home}: ${hS?.avgPts}pts, ${hS?.avgPtsCon}rec, forma:${hS?.results}. ${away}: ${aS?.avgPts}pts, ${aS?.avgPtsCon}rec, forma:${aS?.results}. Responde SOLO JSON: {"resumen":"...","marcadorEstimado":"${home} 115 - ${away} 108","probabilidades":{"home":55,"away":45},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","confianza":72},{"tipo":"Total","pick":"Más/Menos 220.5","confianza":68}],"alertas":["..."]}`;
     try {
       const res = await fetch("/api/multipredict", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt}) });
-      const data = await res.json();
-      setMultiResult(data);
-    } catch(e) { console.error("Multi NBA error", e.message); }
+      const d = await res.json(); setMultiResult(d);
+    } catch(e) { console.error(e); }
     finally { setLoadingMulti(false); }
   };
 
@@ -522,12 +520,12 @@ export default function NBAPanel({ onClose }) {
                       </div>
                     )}
 
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={runAI} disabled={loadingAI||loadingMulti} style={{ flex:1, padding: "10px", borderRadius: 10, border: "none", background: (loadingAI||loadingMulti)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)", color: "#fff", fontWeight: 800, fontSize: 12, cursor: (loadingAI||loadingMulti)?"not-allowed":"pointer" }}>
-                        {loadingAI ? "⏳ ANALIZANDO..." : "🤖 PREDICCIÓN IA"}
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={runAI} disabled={loadingAI||loadingMulti} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingMulti)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer"}}>
+                        {loadingAI?"⏳ ANALIZANDO...":"🤖 PREDICCIÓN IA"}
                       </button>
-                      <button onClick={runAIMulti} disabled={loadingAI||loadingMulti} style={{ flex:1, padding: "10px", borderRadius: 10, border: "none", background: loadingMulti?"rgba(139,92,246,0.3)":"linear-gradient(90deg,#8b5cf6,#6d28d9)", color: "#fff", fontWeight: 800, fontSize: 12, cursor: (loadingAI||loadingMulti)?"not-allowed":"pointer" }}>
-                        {loadingMulti ? "⏳ CONSULTANDO..." : "🤖 MULTI-IA"}
+                      <button onClick={runAIMulti} disabled={loadingAI||loadingMulti} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:loadingMulti?"rgba(139,92,246,0.3)":"linear-gradient(90deg,#8b5cf6,#6d28d9)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer"}}>
+                        {loadingMulti?"⏳ CONSULTANDO...":"🤖 MULTI-IA"}
                       </button>
                     </div>
                   </div>
@@ -640,9 +638,108 @@ export default function NBAPanel({ onClose }) {
         )}
 
       </div>
+
+
+      {showMulti && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>!loadingMulti&&setShowMulti(false)}>
+          <div style={{maxWidth:680,margin:"0 auto",background:"#0d1117",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <div>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa",letterSpacing:2}}>🤖 ANÁLISIS MULTI-IA NBA</div>
+                <div style={{fontSize:11,color:"#555",marginTop:2}}>{selectedGame?.teams?.home?.name} vs {selectedGame?.teams?.visitors?.name}</div>
+              </div>
+              {!loadingMulti && <button onClick={()=>setShowMulti(false)} style={{background:"none",border:"none",color:"#555",fontSize:22,cursor:"pointer"}}>✕</button>}
+            </div>
+            {loadingMulti && (
+              <div style={{textAlign:"center",padding:"40px 0"}}>
+                <div style={{fontSize:32,marginBottom:12}}>⏳</div>
+                <div style={{color:"#a78bfa",fontWeight:700,fontSize:14,marginBottom:6}}>Consultando 7 modelos en paralelo...</div>
+                <div style={{color:"#444",fontSize:12,marginBottom:20}}>15-30 segundos</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
+                  {["🟣 Claude","🦙 Llama","🔵 Gemini","🟤 Mistral","🟡 DeepSeek","🟢 GPT-4o","🔴 Cohere"].map(m=>(
+                    <div key={m} style={{background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:20,padding:"4px 12px",fontSize:11,color:"#a78bfa"}}>{m}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!loadingMulti && multiResult && (
+              <div>
+                <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>Respuesta de cada modelo</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
+                  {(multiResult.responses||[]).map((r,i)=>(
+                    <div key={i} style={{background:r.success?"rgba(139,92,246,0.06)":"rgba(239,68,68,0.04)",border:"1px solid "+(r.success?"rgba(139,92,246,0.2)":"rgba(239,68,68,0.15)"),borderRadius:12,padding:"12px 16px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:r.success?8:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span>{r.icon}</span>
+                          <span style={{fontWeight:700,fontSize:13,color:"#e8eaf0"}}>{r.name}</span>
+                          <span style={{fontSize:10,color:"#444",background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"1px 7px"}}>{r.provider}</span>
+                        </div>
+                        {!r.success && <span style={{fontSize:10,color:"#ef4444",fontWeight:700}}>ERROR</span>}
+                      </div>
+                      {r.success && r.result && (()=>{
+                        try {
+                          const p = JSON.parse(r.result);
+                          const ss = v=>(v===null||v===undefined)?"":typeof v==="object"?JSON.stringify(v):String(v);
+                          const marcador = ss(p.marcadorEstimado||p.prediccionMarcador||"?");
+                          const probs = p.probabilidades||null;
+                          const apuestas = p.apuestasDestacadas||(p.apuestaDestacada?[p.apuestaDestacada]:[]);
+                          return (
+                            <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap"}}>
+                              <span style={{fontFamily:"'Bebas Neue',cursive",fontSize:14,color:"#a78bfa"}}>{marcador}</span>
+                              {probs && <div style={{display:"flex",gap:6,fontSize:11}}>
+                                <span style={{color:"#f97316"}}>L:{ss(probs.home??probs.local)}%</span>
+                                <span style={{color:"#60a5fa"}}>V:{ss(probs.away??probs.visitante)}%</span>
+                              </div>}
+                              <div style={{display:"flex",gap:4,flexWrap:"wrap",width:"100%",marginTop:4}}>
+                                {apuestas.slice(0,3).map((a,ai)=>(
+                                  <span key={ai} style={{fontSize:10,color:"#888",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:6,padding:"2px 7px"}}>
+                                    {ss(a.tipo)}: {ss(a.pick||a.seleccion)} {a.confianza?`(${ss(a.confianza)}%)`:""}
+                                  </span>
+                                ))}
+                              </div>
+                              {typeof p.resumen==="string" && <div style={{fontSize:11,color:"#555",width:"100%",marginTop:4,lineHeight:1.5}}>{p.resumen.slice(0,150)}...</div>}
+                            </div>
+                          );
+                        } catch(e) {
+                          const safe = typeof r.result==="string"?r.result:JSON.stringify(r.result);
+                          return <div style={{fontSize:11,color:"#555"}}>{safe?.slice(0,200)}</div>;
+                        }
+                      })()}
+                      {!r.success && <div style={{fontSize:11,color:"#ef4444",marginTop:4}}>{r.error}</div>}
+                    </div>
+                  ))}
+                </div>
+                {multiResult.consensus && (()=>{
+                  try {
+                    const c = typeof multiResult.consensus==="string"?JSON.parse(multiResult.consensus):multiResult.consensus;
+                    const ss = v=>(v===null||v===undefined)?"":typeof v==="object"?JSON.stringify(v):String(v);
+                    return (
+                      <div style={{background:"linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:16,padding:20}}>
+                        <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
+                        <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:18,color:"#a78bfa"}}>{ss(c.marcadorEstimado||c.prediccionMarcador||"?")}</div>
+                          {typeof c.consenso==="number" && <div style={{textAlign:"center"}}>
+                            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:c.consenso>=70?"#10b981":c.consenso>=50?"#f59e0b":"#ef4444"}}>{c.consenso}%</div>
+                            <div style={{fontSize:10,color:"#555"}}>CONSENSO</div>
+                          </div>}
+                        </div>
+                        {typeof c.resumen==="string" && <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>{c.resumen}</div>}
+                      </div>
+                    );
+                  } catch(e) {
+                    const safeC = typeof multiResult.consensus==="string"?multiResult.consensus:JSON.stringify(multiResult.consensus);
+                    return <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:12,padding:16,fontSize:12,color:"#888"}}>{safeC?.slice(0,400)}</div>;
+                  }
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function ParlayBox({ allAnalyses }) {
   const entries = Object.values(allAnalyses);
@@ -728,111 +825,5 @@ function ParlayBox({ allAnalyses }) {
         </div>
       </div>
     </div>
-
-      {showMulti && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>!loadingMulti&&setShowMulti(false)}>
-          <div style={{maxWidth:680,margin:"0 auto",background:"#0d1117",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-              <div>
-                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa",letterSpacing:2}}>🤖 ANÁLISIS MULTI-IA NBA</div>
-                <div style={{fontSize:11,color:"#555",marginTop:2}}>{selectedGame?.teams?.home?.name} vs {selectedGame?.teams?.visitors?.name}</div>
-              </div>
-              {!loadingMulti && <button onClick={()=>setShowMulti(false)} style={{background:"none",border:"none",color:"#555",fontSize:22,cursor:"pointer"}}>✕</button>}
-            </div>
-            {loadingMulti && (
-              <div style={{textAlign:"center",padding:"40px 0"}}>
-                <div style={{fontSize:32,marginBottom:12}}>⏳</div>
-                <div style={{color:"#a78bfa",fontWeight:700,fontSize:14,marginBottom:6}}>Consultando 7 modelos en paralelo...</div>
-                <div style={{color:"#444",fontSize:12,marginBottom:20}}>15-30 segundos</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
-                  {["🟣 Claude","🦙 Llama","🔵 Gemini","🟤 Mistral","🟡 DeepSeek","🟢 GPT-4o","🔴 Cohere"].map(m=>(
-                    <div key={m} style={{background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:20,padding:"4px 12px",fontSize:11,color:"#a78bfa"}}>{m}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {!loadingMulti && multiResult && (
-              <div>
-                <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>Respuesta de cada modelo</div>
-                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
-                  {(multiResult.responses||[]).map((r,i)=>(
-                    <div key={i} style={{background:r.success?"rgba(139,92,246,0.06)":"rgba(239,68,68,0.04)",border:"1px solid "+(r.success?"rgba(139,92,246,0.2)":"rgba(239,68,68,0.15)"),borderRadius:12,padding:"12px 16px"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:r.success?8:0}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span>{r.icon}</span>
-                          <span style={{fontWeight:700,fontSize:13,color:"#e8eaf0"}}>{r.name}</span>
-                          <span style={{fontSize:10,color:"#444",background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"1px 7px"}}>{r.provider}</span>
-                        </div>
-                        {!r.success && <span style={{fontSize:10,color:"#ef4444",fontWeight:700}}>ERROR</span>}
-                      </div>
-                      {r.success && r.result && (()=>{
-                        try {
-                          const p = JSON.parse(r.result);
-                          const ss = v=>(v===null||v===undefined)?"":typeof v==="object"?JSON.stringify(v):String(v);
-                          const marcador = ss(p.marcadorEstimado||p.prediccionMarcador||"?");
-                          const probs = p.probabilidades||null;
-                          const apuestas = p.apuestasDestacadas||(p.apuestaDestacada?[p.apuestaDestacada]:[]);
-                          const resumen = typeof p.resumen==="string"?p.resumen:"";
-                          return (
-                            <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap"}}>
-                              <span style={{fontFamily:"'Bebas Neue',cursive",fontSize:14,color:"#a78bfa"}}>{marcador}</span>
-                              {probs && <div style={{display:"flex",gap:6,fontSize:11}}>
-                                <span style={{color:"#f97316"}}>L:{ss(probs.home??probs.local)}%</span>
-                                <span style={{color:"#60a5fa"}}>V:{ss(probs.away??probs.visitante)}%</span>
-                              </div>}
-                              <div style={{display:"flex",gap:4,flexWrap:"wrap",width:"100%",marginTop:4}}>
-                                {apuestas.slice(0,3).map((a,ai)=>(
-                                  <span key={ai} style={{fontSize:10,color:"#888",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:6,padding:"2px 7px"}}>
-                                    {ss(a.tipo)}: {ss(a.pick||a.seleccion)} {a.confianza?`(${ss(a.confianza)}%)`:""}
-                                  </span>
-                                ))}
-                              </div>
-                              {resumen && <div style={{fontSize:11,color:"#555",width:"100%",marginTop:4,lineHeight:1.5}}>{resumen.slice(0,150)}...</div>}
-                            </div>
-                          );
-                        } catch(e) {
-                          const safe = typeof r.result==="string"?r.result:JSON.stringify(r.result);
-                          return <div style={{fontSize:11,color:"#555"}}>{safe?.slice(0,200)}</div>;
-                        }
-                      })()}
-                      {!r.success && <div style={{fontSize:11,color:"#ef4444",marginTop:4}}>{r.error}</div>}
-                    </div>
-                  ))}
-                </div>
-                {multiResult.consensus && (()=>{
-                  try {
-                    const c = typeof multiResult.consensus==="string"?JSON.parse(multiResult.consensus):multiResult.consensus;
-                    const ss = v=>(v===null||v===undefined)?"":typeof v==="object"?JSON.stringify(v):String(v);
-                    return (
-                      <div style={{background:"linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:16,padding:20}}>
-                        <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
-                        <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:18,color:"#a78bfa"}}>{ss(c.marcadorEstimado||c.prediccionMarcador||"?")}</div>
-                          {typeof c.consenso==="number" && <div style={{textAlign:"center"}}>
-                            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:c.consenso>=70?"#10b981":c.consenso>=50?"#f59e0b":"#ef4444"}}>{c.consenso}%</div>
-                            <div style={{fontSize:10,color:"#555"}}>CONSENSO</div>
-                          </div>}
-                        </div>
-                        {c.probabilidades && <div style={{display:"flex",gap:12,marginBottom:12}}>
-                          {[["Local",c.probabilidades.home??c.probabilidades.local,"#f97316"],["Visitante",c.probabilidades.away??c.probabilidades.visitante,"#60a5fa"]].map(([l,v,col])=>(
-                            <div key={l} style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 0",textAlign:"center"}}>
-                              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:col}}>{ss(v)}%</div>
-                              <div style={{fontSize:10,color:"#555"}}>{l}</div>
-                            </div>
-                          ))}
-                        </div>}
-                        {typeof c.resumen==="string" && <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>{c.resumen}</div>}
-                      </div>
-                    );
-                  } catch(e) {
-                    const safeC = typeof multiResult.consensus==="string"?multiResult.consensus:JSON.stringify(multiResult.consensus);
-                    return <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:12,padding:16,fontSize:12,color:"#888"}}>{safeC?.slice(0,400)}</div>;
-                  }
-                })()}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
   );
 }
