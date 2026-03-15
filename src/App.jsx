@@ -978,13 +978,16 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
 
   const loadOdds = async () => {
-    if (!league) return;
+    console.log("[ODDS DEBUG] league:", league?.name, "id:", league?.id);
+    if (!league) { console.warn("[ODDS] No league"); return; }
     const sport = LEAGUE_SPORT_MAP[league.id];
-    if (!sport) return;
+    console.log("[ODDS DEBUG] sport:", sport);
+    if (!sport) { console.warn("[ODDS] No sport for league", league.id); return; }
     setLoadingOdds(true);
     try {
       const res = await fetch(`/api/odds?sport=${sport}&markets=h2h,totals&regions=eu`);
       const data = await res.json();
+      console.log("[ODDS DEBUG] data type:", typeof data, Array.isArray(data), data?.length);
       if (Array.isArray(data)) {
         const map = {};
         data.forEach(g => {
