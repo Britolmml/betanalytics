@@ -778,7 +778,7 @@ PARTIDO: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name}
 ${homeTeam.name} (local): Goles prom ${hS.avgScored}/${hS.avgConceded} | Forma: ${hS.results.join("-")} | BTTS: ${hS.btts}/5 | +2.5: ${hS.over25}/5
 ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | Forma: ${aS.results.join("-")} | BTTS: ${aS.btts}/5 | +2.5: ${aS.over25}/5
 
-{"resumen":"...","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"apuestaDestacada":{"tipo":"Resultado","pick":"...","confianza":82},"alertas":["..."]}`;
+{"resumen":"Análisis de 2-3 oraciones","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","confianza":82},{"tipo":"Total goles","pick":"Más/Menos 2.5","confianza":74},{"tipo":"BTTS","pick":"Sí/No","confianza":70},{"tipo":"Corners","pick":"Más/Menos 9.5","confianza":65},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","confianza":60}],"alertas":["alerta basada en datos"]}`;
     try {
       const res = await fetch("/api/multipredict", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt}) });
       const data = await res.json();
@@ -2337,7 +2337,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                                   <span style={{color:"#ef4444"}}>V:{p.probabilidades.visitante}%</span>
                                 </div>
                               )}
-                              {p.apuestaDestacada && <span style={{fontSize:11,color:"#888",background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"2px 8px"}}>{p.apuestaDestacada.pick} ({p.apuestaDestacada.confianza}%)</span>}
+                              {(p.apuestasDestacadas||[p.apuestaDestacada].filter(Boolean)).slice(0,3).map((a,ai)=>(
+                                <span key={ai} style={{fontSize:10,color:"#888",background:"rgba(255,255,255,0.04)",borderRadius:6,padding:"2px 8px"}}>{a.tipo}: {a.pick} ({a.confianza}%)</span>
+                              ))}
                               {p.resumen && <div style={{fontSize:11,color:"#555",width:"100%",marginTop:4,lineHeight:1.5}}>{p.resumen.slice(0,150)}...</div>}
                             </div>
                           );
