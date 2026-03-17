@@ -1,342 +1,378 @@
 import { useState, useEffect } from "react";
-import { getAllPredictions, updateResult, calcStats, supabase } from "./supabase";
+import { getAllPredictions, updateResult, supabase } from "./supabase";
 
-const RESULT_LABELS = {
-  pending: { label: "Pendiente", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", icon: "⏳" },
-  won:     { label: "Ganada",    color: "#10b981", bg: "rgba(16,185,129,0.1)",  icon: "✅" },
-  lost:    { label: "Perdida",   color: "#ef4444", bg: "rgba(239,68,68,0.1)",   icon: "❌" },
+const C = {
+  card: { background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:14, padding:16 },
 };
+
+const confColor = c => c>=80?"#10b981":c>=65?"#f59e0b":"#ef4444";
 
 function StatBox({ label, value, color, sub }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "14px 16px", textAlign: "center" }}>
-      <div style={{ fontSize: 26, fontWeight: 900, color: color || "#e8eaf0", lineHeight: 1 }}>{value ?? "—"}</div>
-      {sub && <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{sub}</div>}
-      <div style={{ fontSize: 10, color: "#444", marginTop: 4, letterSpacing: 0.5 }}>{label}</div>
+    <div style={{ textAlign:"center", padding:"12px 8px", background:"rgba(255,255,255,0.03)", borderRadius:10 }}>
+      <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:32, color: color||"#e8eaf0", lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:9, color:"#555", marginTop:3, textTransform:"uppercase", letterSpacing:1 }}>{label}</div>
+      {sub && <div style={{ fontSize:10, color:"#444", marginTop:2 }}>{sub}</div>}
     </div>
   );
 }
 
-const CAT_COLOR = {
-  principal: "#f87171",
-  cuartos:   "#a78bfa",
-  tiempos:   "#60a5fa",
-  jugador:   "#34d399",
-  especial:  "#f59e0b",
-};
-
-function PredCard({ pred, onUpdateResult }) {
-  const [updating, setUpdating] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const res = RESULT_LABELS[pred.result] || RESULT_LABELS.pending;
-  const analysis = pred.analysis || {};
-  const isNBA = pred.sport === "nba";
-  const date = new Date(pred.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
-  const apuestas = analysis.apuestasDestacadas || [];
-
-  const handleResult = async (result) => {
-    setUpdating(true);
-    await onUpdateResult(pred.id, result);
-    setUpdating(false);
-  };
-
-  const resBorder = pred.result === "won"
-    ? "1px solid rgba(16,185,129,0.25)"
-    : pred.result === "lost"
-    ? "1px solid rgba(239,68,68,0.2)"
-    : "1px solid rgba(255,255,255,0.07)";
-
+function MiniBar({ label, won, total, color }) {
+  const pct = total > 0 ? Math.round((won/total)*100) : 0;
   return (
-    <div style={{ background: "#0d1117", border: resBorder, borderRadius: 14, overflow: "hidden" }}>
-
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 14px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span>{isNBA ? "🏀" : "⚽"}</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: 1 }}>{pred.league || (isNBA ? "NBA" : "FÚTBOL")}</span>
-          <span style={{ fontSize: 10, color: "#333" }}>•</span>
-          <span style={{ fontSize: 10, color: "#444" }}>{date}</span>
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: res.color, background: res.bg, padding: "3px 9px", borderRadius: 6 }}>
-          {res.icon} {res.label}
-        </div>
+    <div style={{ marginBottom:8 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginBottom:3 }}>
+        <span style={{ color:"#666" }}>{label}</span>
+        <span style={{ color, fontWeight:700 }}>{won}/{total} ({pct}%)</span>
       </div>
-
-      <div style={{ padding: "12px 14px" }}>
-
-        {/* Partido + probabilidades */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#e8eaf0" }}>
-              {pred.home_team} <span style={{ color: "#444", fontWeight: 400, fontSize: 12 }}>vs</span> {pred.away_team}
-            </div>
-            {analysis.ganadorProbable && (
-              <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
-                Favorito: <span style={{ color: "#f59e0b", fontWeight: 700 }}>{analysis.ganadorProbable}</span>
-              </div>
-            )}
-          </div>
-          {analysis.probabilidades && (
-            <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 12 }}>
-              <div style={{ textAlign: "center", background: "rgba(249,115,22,0.08)", borderRadius: 8, padding: "5px 10px" }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#f97316" }}>{analysis.probabilidades.home}%</div>
-                <div style={{ fontSize: 9, color: "#555" }}>Local</div>
-              </div>
-              <div style={{ textAlign: "center", background: "rgba(96,165,250,0.08)", borderRadius: 8, padding: "5px 10px" }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>{analysis.probabilidades.away}%</div>
-                <div style={{ fontSize: 9, color: "#555" }}>Visita</div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Resumen */}
-        {analysis.resumen && (
-          <p style={{ fontSize: 11, color: "#555", lineHeight: 1.6, marginBottom: 10, borderLeft: "2px solid rgba(255,255,255,0.07)", paddingLeft: 8 }}>
-            {analysis.resumen}
-          </p>
-        )}
-
-        {/* Todos los picks */}
-        {apuestas.length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>
-              📋 PICKS ({apuestas.length})
-            </div>
-            {/* Siempre mostrar todos */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {apuestas.map((a, i) => {
-                const catColor = CAT_COLOR[a.categoria] || "#f87171";
-                const confColor = a.confianza > 74 ? "#10b981" : a.confianza > 64 ? "#f59e0b" : "#ef4444";
-                return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "2px solid " + catColor }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {a.jugador && (
-                        <span style={{ fontSize: 10, color: "#34d399", fontWeight: 700, marginRight: 5 }}>👤{a.jugador}</span>
-                      )}
-                      <span style={{ fontSize: 10, color: "#555" }}>{a.tipo}: </span>
-                      <span style={{ fontSize: 12, color: "#e8eaf0", fontWeight: 700 }}>{a.pick}</span>
-                      {a.razon && (
-                        <div style={{ fontSize: 10, color: "#444", marginTop: 2, lineHeight: 1.4 }}>{a.razon}</div>
-                      )}
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 900, color: confColor }}>{a.confianza}%</div>
-                      {a.odds_sugerido && <div style={{ fontSize: 10, color: "#444" }}>{a.odds_sugerido}</div>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Value bet */}
-        {analysis.valueBet?.existe && (
-          <div style={{ fontSize: 11, padding: "7px 10px", borderRadius: 8, background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.15)", marginBottom: 10 }}>
-            <span style={{ color: "#f59e0b", fontWeight: 700 }}>💰 VALUE: </span>
-            <span style={{ color: "#aaa" }}>{analysis.valueBet.mercado}</span>
-            {analysis.valueBet.odds_recomendado && (
-              <span style={{ color: "#f59e0b", fontWeight: 800, marginLeft: 8 }}>{analysis.valueBet.odds_recomendado}</span>
-            )}
-            {analysis.valueBet.explicacion && (
-              <div style={{ fontSize: 10, color: "#555", marginTop: 3 }}>{analysis.valueBet.explicacion}</div>
-            )}
-          </div>
-        )}
-
-        {/* Alertas */}
-        {analysis.alertas && analysis.alertas.length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            {analysis.alertas.map((a, i) => (
-              <div key={i} style={{ fontSize: 10, color: "#666", padding: "3px 0" }}>⚠️ {a}</div>
-            ))}
-          </div>
-        )}
-
-        {/* Nivel confianza */}
-        {analysis.nivelConfianza && (
-          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 10,
-            color: analysis.nivelConfianza === "ALTO" ? "#10b981" : analysis.nivelConfianza === "MEDIO" ? "#f59e0b" : "#ef4444" }}>
-            {analysis.nivelConfianza === "ALTO" ? "🟢" : analysis.nivelConfianza === "MEDIO" ? "🟡" : "🔴"} Confianza {analysis.nivelConfianza}
-            {analysis.razonConfianza && <span style={{ color: "#444", fontWeight: 400, marginLeft: 6 }}>— {analysis.razonConfianza}</span>}
-          </div>
-        )}
-
-        {/* Marcador real (si se ingresó) */}
-        {pred.predicted_score && (
-          <div style={{ fontSize: 11, color: "#555", marginBottom: 8 }}>
-            Marcador final: <span style={{ color: "#aaa", fontWeight: 700 }}>{pred.predicted_score}</span>
-          </div>
-        )}
-
-        {/* Botones resultado */}
-        {pred.result === "pending" && (
-          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <span style={{ fontSize: 10, color: "#444", alignSelf: "center" }}>¿Resultado?</span>
-            <button onClick={() => handleResult("won")} disabled={updating} style={{ flex: 1, padding: "6px", borderRadius: 8, border: "1px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)", color: "#10b981", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-              ✅ Ganada
-            </button>
-            <button onClick={() => handleResult("lost")} disabled={updating} style={{ flex: 1, padding: "6px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-              ❌ Perdida
-            </button>
-          </div>
-        )}
-        {pred.result !== "pending" && (
-          <button onClick={() => handleResult("pending")} style={{ fontSize: 10, color: "#333", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginTop: 4 }}>
-            Deshacer
-          </button>
-        )}
-
+      <div style={{ height:3, background:"rgba(255,255,255,0.05)", borderRadius:2, overflow:"hidden" }}>
+        <div style={{ width:`${pct}%`, height:"100%", background:color, borderRadius:2 }} />
       </div>
     </div>
   );
 }
-
 
 export default function HistorialPanel({ onClose }) {
-  const [predictions, setPredictions] = useState([]);
+  const [preds, setPreds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");   // all | nba | football | pending | won | lost
-  const [userId, setUserId] = useState(null);
-  const [err, setErr] = useState("");
+  const [tab, setTab] = useState("resumen");
+  const [filterSport, setFilterSport] = useState("all");
+  const [filterResult, setFilterResult] = useState("all");
+  const [bankroll, setBankroll] = useState(() => parseFloat(localStorage.getItem("bankroll") || "0"));
+  const [bankrollInput, setBankrollInput] = useState("");
+  const [editingBankroll, setEditingBankroll] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      if (!supabase) { setErr("Supabase no configurado"); setLoading(false); return; }
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { setErr("Debes iniciar sesión para ver el historial"); setLoading(false); return; }
-      setUserId(session.user.id);
-      loadPredictions(session.user.id);
-    };
-    init();
+    loadAll();
   }, []);
 
-  const loadPredictions = async (uid) => {
+  const loadAll = async () => {
     setLoading(true);
-    const { data, error } = await getAllPredictions(uid);
-    if (error) setErr("Error cargando historial: " + error.message);
-    else setPredictions(data || []);
-    setLoading(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setLoading(false); return; }
+      const { data } = await getAllPredictions(session.user.id);
+      setPreds(data || []);
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   const handleUpdateResult = async (id, result) => {
     await updateResult(id, result);
-    setPredictions(prev => prev.map(p => p.id === id ? { ...p, result } : p));
+    setPreds(prev => prev.map(p => p.id === id ? {...p, result} : p));
   };
 
-  const filtered = predictions.filter(p => {
-    if (filter === "nba") return p.sport === "nba";
-    if (filter === "football") return p.sport === "football" || !p.sport;
-    if (filter === "pending") return p.result === "pending";
-    if (filter === "won") return p.result === "won";
-    if (filter === "lost") return p.result === "lost";
+  const saveBankroll = () => {
+    const val = parseFloat(bankrollInput);
+    if (!isNaN(val) && val > 0) {
+      setBankroll(val);
+      localStorage.setItem("bankroll", val.toString());
+    }
+    setEditingBankroll(false);
+  };
+
+  // ── Stats calculation ──
+  const filtered = preds.filter(p => {
+    if (filterSport !== "all" && p.sport !== filterSport) return false;
+    if (filterResult !== "all" && p.result !== filterResult) return false;
     return true;
   });
 
-  const stats = calcStats(predictions);
+  const resolved = preds.filter(p => p.result === "won" || p.result === "lost");
+  const won = preds.filter(p => p.result === "won").length;
+  const lost = preds.filter(p => p.result === "lost").length;
+  const pending = preds.filter(p => p.result === "pending").length;
+  const winRate = resolved.length > 0 ? Math.round((won/resolved.length)*100) : 0;
+
+  // ROI calculation
+  const oddsArr = resolved.filter(p => p.odds && parseFloat(p.odds) > 1);
+  const totalStake = oddsArr.length;
+  const totalReturn = oddsArr.filter(p => p.result === "won").reduce((s,p) => s + parseFloat(p.odds||1), 0);
+  const roi = totalStake > 0 ? ((totalReturn - totalStake) / totalStake * 100).toFixed(1) : "0.0";
+
+  // Streak
+  let streak = 0, streakType = null;
+  for (const p of resolved) {
+    if (!streakType) { streakType = p.result; streak = 1; }
+    else if (p.result === streakType) streak++;
+    else break;
+  }
+
+  // By league
+  const byLeague = {};
+  resolved.forEach(p => {
+    const k = p.league || "Sin liga";
+    if (!byLeague[k]) byLeague[k] = { won:0, total:0 };
+    byLeague[k].total++;
+    if (p.result === "won") byLeague[k].won++;
+  });
+
+  // By sport
+  const bySport = { football: {won:0,total:0,pending:0}, nba: {won:0,total:0,pending:0} };
+  preds.forEach(p => {
+    const s = p.sport === "nba" ? "nba" : "football";
+    if (p.result === "won") { bySport[s].won++; bySport[s].total++; }
+    else if (p.result === "lost") { bySport[s].total++; }
+    else { bySport[s].pending++; }
+  });
+
+  // Bankroll evolution (simplified)
+  const bankrollHistory = (() => {
+    if (!bankroll || bankroll <= 0) return [];
+    let current = bankroll;
+    const history = [{ date: "Inicio", value: current }];
+    [...resolved].reverse().forEach(p => {
+      const odds = parseFloat(p.odds || 1.9);
+      const stake = current * 0.02; // assume 2% per bet
+      if (p.result === "won") current += stake * (odds - 1);
+      else current -= stake;
+      history.push({ date: p.created_at?.split("T")[0], value: +current.toFixed(2) });
+    });
+    return history;
+  })();
+
+  const tabs = [
+    ["resumen", "📊 Resumen"],
+    ["picks", "🎯 Mis Picks"],
+    ["bankroll", "💰 Bankroll"],
+  ];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 300, overflowY: "auto", padding: "20px 16px" }}>
-      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", zIndex:500, overflowY:"auto", padding:"20px 16px" }}>
+      <div style={{ maxWidth:780, margin:"0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 26 }}>📊</span>
-            <div style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 26, letterSpacing: 3, background: "linear-gradient(90deg,#60a5fa,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              HISTORIAL DE PREDICCIONES
-            </div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div>
+            <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:26, color:"#60a5fa", letterSpacing:2 }}>📊 HISTORIAL DE PREDICCIONES</div>
+            <div style={{ fontSize:11, color:"#555" }}>{preds.length} predicciones guardadas</div>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 14px", color: "#aaa", cursor: "pointer", fontSize: 12 }}>
-            ✕ Cerrar
-          </button>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:24 }}>✕</button>
         </div>
 
-        {err && (
-          <div style={{ padding: 20, background: "rgba(239,68,68,0.1)", borderRadius: 12, color: "#f87171", textAlign: "center", marginBottom: 16 }}>
-            {err}
+        {/* Tabs */}
+        <div style={{ display:"flex", gap:6, marginBottom:16, background:"rgba(255,255,255,0.03)", borderRadius:10, padding:4 }}>
+          {tabs.map(([t,l]) => (
+            <button key={t} onClick={()=>setTab(t)}
+              style={{ flex:1, padding:"8px 0", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
+                background: tab===t ? "rgba(96,165,250,0.2)" : "transparent",
+                color: tab===t ? "#60a5fa" : "#555" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign:"center", padding:40, color:"#555" }}>Cargando historial...</div>
+        ) : preds.length === 0 ? (
+          <div style={{ textAlign:"center", padding:40, color:"#555" }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>📭</div>
+            <div>Aún no tienes predicciones guardadas.</div>
+            <div style={{ fontSize:11, color:"#444", marginTop:8 }}>Analiza un partido y se guardará automáticamente.</div>
           </div>
-        )}
+        ) : (
 
-        {!err && (
           <>
-            {/* Estadísticas globales */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 10, marginBottom: 20 }}>
-              <StatBox label="TOTAL" value={stats.total} color="#e8eaf0" />
-              <StatBox label="GANADAS" value={stats.won} color="#10b981" />
-              <StatBox label="PERDIDAS" value={stats.lost} color="#ef4444" />
-              <StatBox label="PENDIENTES" value={stats.pending} color="#f59e0b" />
-              <StatBox
-                label="WIN RATE"
-                value={stats.winRate ? stats.winRate + "%" : "—"}
-                color={stats.winRate > 55 ? "#10b981" : stats.winRate > 45 ? "#f59e0b" : "#ef4444"}
-                sub={stats.won + "/" + (stats.won + stats.lost) + " resueltas"}
-              />
-              {stats.streak.count > 1 && (
-                <StatBox
-                  label="RACHA"
-                  value={stats.streak.count + (stats.streak.type === "won" ? "🔥" : "🧊")}
-                  color={stats.streak.type === "won" ? "#10b981" : "#ef4444"}
-                  sub={stats.streak.type === "won" ? "victorias seguidas" : "derrotas seguidas"}
-                />
-              )}
-            </div>
+            {/* TAB: Resumen */}
+            {tab === "resumen" && (
+              <div>
+                {/* Main stats */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8, marginBottom:16 }}>
+                  <StatBox label="Total" value={preds.length} color="#e8eaf0" />
+                  <StatBox label="Ganadas" value={won} color="#10b981" />
+                  <StatBox label="Perdidas" value={lost} color="#ef4444" />
+                  <StatBox label="Pendientes" value={pending} color="#f59e0b" />
+                  <StatBox label="Acierto" value={`${winRate}%`} color={winRate>=60?"#10b981":winRate>=45?"#f59e0b":"#ef4444"} />
+                </div>
 
-            {/* Stats por deporte */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-              {[
-                { sport: "⚽ Fútbol", s: stats.football },
-                { sport: "🏀 NBA", s: stats.nba },
-              ].map(({ sport, s }) => {
-                const wr = s.resolved > 0 ? ((s.won / s.resolved) * 100).toFixed(0) + "%" : "—";
-                const wrColor = s.resolved > 0 ? (s.won / s.resolved > 0.55 ? "#10b981" : s.won / s.resolved > 0.45 ? "#f59e0b" : "#ef4444") : "#555";
-                return (
-                  <div key={sport} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 16px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8 }}>{sport}</div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                      <span style={{ color: "#555" }}>Total: <span style={{ color: "#aaa", fontWeight: 700 }}>{s.total}</span></span>
-                      <span style={{ color: "#555" }}>Ganadas: <span style={{ color: "#10b981", fontWeight: 700 }}>{s.won}</span></span>
-                      <span style={{ color: wrColor, fontWeight: 800 }}>{wr}</span>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+                  {/* ROI & Streak */}
+                  <div style={{ ...C.card }}>
+                    <div style={{ fontSize:9, color:"#60a5fa", letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>📈 Rendimiento</div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                      <span style={{ fontSize:11, color:"#666" }}>ROI estimado</span>
+                      <span style={{ fontSize:14, fontWeight:800, color: parseFloat(roi)>=0?"#10b981":"#ef4444" }}>{parseFloat(roi)>=0?"+":""}{roi}%</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                      <span style={{ fontSize:11, color:"#666" }}>Racha actual</span>
+                      <span style={{ fontSize:14, fontWeight:800, color: streakType==="won"?"#10b981":streakType==="lost"?"#ef4444":"#888" }}>
+                        {streak > 0 ? `${streak} ${streakType==="won"?"✅":"❌"}` : "—"}
+                      </span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:11, color:"#666" }}>Analizadas</span>
+                      <span style={{ fontSize:14, fontWeight:800, color:"#888" }}>{resolved.length}/{preds.length}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Filtros */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-              {[
-                ["all", "Todas", "#aaa"],
-                ["nba", "🏀 NBA", "#f87171"],
-                ["football", "⚽ Fútbol", "#60a5fa"],
-                ["pending", "⏳ Pendientes", "#f59e0b"],
-                ["won", "✅ Ganadas", "#10b981"],
-                ["lost", "❌ Perdidas", "#ef4444"],
-              ].map(([val, label, color]) => (
-                <button key={val} onClick={() => setFilter(val)} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid " + (filter === val ? color : "rgba(255,255,255,0.08)"), background: filter === val ? "rgba(255,255,255,0.06)" : "transparent", color: filter === val ? color : "#555", cursor: "pointer", fontSize: 11, fontWeight: 700, transition: "all 0.15s" }}>
-                  {label}
-                </button>
-              ))}
-            </div>
+                  {/* By sport */}
+                  <div style={{ ...C.card }}>
+                    <div style={{ fontSize:9, color:"#a78bfa", letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>🏆 Por deporte</div>
+                    <MiniBar label="⚽ Fútbol" won={bySport.football.won} total={bySport.football.total} color="#10b981" />
+                    <MiniBar label="🏀 NBA" won={bySport.nba.won} total={bySport.nba.total} color="#f97316" />
+                    <div style={{ marginTop:8, fontSize:10, color:"#444" }}>
+                      Pendientes: ⚽ {bySport.football.pending} · 🏀 {bySport.nba.pending}
+                    </div>
+                  </div>
+                </div>
 
-            {/* Lista */}
-            {loading ? (
-              <div style={{ textAlign: "center", padding: 40, color: "#555" }}>Cargando historial...</div>
-            ) : filtered.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 40, color: "#444", fontSize: 13 }}>
-                No hay predicciones {filter !== "all" ? "con este filtro" : "guardadas aún"}.
+                {/* By league */}
+                {Object.keys(byLeague).length > 0 && (
+                  <div style={{ ...C.card, marginBottom:16 }}>
+                    <div style={{ fontSize:9, color:"#f59e0b", letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>🏅 Por liga (resueltas)</div>
+                    {Object.entries(byLeague)
+                      .sort((a,b) => b[1].total - a[1].total)
+                      .map(([league, s]) => (
+                        <MiniBar key={league} label={league} won={s.won} total={s.total}
+                          color={s.won/s.total >= 0.6 ? "#10b981" : s.won/s.total >= 0.4 ? "#f59e0b" : "#ef4444"} />
+                      ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(420px,1fr))", gap: 12 }}>
+            )}
+
+            {/* TAB: Picks */}
+            {tab === "picks" && (
+              <div>
+                {/* Filters */}
+                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                  <select value={filterSport} onChange={e=>setFilterSport(e.target.value)}
+                    style={{ flex:1, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"6px 10px", color:"#aaa", fontSize:11 }}>
+                    <option value="all">Todos los deportes</option>
+                    <option value="football">⚽ Fútbol</option>
+                    <option value="nba">🏀 NBA</option>
+                  </select>
+                  <select value={filterResult} onChange={e=>setFilterResult(e.target.value)}
+                    style={{ flex:1, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"6px 10px", color:"#aaa", fontSize:11 }}>
+                    <option value="all">Todos los resultados</option>
+                    <option value="pending">⏳ Pendientes</option>
+                    <option value="won">✅ Ganadas</option>
+                    <option value="lost">❌ Perdidas</option>
+                  </select>
+                </div>
+
+                <div style={{ fontSize:10, color:"#444", marginBottom:8 }}>{filtered.length} picks</div>
+
                 {filtered.map(p => (
-                  <PredCard key={p.id} pred={p} onUpdateResult={handleUpdateResult} />
+                  <div key={p.id} style={{ ...C.card, marginBottom:8, padding:12,
+                    borderColor: p.result==="won"?"rgba(16,185,129,0.25)":p.result==="lost"?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.06)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                      <div>
+                        <span style={{ fontSize:9, color:"#555", marginRight:6 }}>{p.sport==="nba"?"🏀":"⚽"} {p.league}</span>
+                        <span style={{ fontWeight:700, fontSize:13, color:"#e8eaf0" }}>{p.home_team} vs {p.away_team}</span>
+                      </div>
+                      <span style={{ fontSize:10, color:"#444" }}>{p.created_at?.split("T")[0]}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", marginBottom:8 }}>
+                      <span style={{ fontSize:12, color:"#60a5fa", fontWeight:700 }}>🎯 {p.pick}</span>
+                      {p.odds && <span style={{ fontSize:11, color:"#f59e0b" }}>@ {p.odds}</span>}
+                      {p.confidence && <span style={{ fontSize:11, color:confColor(p.confidence) }}>{p.confidence}% confianza</span>}
+                      {p.predicted_score && <span style={{ fontSize:10, color:"#555" }}>Pred: {p.predicted_score}</span>}
+                    </div>
+                    <div style={{ display:"flex", gap:5, justifyContent:"flex-end" }}>
+                      {[{r:"won",label:"✅ Ganó"},{r:"lost",label:"❌ Perdió"},{r:"pending",label:"⏳"}].map(({r,label}) => (
+                        <button key={r} onClick={() => handleUpdateResult(p.id, r)}
+                          style={{ background: p.result===r?(r==="won"?"rgba(16,185,129,0.25)":r==="lost"?"rgba(239,68,68,0.25)":"rgba(245,158,11,0.2)"):"rgba(255,255,255,0.04)",
+                            border:`1px solid ${p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"rgba(255,255,255,0.08)"}`,
+                            borderRadius:6, padding:"3px 9px", color:p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"#555",
+                            cursor:"pointer", fontSize:10, fontWeight:700 }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
+              </div>
+            )}
+
+            {/* TAB: Bankroll */}
+            {tab === "bankroll" && (
+              <div>
+                {/* Bankroll input */}
+                <div style={{ ...C.card, marginBottom:16, textAlign:"center" }}>
+                  <div style={{ fontSize:9, color:"#f59e0b", letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>💰 Tu Bankroll</div>
+                  {editingBankroll ? (
+                    <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
+                      <input type="number" value={bankrollInput} onChange={e=>setBankrollInput(e.target.value)}
+                        placeholder="Ej: 1000"
+                        style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"8px 12px", color:"#e8eaf0", fontSize:14, width:150, textAlign:"center" }} />
+                      <button onClick={saveBankroll}
+                        style={{ background:"rgba(16,185,129,0.2)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:8, padding:"8px 16px", color:"#10b981", cursor:"pointer", fontWeight:700 }}>
+                        Guardar
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:42, color:"#f59e0b", lineHeight:1 }}>
+                        {bankroll > 0 ? `$${bankroll.toLocaleString()}` : "—"}
+                      </div>
+                      <button onClick={()=>{ setBankrollInput(bankroll||""); setEditingBankroll(true); }}
+                        style={{ marginTop:8, background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"5px 14px", color:"#f59e0b", cursor:"pointer", fontSize:11, fontWeight:700 }}>
+                        {bankroll > 0 ? "✏️ Editar" : "➕ Configurar bankroll"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Kelly suggestions */}
+                {bankroll > 0 && (
+                  <div style={{ ...C.card, marginBottom:16 }}>
+                    <div style={{ fontSize:9, color:"#10b981", letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>🎯 Kelly Criterion — Apuestas sugeridas</div>
+                    <div style={{ fontSize:11, color:"#555", marginBottom:12, lineHeight:1.6 }}>
+                      Basado en tu bankroll de ${bankroll.toLocaleString()}. Kelly conservador (25% del Kelly completo):
+                    </div>
+                    {[
+                      { label:"Edge bajo (3-5%)", kelly:0.5, example:"1.90" },
+                      { label:"Edge medio (5-10%)", kelly:1.5, example:"2.10" },
+                      { label:"Edge alto (10-15%)", kelly:3.0, example:"2.50" },
+                      { label:"Edge muy alto (15%+)", kelly:5.0, example:"3.00" },
+                    ].map(({ label, kelly }) => {
+                      const stake = (bankroll * kelly / 100).toFixed(2);
+                      return (
+                        <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+                          <span style={{ fontSize:11, color:"#888" }}>{label}</span>
+                          <div style={{ textAlign:"right" }}>
+                            <div style={{ fontSize:14, fontWeight:800, color:"#f59e0b" }}>${stake}</div>
+                            <div style={{ fontSize:9, color:"#555" }}>{kelly}% bankroll</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Simple bankroll tracker */}
+                {bankroll > 0 && bankrollHistory.length > 1 && (
+                  <div style={{ ...C.card }}>
+                    <div style={{ fontSize:9, color:"#a78bfa", letterSpacing:2, textTransform:"uppercase", marginBottom:12, fontWeight:700 }}>📈 Evolución estimada (2% por apuesta)</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:200, overflowY:"auto" }}>
+                      {bankrollHistory.slice(-10).map((h, i) => {
+                        const prev = i > 0 ? bankrollHistory[bankrollHistory.length-10+i-1]?.value : bankroll;
+                        const diff = h.value - prev;
+                        return (
+                          <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:11, padding:"3px 0", borderBottom:"1px solid rgba(255,255,255,0.03)" }}>
+                            <span style={{ color:"#555" }}>{h.date}</span>
+                            <div style={{ display:"flex", gap:12 }}>
+                              {i > 0 && <span style={{ color: diff >= 0 ? "#10b981" : "#ef4444" }}>{diff >= 0 ? "+" : ""}{diff.toFixed(2)}</span>}
+                              <span style={{ color:"#888", fontWeight:700 }}>${h.value.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ marginTop:12, display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+                      <span style={{ fontSize:11, color:"#555" }}>P&L estimado</span>
+                      <span style={{ fontSize:14, fontWeight:800, color: bankrollHistory[bankrollHistory.length-1]?.value >= bankroll ? "#10b981" : "#ef4444" }}>
+                        {bankrollHistory[bankrollHistory.length-1]?.value >= bankroll ? "+" : ""}
+                        ${(bankrollHistory[bankrollHistory.length-1]?.value - bankroll).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
-
       </div>
     </div>
   );

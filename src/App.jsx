@@ -1108,16 +1108,34 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       const parsed = JSON.parse(data.result);
-      setAnalysis({
+      const fullAnalysis = {
         ...parsed,
         hStats: hS, aStats: aS,
         homeInjuries, awayInjuries,
         homeStanding, awayStanding,
         homeFormLocal, awayFormVisita,
         homePlayers, awayPlayers,
-      });
+      };
+      setAnalysis(fullAnalysis);
       setView("analysis");
       loadOdds();
+      // Auto-save to Supabase if user is logged in
+      try {
+        const { data: { session } } = await supabase?.auth.getSession() || {};
+        if (session?.user) {
+          const best = (parsed.apuestasDestacadas||[]).sort((a,b)=>b.confianza-a.confianza)[0];
+          await savePrediction(session.user.id, {
+            league: league?.name,
+            homeTeam: homeTeam?.name,
+            awayTeam: awayTeam?.name,
+            score: parsed.prediccionMarcador,
+            pick: best?.pick,
+            odds: best?.odds_sugerido,
+            confidence: best?.confianza,
+            analysis: fullAnalysis,
+          });
+        }
+      } catch(e) { /* silencioso — no interrumpir el flujo */ }
     } catch(e) { setAiErr("Error: "+e.message); }
     finally { setLoadingAI(false); }
   };
