@@ -1112,13 +1112,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       let parsed;
       try {
         const raw = data.result || "";
-        const clean = raw
-          .replace(/```json
-?/g, "").replace(/```
-?/g, "")  // strip markdown
-          .replace(/[ -]/g, c => c === "
-" || c === "" || c === "	" ? c : "") // strip control chars
-          .trim();
+        const clean = raw.replace(/```[\w]*[\r\n]*/g, "").trim();
         // Find first { and last }
         const start = clean.indexOf("{");
         const end = clean.lastIndexOf("}");
