@@ -1400,7 +1400,37 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
-    <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>
+    <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif",position:"relative",overflow:"hidden"}}>
+      {/* Circuit board background */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0}}>
+        <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.06}} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="circuit" width="100" height="100" patternUnits="userSpaceOnUse">
+              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#34d399" strokeWidth="0.5"/>
+              <path d="M 50 0 L 50 30 L 70 30 L 70 70 L 100 70" fill="none" stroke="#34d399" strokeWidth="0.4"/>
+              <path d="M 0 50 L 30 50 L 30 80 L 60 80" fill="none" stroke="#06b6d4" strokeWidth="0.4"/>
+              <circle cx="50" cy="30" r="2" fill="#34d399" opacity="0.6"/>
+              <circle cx="70" cy="70" r="2" fill="#34d399" opacity="0.6"/>
+              <circle cx="30" cy="50" r="2" fill="#06b6d4" opacity="0.6"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#circuit)" />
+        </svg>
+        {/* Corner accents */}
+        <div style={{position:"absolute",top:0,left:0,width:220,height:220,borderTop:"1px solid rgba(52,211,153,0.2)",borderLeft:"1px solid rgba(52,211,153,0.2)"}} />
+        <div style={{position:"absolute",top:20,left:20,width:80,height:80,borderTop:"1px solid rgba(52,211,153,0.1)",borderLeft:"1px solid rgba(52,211,153,0.1)"}} />
+        <div style={{position:"absolute",bottom:0,right:0,width:220,height:220,borderBottom:"1px solid rgba(6,182,212,0.15)",borderRight:"1px solid rgba(6,182,212,0.15)"}} />
+        <div style={{position:"absolute",bottom:20,right:20,width:80,height:80,borderBottom:"1px solid rgba(6,182,212,0.08)",borderRight:"1px solid rgba(6,182,212,0.08)"}} />
+        {/* Gold accent dots */}
+        <div style={{position:"absolute",top:"35%",right:"2%",width:6,height:6,borderRadius:"50%",background:"rgba(245,158,11,0.4)"}} />
+        <div style={{position:"absolute",top:"65%",right:"2%",width:4,height:4,borderRadius:"50%",background:"rgba(245,158,11,0.3)"}} />
+        <div style={{position:"absolute",top:"50%",left:"1%",width:5,height:5,borderRadius:"50%",background:"rgba(52,211,153,0.3)"}} />
+        {/* Vertical accent line right */}
+        <div style={{position:"absolute",top:"20%",right:"3%",width:1,height:"60%",background:"linear-gradient(transparent,rgba(245,158,11,0.3),transparent)"}} />
+        {/* Horizontal accent line left */}
+        <div style={{position:"absolute",left:"2%",top:"50%",width:"1%",height:1,background:"rgba(52,211,153,0.2)"}} />
+      </div>
+      <div style={{position:"relative",zIndex:1}}>
       {/* Header */}
       <div style={{background:"#0d1117",borderBottom:"1px solid rgba(16,185,129,0.18)",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:62}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1580,9 +1610,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {/* Teams */}
                         <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
                           {/* Home */}
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end",minWidth:0}}>
-                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,textAlign:"right",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.teams?.home?.name}</span>
-                            {homeLogo && <img src={homeLogo} alt="" style={{width:20,height:20,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end",minWidth:0,overflow:"hidden"}}>
+                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,textAlign:"right",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,flex:1}}>{f.teams?.home?.name}</span>
+                            {homeLogo && <img src={homeLogo} alt="" style={{width:18,height:18,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
                           </div>
                           {/* Score */}
                           <div style={{minWidth:58,flexShrink:0,textAlign:"center",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"4px 10px",border:`1px solid ${isLive?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.06)"}`}}>
@@ -1591,9 +1621,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             </span>
                           </div>
                           {/* Away */}
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                            {awayLogo && <img src={awayLogo} alt="" style={{width:20,height:20,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
-                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.teams?.away?.name}</span>
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0,overflow:"hidden"}}>
+                            {awayLogo && <img src={awayLogo} alt="" style={{width:18,height:18,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
+                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,flex:1}}>{f.teams?.away?.name}</span>
                           </div>
                         </div>
                         <button
@@ -3110,6 +3140,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
