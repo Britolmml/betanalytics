@@ -368,9 +368,16 @@ export default function NBAPanel({ onClose }) {
       ]);
       const all0 = res0.status === "fulfilled" ? (res0.value?.response || []) : [];
       const all1 = res1.status === "fulfilled" ? (res1.value?.response || []) : [];
-      // Deduplicate by game id
+      // From tomorrow UTC: only include if the game is actually TODAY in EST/CST
+      // Convert each game's start time to EST date and compare with selected date
+      const all1Filtered = all1.filter(g => {
+        if (!g.date?.start) return false;
+        const gameDate = new Date(g.date.start)
+          .toLocaleDateString("en-CA", { timeZone: "America/New_York" }); // YYYY-MM-DD in EST
+        return gameDate === date0; // same day as selected date in EST
+      });
       const seen = new Set();
-      const all = [...all0, ...all1].filter(g => {
+      const all = [...all0, ...all1Filtered].filter(g => {
         if (seen.has(g.id)) return false;
         seen.add(g.id); return true;
       });
