@@ -824,8 +824,34 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
   };
 
   return (
-    <div style={ inline ? { width: "100%" } : { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, overflowY: "auto", padding: "20px 16px" }}>
-      <div style={{ maxWidth: 900, margin: inline ? "0" : "0 auto" }}>
+    <div style={ inline
+      ? {
+          width: "100%",
+          minHeight: "calc(100vh - 62px)",
+          position: "relative",
+          background: "#07090f",
+        }
+      : { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, overflowY: "auto", padding: "20px 16px" }}>
+
+      {/* Futuristic background — only inline */}
+      {inline && (
+        <div style={{position:"absolute",inset:0,pointerEvents:"none",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:"-10%",left:"30%",width:800,height:500,background:"radial-gradient(ellipse, rgba(239,68,68,0.18) 0%, rgba(99,102,241,0.1) 45%, transparent 70%)",filter:"blur(70px)"}} />
+          <div style={{position:"absolute",bottom:"0",right:"15%",width:500,height:350,background:"radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, transparent 70%)",filter:"blur(50px)"}} />
+          <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.06}} xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse">
+                <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#f87171" strokeWidth="0.7"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#g)" />
+          </svg>
+          <div style={{position:"absolute",top:0,left:0,width:160,height:160,borderTop:"1px solid rgba(239,68,68,0.25)",borderLeft:"1px solid rgba(239,68,68,0.25)"}} />
+          <div style={{position:"absolute",bottom:0,right:0,width:160,height:160,borderBottom:"1px solid rgba(99,102,241,0.2)",borderRight:"1px solid rgba(99,102,241,0.2)"}} />
+        </div>
+      )}
+
+      <div style={{ maxWidth: 900, margin: inline ? "0 auto" : "0 auto", position: "relative", zIndex: 1, padding: inline ? "18px 16px" : "0" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
