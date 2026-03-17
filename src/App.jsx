@@ -319,7 +319,7 @@ function calcEdges(poissonResult, gameOdds) {
   return edges.sort((a, b) => b.edge - a.edge);
 }
 
-const confColor = c => c>=80?"#10b981":c>=65?"#f59e0b":"#ef4444";
+const confColor = c => c>=80?"#00d4ff":c>=65?"#f59e0b":"#ef4444";
 const confLabel = c => c>=80?"ALTA":c>=65?"MEDIA":"BAJA";
 
 const DEMO_TEAMS = [
@@ -330,11 +330,15 @@ const DEMO_TEAMS = [
   {id:165,name:"Dortmund"},{id:489,name:"AC Milan"},{id:496,name:"Juventus"},{id:505,name:"Inter Milan"},
 ];
 
+// ── Paleta extraída de la imagen hero ──────────────────────────
+// Fondo: azul marino tech #060d18  Primario: cián #00d4ff
+// Fútbol: verde #22c55e            NBA: rojo #ef4444
+// Acento secundario: azul eléctrico #3b82f6
 const C = {
-  card:  { background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:16, padding:20, backdropFilter:"blur(8px)" },
-  cardG: { background:"linear-gradient(135deg,rgba(16,185,129,0.08),rgba(6,182,212,0.05))", border:"1px solid rgba(16,185,129,0.2)", borderRadius:16, padding:20 },
-  cardP: { background:"linear-gradient(135deg,rgba(139,92,246,0.08),rgba(59,130,246,0.05))", border:"1px solid rgba(139,92,246,0.2)", borderRadius:16, padding:20 },
-  inp:   { background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:10, padding:"10px 14px", color:"#fff", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" },
+  card:  { background:"rgba(0,212,255,0.03)", border:"1px solid rgba(0,212,255,0.1)", borderRadius:16, padding:20, backdropFilter:"blur(10px)" },
+  cardG: { background:"linear-gradient(135deg,rgba(34,197,94,0.07),rgba(0,212,255,0.04))", border:"1px solid rgba(34,197,94,0.22)", borderRadius:16, padding:20 },
+  cardP: { background:"linear-gradient(135deg,rgba(59,130,246,0.08),rgba(0,212,255,0.05))", border:"1px solid rgba(59,130,246,0.22)", borderRadius:16, padding:20 },
+  inp:   { background:"rgba(0,212,255,0.05)", border:"1px solid rgba(0,212,255,0.15)", borderRadius:10, padding:"10px 14px", color:"#e2f4ff", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" },
 };
 
 const Pill = ({rgb, children}) => (
@@ -342,7 +346,7 @@ const Pill = ({rgb, children}) => (
 );
 
 const RBadge = ({r}) => {
-  const map={W:["#10b981","rgba(16,185,129,0.15)"],D:["#f59e0b","rgba(245,158,11,0.15)"],L:["#ef4444","rgba(239,68,68,0.15)"]};
+  const map={W:["#00d4ff","rgba(0,212,255,0.15)"],D:["#f59e0b","rgba(245,158,11,0.15)"],L:["#ef4444","rgba(239,68,68,0.15)"]};
   const [fg,bg]=map[r]||["#888","#111"];
   return <span style={{background:bg,color:fg,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>{r==="W"?"V":r==="D"?"E":"D"}</span>;
 };
@@ -1400,75 +1404,75 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
   /* ─── RENDER ─────────────────────────────────────────────── */
   return (
-    <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif",position:"relative",overflow:"hidden"}}>
+    <div style={{minHeight:"100vh",background:"#060d18",color:"#e2f4ff",fontFamily:"'DM Sans','Segoe UI',sans-serif",position:"relative",overflow:"hidden"}}>
       {/* Circuit board background */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0}}>
         <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.12}} xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="circuit" width="100" height="100" patternUnits="userSpaceOnUse">
-              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#34d399" strokeWidth="0.5"/>
-              <path d="M 50 0 L 50 30 L 70 30 L 70 70 L 100 70" fill="none" stroke="#34d399" strokeWidth="0.4"/>
-              <path d="M 0 50 L 30 50 L 30 80 L 60 80" fill="none" stroke="#06b6d4" strokeWidth="0.4"/>
-              <circle cx="50" cy="30" r="2" fill="#34d399" opacity="0.6"/>
-              <circle cx="70" cy="70" r="2" fill="#34d399" opacity="0.6"/>
-              <circle cx="30" cy="50" r="2" fill="#06b6d4" opacity="0.6"/>
+              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#4ade80" strokeWidth="0.5"/>
+              <path d="M 50 0 L 50 30 L 70 30 L 70 70 L 100 70" fill="none" stroke="#4ade80" strokeWidth="0.4"/>
+              <path d="M 0 50 L 30 50 L 30 80 L 60 80" fill="none" stroke="#00d4ff" strokeWidth="0.4"/>
+              <circle cx="50" cy="30" r="2" fill="#4ade80" opacity="0.6"/>
+              <circle cx="70" cy="70" r="2" fill="#4ade80" opacity="0.6"/>
+              <circle cx="30" cy="50" r="2" fill="#00d4ff" opacity="0.6"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#circuit)" />
         </svg>
         {/* Corner accents - stronger */}
-        <div style={{position:"absolute",top:0,left:0,width:280,height:280,borderTop:"1px solid rgba(52,211,153,0.35)",borderLeft:"1px solid rgba(52,211,153,0.35)"}} />
-        <div style={{position:"absolute",top:24,left:24,width:100,height:100,borderTop:"1px solid rgba(52,211,153,0.2)",borderLeft:"1px solid rgba(52,211,153,0.2)"}} />
-        <div style={{position:"absolute",bottom:0,right:0,width:280,height:280,borderBottom:"1px solid rgba(245,158,11,0.3)",borderRight:"1px solid rgba(245,158,11,0.3)"}} />
-        <div style={{position:"absolute",bottom:24,right:24,width:100,height:100,borderBottom:"1px solid rgba(245,158,11,0.18)",borderRight:"1px solid rgba(245,158,11,0.18)"}} />
-        {/* Gold accent dots - bigger */}
-        <div style={{position:"absolute",top:"30%",right:"2.5%",width:8,height:8,borderRadius:"50%",background:"rgba(245,158,11,0.6)",boxShadow:"0 0 8px rgba(245,158,11,0.4)"}} />
-        <div style={{position:"absolute",top:"60%",right:"2.5%",width:5,height:5,borderRadius:"50%",background:"rgba(245,158,11,0.4)"}} />
-        <div style={{position:"absolute",top:"45%",left:"1.5%",width:6,height:6,borderRadius:"50%",background:"rgba(52,211,153,0.5)",boxShadow:"0 0 6px rgba(52,211,153,0.3)"}} />
-        <div style={{position:"absolute",top:"70%",left:"1.5%",width:4,height:4,borderRadius:"50%",background:"rgba(6,182,212,0.4)"}} />
+        <div style={{position:"absolute",top:0,left:0,width:280,height:280,borderTop:"1px solid rgba(0,212,255,0.28)",borderLeft:"1px solid rgba(0,212,255,0.28)"}} />
+        <div style={{position:"absolute",top:24,left:24,width:100,height:100,borderTop:"1px solid rgba(0,212,255,0.14)",borderLeft:"1px solid rgba(0,212,255,0.14)"}} />
+        <div style={{position:"absolute",bottom:0,right:0,width:280,height:280,borderBottom:"1px solid rgba(239,68,68,0.22)",borderRight:"1px solid rgba(239,68,68,0.22)"}} />
+        <div style={{position:"absolute",bottom:24,right:24,width:100,height:100,borderBottom:"1px solid rgba(239,68,68,0.12)",borderRight:"1px solid rgba(239,68,68,0.12)"}} />
+        {/* Cyan accent dots */}
+        <div style={{position:"absolute",top:"30%",right:"2.5%",width:8,height:8,borderRadius:"50%",background:"rgba(0,212,255,0.5)",boxShadow:"0 0 8px rgba(0,212,255,0.35)"}} />
+        <div style={{position:"absolute",top:"60%",right:"2.5%",width:5,height:5,borderRadius:"50%",background:"rgba(0,212,255,0.3)"}} />
+        <div style={{position:"absolute",top:"45%",left:"1.5%",width:6,height:6,borderRadius:"50%",background:"rgba(34,197,94,0.45)",boxShadow:"0 0 6px rgba(34,197,94,0.25)"}} />
+        <div style={{position:"absolute",top:"70%",left:"1.5%",width:4,height:4,borderRadius:"50%",background:"rgba(0,212,255,0.3)"}} />
         {/* Vertical accent lines */}
-        <div style={{position:"absolute",top:"15%",right:"3.5%",width:1,height:"70%",background:"linear-gradient(transparent,rgba(245,158,11,0.4),rgba(245,158,11,0.15),transparent)"}} />
-        <div style={{position:"absolute",top:"20%",left:"2%",width:1,height:"60%",background:"linear-gradient(transparent,rgba(52,211,153,0.3),transparent)"}} />
+        <div style={{position:"absolute",top:"15%",right:"3.5%",width:1,height:"70%",background:"linear-gradient(transparent,rgba(239,68,68,0.35),rgba(239,68,68,0.12),transparent)"}} />
+        <div style={{position:"absolute",top:"20%",left:"2%",width:1,height:"60%",background:"linear-gradient(transparent,rgba(0,212,255,0.25),transparent)"}} />
       </div>
       <div style={{position:"relative",zIndex:1}}>
       {/* Header */}
-      <div style={{background:"#0d1117",borderBottom:"1px solid rgba(16,185,129,0.18)",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:62}}>
+      <div style={{background:"rgba(4,10,22,0.97)",borderBottom:"1px solid rgba(0,212,255,0.15)",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:62}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>⚡</span>
-          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:25,letterSpacing:3,background:"linear-gradient(90deg,#10b981,#34d399)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>BETANALYTICS</div>
+          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:25,letterSpacing:3,background:"linear-gradient(90deg,#00d4ff,#22c55e)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>BETANALYTICS</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {view==="analysis" && (
-            <button onClick={()=>{setView("setup");setAnalysis(null);}} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"6px 12px",color:"#999",cursor:"pointer",fontSize:12}}>
+            <button onClick={()=>{setView("setup");setAnalysis(null);}} style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 12px",color:"#7dd3e8",cursor:"pointer",fontSize:12}}>
               ← Nuevo análisis
             </button>
           )}
           {league && (
             <button onClick={()=>{setShowJornada(true); analyzeJornada();}}
-              style={{background:"rgba(139,92,246,0.15)",border:"1px solid rgba(139,92,246,0.4)",borderRadius:8,padding:"6px 12px",color:"#a78bfa",cursor:"pointer",fontSize:11,fontWeight:700}}>
+              style={{background:"rgba(59,130,246,0.12)",border:"1px solid rgba(59,130,246,0.35)",borderRadius:8,padding:"6px 12px",color:"#93c5fd",cursor:"pointer",fontSize:11,fontWeight:700}}>
               📋 JORNADA
             </button>
           )}
-          <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",border:activeSport===null?"1px solid rgba(255,255,255,0.25)":"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#e8eaf0":"#555",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
-          <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(16,185,129,0.2)":"rgba(16,185,129,0.08)",border:activeSport==="football"?"1px solid rgba(16,185,129,0.5)":"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
-          <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.08)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
-          <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(0,212,255,0.12)":"rgba(0,212,255,0.04)",border:activeSport===null?"1px solid rgba(0,212,255,0.4)":"1px solid rgba(0,212,255,0.1)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#00d4ff":"#4a7a8a",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
+          <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(34,197,94,0.15)":"rgba(34,197,94,0.06)",border:activeSport==="football"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
+          <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.18)":"rgba(239,68,68,0.06)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.18)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
+          <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 12px",color:"#67c8e0",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
           </button>
           <button onClick={loadSaved}
-            style={{background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            style={{background:"rgba(59,130,246,0.08)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:8,padding:"6px 12px",color:"#93c5fd",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📁 GUARDADAS
           </button>
           {user ? (
-            <button onClick={handleLogout} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"6px 12px",color:"#666",cursor:"pointer",fontSize:11}}>
+            <button onClick={handleLogout} style={{background:"rgba(0,212,255,0.04)",border:"1px solid rgba(0,212,255,0.12)",borderRadius:8,padding:"6px 12px",color:"#4a7a8a",cursor:"pointer",fontSize:11}}>
               👤 {user.email?.split("@")[0]} · Salir
             </button>
           ) : (
-            <button onClick={()=>setShowAuth(true)} style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:8,padding:"6px 12px",color:"#10b981",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            <button onClick={()=>setShowAuth(true)} style={{background:"rgba(0,212,255,0.08)",border:"1px solid rgba(0,212,255,0.28)",borderRadius:8,padding:"6px 12px",color:"#00d4ff",cursor:"pointer",fontSize:11,fontWeight:700}}>
               🔐 ENTRAR
             </button>
           )}
-          <button onClick={()=>setShowPanel(p=>!p)} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${apiKey?"rgba(16,185,129,0.35)":"rgba(245,158,11,0.3)"}`,borderRadius:8,padding:"6px 12px",color:apiKey?"#10b981":"#f59e0b",cursor:"pointer",fontSize:11,fontWeight:700}}>
+          <button onClick={()=>setShowPanel(p=>!p)} style={{background:"rgba(0,212,255,0.05)",border:`1px solid ${apiKey?"rgba(0,212,255,0.35)":"rgba(245,158,11,0.3)"}`,borderRadius:8,padding:"6px 12px",color:apiKey?"#00d4ff":"#f59e0b",cursor:"pointer",fontSize:11,fontWeight:700}}>
             {apiKey?"🔑 API":"🎮 DEMO"}
           </button>
         </div>
@@ -1478,7 +1482,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
         {/* API Panel */}
         {showPanel && (
-          <div style={{...C.card,marginBottom:18,borderColor:"rgba(16,185,129,0.22)"}}>
+          <div style={{...C.card,marginBottom:18,borderColor:"rgba(0,212,255,0.22)"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
               <div style={{fontWeight:700,fontSize:14}}>⚙️ Conexión vía Vercel</div>
               <button onClick={()=>setShowPanel(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,lineHeight:1}}>✕</button>
@@ -1486,13 +1490,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
             <div style={{fontSize:12,color:"#777",marginBottom:14,lineHeight:2,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"10px 14px"}}>
               <b style={{color:"#aaa"}}>Tu API key vive en Vercel como variable de entorno</b> — nunca se expone al navegador.<br/>
-              En el dashboard de Vercel ve a <b style={{color:"#10b981"}}>Settings → Environment Variables</b> y agrega:<br/>
-              <code style={{color:"#10b981",fontSize:11}}>API_FOOTBALL_KEY = tu_key_aqui</code>
+              En el dashboard de Vercel ve a <b style={{color:"#00d4ff"}}>Settings → Environment Variables</b> y agrega:<br/>
+              <code style={{color:"#00d4ff",fontSize:11}}>API_FOOTBALL_KEY = tu_key_aqui</code>
             </div>
 
             <div style={{display:"flex",gap:8,marginBottom:10}}>
               <button onClick={handleConnect}
-                style={{background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:8,padding:"9px 18px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>
+                style={{background:"linear-gradient(135deg,#00d4ff,#059669)",border:"none",borderRadius:8,padding:"9px 18px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>
                 🔌 Probar conexión
               </button>
               <button onClick={()=>setShowPanel(false)}
@@ -1503,9 +1507,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
             {apiStatus!=="idle" && (
               <div style={{padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:600,
-                background:apiStatus==="ok"?"rgba(16,185,129,0.1)":apiStatus==="testing"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.1)",
-                color:apiStatus==="ok"?"#10b981":apiStatus==="testing"?"#f59e0b":"#ef4444",
-                border:`1px solid ${apiStatus==="ok"?"rgba(16,185,129,0.22)":apiStatus==="testing"?"rgba(245,158,11,0.18)":"rgba(239,68,68,0.22)"}`}}>
+                background:apiStatus==="ok"?"rgba(0,212,255,0.1)":apiStatus==="testing"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.1)",
+                color:apiStatus==="ok"?"#00d4ff":apiStatus==="testing"?"#f59e0b":"#ef4444",
+                border:`1px solid ${apiStatus==="ok"?"rgba(0,212,255,0.22)":apiStatus==="testing"?"rgba(245,158,11,0.18)":"rgba(239,68,68,0.22)"}`}}>
                 {apiMsg}
               </div>
             )}
@@ -1518,9 +1522,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* Liga */}
             <div style={{marginBottom:20}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>1 · Liga</div>
+                <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>1 · Liga</div>
                 <button onClick={loadAllLeagues}
-                  style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:7,padding:"4px 12px",color:"#10b981",cursor:"pointer",fontSize:10,fontWeight:700}}>
+                  style={{background:"rgba(0,212,255,0.1)",border:"1px solid rgba(0,212,255,0.3)",borderRadius:7,padding:"4px 12px",color:"#00d4ff",cursor:"pointer",fontSize:10,fontWeight:700}}>
                   🔍 Buscar todas las ligas
                 </button>
               </div>
@@ -1541,14 +1545,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           <button key={l.id} onClick={()=>loadTeams(l)}
                             style={{
                               background: active
-                                ? `linear-gradient(135deg, rgba(16,185,129,0.22), rgba(6,182,212,0.15))`
+                                ? `linear-gradient(135deg, rgba(0,212,255,0.22), rgba(0,212,255,0.15))`
                                 : "rgba(255,255,255,0.04)",
-                              border: `1px solid ${active ? "rgba(16,185,129,0.55)" : "rgba(255,255,255,0.08)"}`,
+                              border: `1px solid ${active ? "rgba(0,212,255,0.55)" : "rgba(255,255,255,0.08)"}`,
                               borderRadius:10, padding:"8px 12px",
                               cursor:"pointer", fontWeight:600,
                               display:"flex", alignItems:"center", gap:8,
                               transition:"all 0.15s",
-                              boxShadow: active ? "0 0 16px rgba(16,185,129,0.15)" : "none",
+                              boxShadow: active ? "0 0 16px rgba(0,212,255,0.15)" : "none",
                               position:"relative", overflow:"hidden",
                             }}>
                             {/* League logo */}
@@ -1560,8 +1564,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                               : null}
                             <span style={{fontSize:14,lineHeight:1,display:"none"}}>{l.flag}</span>
                             <div style={{textAlign:"left"}}>
-                              <div style={{fontSize:11, color: active ? "#10b981" : "#ccc", fontWeight:700}}>{l.name}</div>
-                              <div style={{fontSize:9, color: active ? "rgba(16,185,129,0.7)" : "#555", marginTop:1}}>{l.country}</div>
+                              <div style={{fontSize:11, color: active ? "#00d4ff" : "#ccc", fontWeight:700}}>{l.name}</div>
+                              <div style={{fontSize:9, color: active ? "rgba(0,212,255,0.7)" : "#555", marginTop:1}}>{l.country}</div>
                             </div>
                           </button>
                         );
@@ -1594,17 +1598,17 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     const hScore = f.goals?.home;
                     const aScore = f.goals?.away;
                     const kickoff = f.fixture?.date ? new Date(f.fixture.date).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",timeZone:"America/Mexico_City"}) : "";
-                    const statusColor = isLive ? "#10b981" : isDone ? "#555" : "#f59e0b";
+                    const statusColor = isLive ? "#00d4ff" : isDone ? "#555" : "#f59e0b";
                     const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ " + st : "🕐 " + kickoff;
                     const dateObj = f.fixture?.date ? new Date(f.fixture.date) : null;
                     const fechaStr = dateObj ? dateObj.toLocaleDateString("es-MX",{weekday:"short",day:"numeric",month:"short",timeZone:"America/Mexico_City"}) : "";
                     const homeLogo = f.teams?.home?.logo;
                     const awayLogo = f.teams?.away?.logo;
                     return (
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background: isDone ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.025)",borderRadius:12,border:"1px solid " + (isLive?"rgba(16,185,129,0.3)":isDone?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.07)"),opacity: isDone ? 0.55 : 1,transition:"all 0.15s"}}>
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background: isDone ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.025)",borderRadius:12,border:"1px solid " + (isLive?"rgba(0,212,255,0.3)":isDone?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.07)"),opacity: isDone ? 0.55 : 1,transition:"all 0.15s"}}>
                         {/* Status */}
                         <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:72,gap:2}}>
-                          <span style={{fontSize:isLive?10:9,fontWeight:700,color:statusColor,background:isLive?"rgba(16,185,129,0.12)":"transparent",padding:isLive?"2px 6px":"0",borderRadius:4}}>{statusLabel}</span>
+                          <span style={{fontSize:isLive?10:9,fontWeight:700,color:statusColor,background:isLive?"rgba(0,212,255,0.12)":"transparent",padding:isLive?"2px 6px":"0",borderRadius:4}}>{statusLabel}</span>
                           {!isLive && fechaStr && <span style={{fontSize:9,color:"#333",fontWeight:600}}>{fechaStr}</span>}
                         </div>
                         {/* Teams */}
@@ -1615,8 +1619,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             {homeLogo && <img src={homeLogo} alt="" style={{width:18,height:18,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
                           </div>
                           {/* Score */}
-                          <div style={{minWidth:58,flexShrink:0,textAlign:"center",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"4px 10px",border:`1px solid ${isLive?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.06)"}`}}>
-                            <span style={{fontSize:14,fontWeight:900,color: isDone?"#666":isLive?"#10b981":"#e8eaf0",letterSpacing:2}}>
+                          <div style={{minWidth:58,flexShrink:0,textAlign:"center",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"4px 10px",border:`1px solid ${isLive?"rgba(0,212,255,0.3)":"rgba(255,255,255,0.06)"}`}}>
+                            <span style={{fontSize:14,fontWeight:900,color: isDone?"#666":isLive?"#00d4ff":"#e8eaf0",letterSpacing:2}}>
                               {hScore != null ? hScore+" - "+aScore : "vs"}
                             </span>
                           </div>
@@ -1666,7 +1670,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* Tabs */}
             {(hStats||aStats||standings.length>0) && (
               <div style={{marginBottom:20}}>
-                <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>
+                <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>
                   3 · Análisis
                 </div>
 
@@ -1679,9 +1683,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     {id:"standings",label:"🏆 Tabla",     show: standings.length>0},
                   ].filter(t=>t.show!==false).map(t=>(
                     <button key={t.id} onClick={()=>setActiveTab(t.id)}
-                      style={{background:activeTab===t.id?"rgba(16,185,129,0.18)":"rgba(255,255,255,0.04)",
-                              border:`1px solid ${activeTab===t.id?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.08)"}`,
-                              borderRadius:8,padding:"7px 14px",color:activeTab===t.id?"#10b981":"#666",
+                      style={{background:activeTab===t.id?"rgba(0,212,255,0.18)":"rgba(255,255,255,0.04)",
+                              border:`1px solid ${activeTab===t.id?"rgba(0,212,255,0.5)":"rgba(255,255,255,0.08)"}`,
+                              borderRadius:8,padding:"7px 14px",color:activeTab===t.id?"#00d4ff":"#666",
                               cursor:"pointer",fontSize:12,fontWeight:600}}>
                       {t.label}
                     </button>
@@ -1693,7 +1697,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <>
                     {loadingM && <div style={{color:"#555",fontSize:12,marginBottom:8}}>⏳ Cargando datos...</div>}
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                      {[{team:homeTeam,stats:hStats,color:"#10b981",matches:homeMatches},
+                      {[{team:homeTeam,stats:hStats,color:"#00d4ff",matches:homeMatches},
                         {team:awayTeam,stats:aStats,color:"#f59e0b",matches:awayMatches}]
                         .filter(x=>x.stats&&x.team)
                         .map(({team,stats,color,matches})=>(
@@ -1704,7 +1708,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           </div>
                           <SBar label="Goles anotados (prom)" val={stats.avgScored} max={4} color={color}/>
                           <SBar label="Goles recibidos (prom)" val={stats.avgConceded} max={4} color="#ef4444"/>
-                          <SBar label="Corners (prom)" val={stats.avgCorners} max={10} color="#8b5cf6"/>
+                          <SBar label="Corners (prom)" val={stats.avgCorners} max={10} color="#3b82f6"/>
                           <SBar label="Tarjetas amarillas (prom)" val={stats.avgCards} max={5} color="#f59e0b"/>
                           <SBar label="Tiros a puerta (prom)" val={stats.avgShotsOn ?? 0} max={12} color="#60a5fa" dimmed={stats.avgShotsOn === null}/>
                           <SBar label="Tiros totales (prom)" val={stats.avgShotsTotal ?? 0} max={20} color="#94a3b8" dimmed={stats.avgShotsTotal === null}/>
@@ -1738,7 +1742,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {/* TAB: H2H */}
                 {activeTab==="h2h" && (
                   <div style={C.card}>
-                    <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
+                    <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
                       ⚔️ Enfrentamientos directos — {homeTeam?.name} vs {awayTeam?.name}
                     </div>
                     {h2h.length===0 ? (
@@ -1754,7 +1758,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           const dr = h2h.length - hw - aw;
                           return (
                             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-                              {[{l:homeTeam?.name?.split(" ").slice(-1)[0],v:hw,c:"#10b981"},
+                              {[{l:homeTeam?.name?.split(" ").slice(-1)[0],v:hw,c:"#00d4ff"},
                                 {l:"Empates",v:dr,c:"#f59e0b"},
                                 {l:awayTeam?.name?.split(" ").slice(-1)[0],v:aw,c:"#3b82f6"}].map(({l,v,c})=>(
                                 <div key={l} style={{textAlign:"center",padding:"10px 6px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
@@ -1773,11 +1777,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
                               <span style={{color:"#444",minWidth:80}}>{m.date}</span>
                               <span style={{flex:1,textAlign:"center"}}>
-                                <span style={{color:m.home===homeTeam?.name?"#10b981":"#f59e0b"}}>{m.home}</span>
+                                <span style={{color:m.home===homeTeam?.name?"#00d4ff":"#f59e0b"}}>{m.home}</span>
                                 <b style={{color:"#bbb",margin:"0 8px"}}>{m.homeGoals}–{m.awayGoals}</b>
-                                <span style={{color:m.away===awayTeam?.name?"#f59e0b":"#10b981"}}>{m.away}</span>
+                                <span style={{color:m.away===awayTeam?.name?"#f59e0b":"#00d4ff"}}>{m.away}</span>
                               </span>
-                              <span style={{fontSize:10,color:winner===homeTeam?.name?"#10b981":winner===awayTeam?.name?"#f59e0b":"#888",fontWeight:700,minWidth:40,textAlign:"right"}}>
+                              <span style={{fontSize:10,color:winner===homeTeam?.name?"#00d4ff":winner===awayTeam?.name?"#f59e0b":"#888",fontWeight:700,minWidth:40,textAlign:"right"}}>
                                 {winner?`${winner.split(" ").slice(-1)[0]} ✓`:"E"}
                               </span>
                             </div>
@@ -1791,7 +1795,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {/* TAB: Próximos partidos */}
                 {activeTab==="next" && (
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                    {[{team:homeTeam,next:nextMatches.home,color:"#10b981"},
+                    {[{team:homeTeam,next:nextMatches.home,color:"#00d4ff"},
                       {team:awayTeam,next:nextMatches.away,color:"#f59e0b"}]
                       .filter(x=>x.team)
                       .map(({team,next,color})=>(
@@ -1817,7 +1821,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {/* TAB: Tabla de posiciones */}
                 {activeTab==="standings" && (
                   <div style={C.card}>
-                    <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
+                    <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
                       🏆 Tabla · {league?.name}
                     </div>
                     {loadingStand ? (
@@ -1837,7 +1841,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                               <th style={{padding:"4px 6px",fontWeight:600}}>P</th>
                               <th style={{padding:"4px 6px",fontWeight:600}}>GF</th>
                               <th style={{padding:"4px 6px",fontWeight:600}}>GC</th>
-                              <th style={{padding:"4px 6px",fontWeight:600,color:"#10b981"}}>Pts</th>
+                              <th style={{padding:"4px 6px",fontWeight:600,color:"#00d4ff"}}>Pts</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1847,17 +1851,17 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                               return (
                                 <tr key={i} style={{
                                   borderBottom:"1px solid rgba(255,255,255,0.03)",
-                                  background:isH?"rgba(16,185,129,0.08)":isA?"rgba(245,158,11,0.08)":"transparent"
+                                  background:isH?"rgba(0,212,255,0.08)":isA?"rgba(245,158,11,0.08)":"transparent"
                                 }}>
-                                  <td style={{padding:"5px 6px",color:i<4?"#10b981":i>=standings.length-3?"#ef4444":"#555",fontWeight:700}}>{s.rank}</td>
-                                  <td style={{padding:"5px 6px",color:isH?"#10b981":isA?"#f59e0b":"#ccc",fontWeight:isH||isA?700:400}}>{s.team?.name}</td>
+                                  <td style={{padding:"5px 6px",color:i<4?"#00d4ff":i>=standings.length-3?"#ef4444":"#555",fontWeight:700}}>{s.rank}</td>
+                                  <td style={{padding:"5px 6px",color:isH?"#00d4ff":isA?"#f59e0b":"#ccc",fontWeight:isH||isA?700:400}}>{s.team?.name}</td>
                                   <td style={{padding:"5px 6px",textAlign:"center",color:"#666"}}>{s.all?.played}</td>
-                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#10b981"}}>{s.all?.win}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",color:"#00d4ff"}}>{s.all?.win}</td>
                                   <td style={{padding:"5px 6px",textAlign:"center",color:"#f59e0b"}}>{s.all?.draw}</td>
                                   <td style={{padding:"5px 6px",textAlign:"center",color:"#ef4444"}}>{s.all?.lose}</td>
                                   <td style={{padding:"5px 6px",textAlign:"center",color:"#888"}}>{s.all?.goals?.for}</td>
                                   <td style={{padding:"5px 6px",textAlign:"center",color:"#888"}}>{s.all?.goals?.against}</td>
-                                  <td style={{padding:"5px 6px",textAlign:"center",fontFamily:"'Bebas Neue',cursive",fontSize:15,color:"#10b981"}}>{s.points}</td>
+                                  <td style={{padding:"5px 6px",textAlign:"center",fontFamily:"'Bebas Neue',cursive",fontSize:15,color:"#00d4ff"}}>{s.points}</td>
                                 </tr>
                               );
                             })}
@@ -1876,7 +1880,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {/* Cargar momios — REQUERIDO para analizar */}
                 <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
                   <button onClick={loadOdds} disabled={loadingOdds}
-                    style={{background:Object.keys(odds).length>0?"rgba(16,185,129,0.12)":"rgba(245,158,11,0.1)",border:`1px solid ${Object.keys(odds).length>0?"rgba(16,185,129,0.4)":"rgba(245,158,11,0.3)"}`,borderRadius:10,padding:"8px 20px",color:Object.keys(odds).length>0?"#10b981":"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                    style={{background:Object.keys(odds).length>0?"rgba(0,212,255,0.12)":"rgba(245,158,11,0.1)",border:`1px solid ${Object.keys(odds).length>0?"rgba(0,212,255,0.4)":"rgba(245,158,11,0.3)"}`,borderRadius:10,padding:"8px 20px",color:Object.keys(odds).length>0?"#00d4ff":"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
                     {loadingOdds?"⏳ Cargando momios...":Object.keys(odds).length>0?"✅ Momios cargados · Recargar":"💹 Cargar momios (necesario para detectar value bets)"}
                   </button>
                 </div>
@@ -1887,19 +1891,19 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 )}
                 <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
                   <button onClick={predict} disabled={loadingAI||loadingMulti}
-                    style={{background:loadingAI?"rgba(16,185,129,0.28)":"linear-gradient(135deg,#10b981,#059669)",
+                    style={{background:loadingAI?"rgba(0,212,255,0.28)":"linear-gradient(135deg,#00d4ff,#0ea5e9)",
                             border:"none",borderRadius:14,padding:"16px 36px",color:"#fff",
                             fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:3,
                             cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer",
-                            boxShadow:"0 0 36px rgba(16,185,129,0.22)"}}>
+                            boxShadow:"0 0 36px rgba(0,212,255,0.22)"}}>
                     {loadingAI?"⏳ ANALIZANDO...":"⚡ PREDICCIÓN IA"}
                   </button>
                   <button onClick={predictMulti} disabled={loadingAI||loadingMulti}
-                    style={{background:loadingMulti?"rgba(139,92,246,0.28)":"linear-gradient(135deg,#8b5cf6,#6d28d9)",
+                    style={{background:loadingMulti?"rgba(59,130,246,0.28)":"linear-gradient(135deg,#3b82f6,#2563eb)",
                             border:"none",borderRadius:14,padding:"16px 36px",color:"#fff",
                             fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:3,
                             cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer",
-                            boxShadow:"0 0 36px rgba(139,92,246,0.22)"}}>
+                            boxShadow:"0 0 36px rgba(59,130,246,0.22)"}}>
                     {loadingMulti?"⏳ CONSULTANDO 7 IAs...":"🤖 ANÁLISIS MULTI-IA"}
                   </button>
                 </div>
@@ -1917,14 +1921,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             <div>
               {/* Banner */}
               <div style={{...C.cardG,textAlign:"center",marginBottom:16,padding:"24px 16px"}}>
-                <div style={{fontSize:9,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{league?.flag} {league?.name} · Predicción IA</div>
+                <div style={{fontSize:9,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{league?.flag} {league?.name} · Predicción IA</div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:28,flexWrap:"wrap"}}>
                   <div>
                     <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22}}>{homeTeam?.name}</div>
                     <div style={{fontSize:9,color:"#444"}}>LOCAL</div>
                   </div>
                   <div style={{textAlign:"center"}}>
-                    <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:52,color:"#10b981",lineHeight:1}}>{analysis.prediccionMarcador}</div>
+                    <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:52,color:"#00d4ff",lineHeight:1}}>{analysis.prediccionMarcador}</div>
                     <div style={{fontSize:9,color:"#555",marginTop:3}}>RESULTADO ESPERADO</div>
                   </div>
                   <div>
@@ -1944,12 +1948,12 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {analysis.contextoExtra?.nivelConfianzaGeneral && (
                   <div style={{marginTop:14,display:"inline-flex",alignItems:"center",gap:8,
                     padding:"6px 16px",borderRadius:20,
-                    background:analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"rgba(16,185,129,0.12)":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"rgba(245,158,11,0.12)":"rgba(239,68,68,0.12)",
-                    border:`1px solid ${analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"rgba(16,185,129,0.3)":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"rgba(245,158,11,0.3)":"rgba(239,68,68,0.3)"}`}}>
+                    background:analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"rgba(0,212,255,0.12)":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"rgba(245,158,11,0.12)":"rgba(239,68,68,0.12)",
+                    border:`1px solid ${analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"rgba(0,212,255,0.3)":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"rgba(245,158,11,0.3)":"rgba(239,68,68,0.3)"}`}}>
                     <span style={{fontSize:13}}>
                       {analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"🟢":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"🟡":"🔴"}
                     </span>
-                    <span style={{fontSize:11,fontWeight:700,color:analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"#10b981":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"#f59e0b":"#ef4444"}}>
+                    <span style={{fontSize:11,fontWeight:700,color:analysis.contextoExtra.nivelConfianzaGeneral==="ALTO"?"#00d4ff":analysis.contextoExtra.nivelConfianzaGeneral==="MEDIO"?"#f59e0b":"#ef4444"}}>
                       CONFIANZA {analysis.contextoExtra.nivelConfianzaGeneral}
                     </span>
                     {analysis.contextoExtra.razonNivelConfianza && (
@@ -1960,8 +1964,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
                 {/* Value Bet highlight */}
                 {analysis.valueBet?.existe && (
-                  <div style={{marginTop:10,padding:"8px 16px",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:10,display:"inline-block"}}>
-                    <span style={{fontSize:10,color:"#a78bfa",fontWeight:700}}>💎 VALUE BET · {analysis.valueBet.mercado}</span>
+                  <div style={{marginTop:10,padding:"8px 16px",background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:10,display:"inline-block"}}>
+                    <span style={{fontSize:10,color:"#67a6ff",fontWeight:700}}>💎 VALUE BET · {analysis.valueBet.mercado}</span>
                     {analysis.valueBet.explicacion && <div style={{fontSize:10,color:"#666",marginTop:2}}>{analysis.valueBet.explicacion}</div>}
                   </div>
                 )}
@@ -1969,9 +1973,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* Probabilidades */}
               <div style={{...C.card,marginBottom:14}}>
-                <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>📊 Probabilidades</div>
+                <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>📊 Probabilidades</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                  {[{l:`Victoria ${homeTeam?.name?.split(" ").slice(-1)[0]}`,v:p.local,c:"#10b981"},
+                  {[{l:`Victoria ${homeTeam?.name?.split(" ").slice(-1)[0]}`,v:p.local,c:"#00d4ff"},
                     {l:"Empate",v:p.empate,c:"#f59e0b"},
                     {l:`Victoria ${awayTeam?.name?.split(" ").slice(-1)[0]}`,v:p.visitante,c:"#3b82f6"}]
                     .map(({l,v,c})=>(
@@ -1989,12 +1993,12 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Modelo Poisson */}
               {poisson && (
                 <div style={{...C.card,marginBottom:14}}>
-                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎲 Modelo Poisson — Probabilidades estadísticas</div>
+                  <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎲 Modelo Poisson — Probabilidades estadísticas</div>
 
                   {/* xG y fuerzas */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
                     {[
-                      {label:homeTeam?.name?.split(" ").slice(-1)[0],xg:poisson.xgHome,atk:poisson.homeAttack,def:poisson.homeDefense,c:"#10b981"},
+                      {label:homeTeam?.name?.split(" ").slice(-1)[0],xg:poisson.xgHome,atk:poisson.homeAttack,def:poisson.homeDefense,c:"#00d4ff"},
                       {label:awayTeam?.name?.split(" ").slice(-1)[0],xg:poisson.xgAway,atk:poisson.awayAttack,def:poisson.awayDefense,c:"#3b82f6"},
                     ].map(({label,xg,atk,def,c})=>(
                       <div key={label} style={{padding:10,background:"rgba(255,255,255,0.02)",borderRadius:8,border:`1px solid ${c}22`}}>
@@ -2004,9 +2008,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           <span style={{fontSize:13,fontWeight:800,color:c}}>{xg}</span>
                         </div>
                         <div style={{display:"flex",gap:8}}>
-                          <div style={{flex:1,background:"rgba(16,185,129,0.08)",borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
-                            <div style={{fontSize:8,color:"#10b981"}}>ATAQUE</div>
-                            <div style={{fontSize:11,fontWeight:700,color:"#10b981"}}>{atk}x</div>
+                          <div style={{flex:1,background:"rgba(0,212,255,0.08)",borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
+                            <div style={{fontSize:8,color:"#00d4ff"}}>ATAQUE</div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#00d4ff"}}>{atk}x</div>
                           </div>
                           <div style={{flex:1,background:"rgba(239,68,68,0.08)",borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
                             <div style={{fontSize:8,color:"#ef4444"}}>DEFENSA</div>
@@ -2020,10 +2024,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   {/* Probabilidades Poisson */}
                   <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6,marginBottom:12}}>
                     {[
-                      {l:"Local",v:poisson.pHome,c:"#10b981"},
+                      {l:"Local",v:poisson.pHome,c:"#00d4ff"},
                       {l:"Empate",v:poisson.pDraw,c:"#f59e0b"},
                       {l:"Visitante",v:poisson.pAway,c:"#3b82f6"},
-                      {l:"BTTS",v:poisson.pBTTS,c:"#a78bfa"},
+                      {l:"BTTS",v:poisson.pBTTS,c:"#67a6ff"},
                       {l:"+2.5 goles",v:poisson.pOver25,c:"#f97316"},
                       {l:"+3.5 goles",v:poisson.pOver35,c:"#f97316"},
                     ].map(({l,v,c})=>(
@@ -2043,7 +2047,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                       {poisson.topScores.map(({score,prob},i)=>(
                         <div key={score} style={{padding:"4px 10px",borderRadius:6,background:i===0?"rgba(167,139,250,0.15)":"rgba(255,255,255,0.04)",border:i===0?"1px solid rgba(167,139,250,0.3)":"1px solid transparent",textAlign:"center"}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:16,color:i===0?"#a78bfa":"#888"}}>{score}</div>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:16,color:i===0?"#67a6ff":"#888"}}>{score}</div>
                           <div style={{fontSize:8,color:"#555"}}>{prob}%</div>
                         </div>
                       ))}
@@ -2055,8 +2059,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* VALUE BETS & EDGES */}
               {edges.length > 0 && (
-                <div style={{...C.card, marginBottom:14, border:"1px solid rgba(16,185,129,0.2)", background:"rgba(16,185,129,0.04)"}}>
-                  <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
+                <div style={{...C.card, marginBottom:14, border:"1px solid rgba(0,212,255,0.2)", background:"rgba(0,212,255,0.04)"}}>
+                  <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
                     🎯 EDGES DETECTADOS — Poisson vs Mercado
                   </div>
                   {edges.filter(e=>e.hasValue).length === 0 ? (
@@ -2068,8 +2072,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                       {edges.filter(e=>e.hasValue).map((e,i)=>(
                         <div key={i} style={{
                           padding:"12px 14px",borderRadius:10,
-                          background: e.edge>=10?"rgba(16,185,129,0.1)":e.edge>=5?"rgba(245,158,11,0.08)":"rgba(255,255,255,0.03)",
-                          border: `1px solid ${e.edge>=10?"rgba(16,185,129,0.3)":e.edge>=5?"rgba(245,158,11,0.25)":"rgba(255,255,255,0.06)"}`
+                          background: e.edge>=10?"rgba(0,212,255,0.1)":e.edge>=5?"rgba(245,158,11,0.08)":"rgba(255,255,255,0.03)",
+                          border: `1px solid ${e.edge>=10?"rgba(0,212,255,0.3)":e.edge>=5?"rgba(245,158,11,0.25)":"rgba(255,255,255,0.06)"}`
                         }}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                             <div>
@@ -2080,14 +2084,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             <div style={{textAlign:"right"}}>
                               <div style={{
                                 fontSize:13,fontWeight:900,
-                                color:e.edge>=10?"#10b981":e.edge>=5?"#f59e0b":"#888"
+                                color:e.edge>=10?"#00d4ff":e.edge>=5?"#f59e0b":"#888"
                               }}>+{e.edge}% edge</div>
                             </div>
                           </div>
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                             <div style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"4px 8px",textAlign:"center"}}>
                               <div style={{fontSize:8,color:"#555"}}>Prob. Poisson</div>
-                              <div style={{fontSize:14,fontWeight:700,color:"#a78bfa"}}>{e.ourProb}%</div>
+                              <div style={{fontSize:14,fontWeight:700,color:"#67a6ff"}}>{e.ourProb}%</div>
                             </div>
                             <div style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"4px 8px",textAlign:"center"}}>
                               <div style={{fontSize:8,color:"#555"}}>Prob. implícita</div>
@@ -2116,7 +2120,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🔍 Contexto del partido</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                     {[
-                      {team:homeTeam,color:"#10b981",standing:analysis.homeStanding,form:analysis.homeFormLocal,injuries:analysis.homeInjuries,role:"Local"},
+                      {team:homeTeam,color:"#00d4ff",standing:analysis.homeStanding,form:analysis.homeFormLocal,injuries:analysis.homeInjuries,role:"Local"},
                       {team:awayTeam,color:"#f59e0b",standing:analysis.awayStanding,form:analysis.awayFormVisita,injuries:analysis.awayInjuries,role:"Visitante"},
                     ].map(({team,color,standing,form,injuries,role})=>(
                       <div key={team?.id} style={{padding:12,background:"rgba(255,255,255,0.02)",borderRadius:10,border:`1px solid rgba(255,255,255,0.05)`}}>
@@ -2168,7 +2172,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     </div>
                   )}
                   {analysis.contextoExtra?.jugadorClave && (
-                    <div style={{marginTop:6,fontSize:11,color:"#a78bfa",padding:"8px 10px",background:"rgba(139,92,246,0.05)",borderRadius:7,borderLeft:"2px solid rgba(139,92,246,0.3)"}}>
+                    <div style={{marginTop:6,fontSize:11,color:"#67a6ff",padding:"8px 10px",background:"rgba(59,130,246,0.05)",borderRadius:7,borderLeft:"2px solid rgba(59,130,246,0.3)"}}>
                       ⭐ {analysis.contextoExtra.jugadorClave}
                     </div>
                   )}
@@ -2178,10 +2182,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Jugadores clave */}
               {((analysis.homePlayers?.length>0)||(analysis.awayPlayers?.length>0)) && (
                 <div style={{...C.card,marginBottom:14}}>
-                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>⭐ Jugadores clave</div>
+                  <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>⭐ Jugadores clave</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                     {[
-                      {team:homeTeam,color:"#10b981",players:analysis.homePlayers},
+                      {team:homeTeam,color:"#00d4ff",players:analysis.homePlayers},
                       {team:awayTeam,color:"#f59e0b",players:analysis.awayPlayers},
                     ].map(({team,color,players})=>(
                       <div key={team?.id}>
@@ -2200,8 +2204,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                               <div style={{fontSize:9,color:"#444"}}>{p.pos||"Jugador"}</div>
                             </div>
                             <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                              {p.goals>0 && <span style={{background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#10b981",fontWeight:700}}>⚽ {p.goals}</span>}
-                              {p.assists>0 && <span style={{background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#a78bfa",fontWeight:700}}>🅰️ {p.assists}</span>}
+                              {p.goals>0 && <span style={{background:"rgba(0,212,255,0.12)",border:"1px solid rgba(0,212,255,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#00d4ff",fontWeight:700}}>⚽ {p.goals}</span>}
+                              {p.assists>0 && <span style={{background:"rgba(59,130,246,0.12)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#67a6ff",fontWeight:700}}>🅰️ {p.assists}</span>}
                               {p.rating && <span style={{fontSize:10,color:"#555"}}>★{p.rating}</span>}
                             </div>
                           </div>
@@ -2211,10 +2215,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   </div>
                   {/* Jugadores destacados según Claude */}
                   {(analysis.jugadoresDestacados?.local?.length>0 || analysis.jugadoresDestacados?.visitante?.length>0) && (
-                    <div style={{marginTop:12,padding:"10px 12px",background:"rgba(139,92,246,0.05)",borderRadius:8,border:"1px solid rgba(139,92,246,0.12)"}}>
-                      <div style={{fontSize:10,color:"#a78bfa",fontWeight:700,marginBottom:6}}>🧠 Análisis IA — jugadores a vigilar</div>
+                    <div style={{marginTop:12,padding:"10px 12px",background:"rgba(59,130,246,0.05)",borderRadius:8,border:"1px solid rgba(59,130,246,0.12)"}}>
+                      <div style={{fontSize:10,color:"#67a6ff",fontWeight:700,marginBottom:6}}>🧠 Análisis IA — jugadores a vigilar</div>
                       <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                        {[...(analysis.jugadoresDestacados?.local||[]).map(p=>({...p,equipo:homeTeam?.name,color:"#10b981"})),
+                        {[...(analysis.jugadoresDestacados?.local||[]).map(p=>({...p,equipo:homeTeam?.name,color:"#00d4ff"})),
                           ...(analysis.jugadoresDestacados?.visitante||[]).map(p=>({...p,equipo:awayTeam?.name,color:"#f59e0b"}))]
                           .map((p,i)=>(
                           <div key={i} style={{fontSize:11}}>
@@ -2284,7 +2288,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* Apuestas */}
               <div style={{marginBottom:14}}>
-                <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>🎯 Apuestas recomendadas</div>
+                <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>🎯 Apuestas recomendadas</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:9}}>
                   {(analysis.apuestasDestacadas||[]).map((a,i)=>(
                     <div key={i} style={{...C.card,borderColor:`${confColor(a.confianza)}2a`,padding:14}}>
@@ -2318,7 +2322,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Análisis + alertas */}
               <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:12,marginBottom:14}}>
                 <div style={C.card}>
-                  <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🧠 Análisis por mercado</div>
+                  <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🧠 Análisis por mercado</div>
                   {(analysis.recomendaciones||[]).map((r,i)=>(
                     <div key={i} style={{marginBottom:12,paddingBottom:12,borderBottom:i<(analysis.recomendaciones.length-1)?"1px solid rgba(255,255,255,0.05)":"none"}}>
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
@@ -2332,9 +2336,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   <div style={C.card}>
-                    <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>📈 Esperados</div>
-                    {[{l:"Goles",v:analysis.tendencias?.golesEsperados,i:"⚽",c:"#10b981"},
-                      {l:"Corners",v:analysis.tendencias?.cornersEsperados,i:"🚩",c:"#8b5cf6"},
+                    <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>📈 Esperados</div>
+                    {[{l:"Goles",v:analysis.tendencias?.golesEsperados,i:"⚽",c:"#00d4ff"},
+                      {l:"Corners",v:analysis.tendencias?.cornersEsperados,i:"🚩",c:"#3b82f6"},
                       {l:"Tarjetas",v:analysis.tendencias?.tarjetasEsperadas,i:"🟨",c:"#f59e0b"}]
                       .map(({l,v,i,c})=>(
                       <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7,padding:"7px 10px",background:"rgba(255,255,255,0.03)",borderRadius:7}}>
@@ -2354,7 +2358,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* Comparativa */}
               <div style={{...C.card,marginBottom:14}}>
-                <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🔢 Comparativa estadística</div>
+                <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🔢 Comparativa estadística</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 110px 1fr",gap:4,alignItems:"center"}}>
                   {[{l:"Goles anotados",h:analysis.hStats?.avgScored,a:analysis.aStats?.avgScored},
                     {l:"Goles recibidos",h:analysis.hStats?.avgConceded,a:analysis.aStats?.avgConceded},
@@ -2364,14 +2368,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     {l:"Over 2.5",h:analysis.hStats?.over25,a:analysis.aStats?.over25,s:"/5"}]
                     .map(({l,h,a,s=""})=>(
                     [
-                      <div key={l+"h"} style={{textAlign:"right",fontFamily:"'Bebas Neue',cursive",fontSize:22,color:h>a?"#10b981":h<a?"#ef4444":"#777"}}>{h}{s}</div>,
+                      <div key={l+"h"} style={{textAlign:"right",fontFamily:"'Bebas Neue',cursive",fontSize:22,color:h>a?"#00d4ff":h<a?"#ef4444":"#777"}}>{h}{s}</div>,
                       <div key={l+"lb"} style={{textAlign:"center",fontSize:10,color:"#444",padding:"3px 0"}}>{l}</div>,
                       <div key={l+"a"} style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:a>h?"#f59e0b":a<h?"#ef4444":"#777"}}>{a}{s}</div>
                     ]
                   ))}
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-                  <span style={{fontFamily:"'Bebas Neue',cursive",color:"#10b981",fontSize:14}}>{homeTeam?.name}</span>
+                  <span style={{fontFamily:"'Bebas Neue',cursive",color:"#00d4ff",fontSize:14}}>{homeTeam?.name}</span>
                   <span style={{fontFamily:"'Bebas Neue',cursive",color:"#f59e0b",fontSize:14}}>{awayTeam?.name}</span>
                 </div>
               </div>
@@ -2382,8 +2386,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>⚔️ Duelos Directos H2H</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:8}}>
                     {analysis.h2hResumen.dominador && <span style={{fontSize:11,color:"#e8eaf0",background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"3px 10px"}}>🏆 Dominador histórico: {analysis.h2hResumen.dominador}</span>}
-                    {analysis.h2hResumen.tendenciaGoles && <span style={{fontSize:11,color:"#e8eaf0",background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"3px 10px"}}>⚽ Tendencia: {analysis.h2hResumen.tendenciaGoles}</span>}
-                    {analysis.h2hResumen.bttsH2H !== undefined && <span style={{fontSize:11,color:analysis.h2hResumen.bttsH2H?"#10b981":"#ef4444",background:analysis.h2hResumen.bttsH2H?"rgba(16,185,129,0.1)":"rgba(239,68,68,0.1)",border:`1px solid ${analysis.h2hResumen.bttsH2H?"rgba(16,185,129,0.2)":"rgba(239,68,68,0.2)"}`,borderRadius:8,padding:"3px 10px"}}>BTTS histórico: {analysis.h2hResumen.bttsH2H?"Sí":"No"}</span>}
+                    {analysis.h2hResumen.tendenciaGoles && <span style={{fontSize:11,color:"#e8eaf0",background:"rgba(0,212,255,0.1)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"3px 10px"}}>⚽ Tendencia: {analysis.h2hResumen.tendenciaGoles}</span>}
+                    {analysis.h2hResumen.bttsH2H !== undefined && <span style={{fontSize:11,color:analysis.h2hResumen.bttsH2H?"#00d4ff":"#ef4444",background:analysis.h2hResumen.bttsH2H?"rgba(0,212,255,0.1)":"rgba(239,68,68,0.1)",border:`1px solid ${analysis.h2hResumen.bttsH2H?"rgba(0,212,255,0.2)":"rgba(239,68,68,0.2)"}`,borderRadius:8,padding:"3px 10px"}}>BTTS histórico: {analysis.h2hResumen.bttsH2H?"Sí":"No"}</span>}
                   </div>
                   {analysis.h2hResumen.alertaH2H && <div style={{fontSize:11,color:"#f59e0b",background:"rgba(245,158,11,0.06)",borderRadius:8,padding:"8px 10px"}}>⚠️ {analysis.h2hResumen.alertaH2H}</div>}
                 </div>
@@ -2392,15 +2396,15 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Momios Analysis */}
               {analysis.momiosAnalisis && (
                 <div style={{...C.card,marginBottom:14}}>
-                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>💹 Análisis de Momios</div>
+                  <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>💹 Análisis de Momios</div>
                   {(analysis.momiosAnalisis.valueBetsDetectados||[]).length > 0 && (
                     <div style={{marginBottom:10}}>
-                      <div style={{fontSize:10,color:"#a78bfa",marginBottom:6,fontWeight:700}}>VALUE BETS DETECTADOS</div>
+                      <div style={{fontSize:10,color:"#67a6ff",marginBottom:6,fontWeight:700}}>VALUE BETS DETECTADOS</div>
                       {analysis.momiosAnalisis.valueBetsDetectados.map((v,i)=>(
-                        <div key={i} style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:8,padding:"8px 12px",marginBottom:6}}>
+                        <div key={i} style={{background:"rgba(59,130,246,0.08)",border:"1px solid rgba(59,130,246,0.2)",borderRadius:8,padding:"8px 12px",marginBottom:6}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                             <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700}}>{v.mercado}</span>
-                            <span style={{fontSize:11,color:"#10b981",fontWeight:800}}>Edge: {v.valorEdge}</span>
+                            <span style={{fontSize:11,color:"#00d4ff",fontWeight:800}}>Edge: {v.valorEdge}</span>
                           </div>
                           <div style={{fontSize:11,color:"#666",marginTop:3}}>Cuota: {v.cuotaReal} | Prob implícita: {v.probImplicita} | Tu prob: {v.probCalculada}</div>
                         </div>
@@ -2425,10 +2429,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Tendencias detectadas */}
               {(analysis.tendenciasDetectadas||[]).length > 0 && (
                 <div style={{...C.card,marginBottom:14}}>
-                  <div style={{fontSize:10,color:"#06b6d4",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>📈 Tendencias Detectadas</div>
+                  <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>📈 Tendencias Detectadas</div>
                   {analysis.tendenciasDetectadas.map((t,i)=>(
                     <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6,padding:"6px 0",borderBottom:i<analysis.tendenciasDetectadas.length-1?"1px solid rgba(255,255,255,0.04)":"none"}}>
-                      <span style={{color:"#06b6d4",flexShrink:0}}>→</span>
+                      <span style={{color:"#00d4ff",flexShrink:0}}>→</span>
                       <span style={{fontSize:12,color:"#aaa",lineHeight:1.5}}>{t}</span>
                     </div>
                   ))}
@@ -2451,7 +2455,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {showAuth && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowAuth(false)}>
           <div style={{...C.card,width:340,padding:28}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,marginBottom:4,color:"#10b981"}}>
+            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,marginBottom:4,color:"#00d4ff"}}>
               {authView==="login"?"🔐 Iniciar sesión":"📝 Crear cuenta"}
             </div>
             <div style={{fontSize:11,color:"#555",marginBottom:18}}>Para guardar y revisar tus predicciones</div>
@@ -2459,16 +2463,16 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               style={{...C.inp,marginBottom:10}} type="email"/>
             <input placeholder="Contraseña" value={authPass} onChange={e=>setAuthPass(e.target.value)}
               style={{...C.inp,marginBottom:14}} type="password"/>
-            {authErr && <div style={{fontSize:12,color:authErr.startsWith("✅")?"#10b981":"#ef4444",marginBottom:10}}>{authErr}</div>}
+            {authErr && <div style={{fontSize:12,color:authErr.startsWith("✅")?"#00d4ff":"#ef4444",marginBottom:10}}>{authErr}</div>}
             <button onClick={handleAuth} disabled={authLoading}
-              style={{width:"100%",background:"linear-gradient(135deg,#10b981,#059669)",border:"none",borderRadius:8,padding:"10px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,marginBottom:10}}>
+              style={{width:"100%",background:"linear-gradient(135deg,#00d4ff,#059669)",border:"none",borderRadius:8,padding:"10px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,marginBottom:10}}>
               {authLoading?"⏳ ...":authView==="login"?"Entrar":"Crear cuenta"}
             </button>
             <div style={{textAlign:"center",fontSize:12,color:"#555"}}>
               {authView==="login"?(
-                <>¿Sin cuenta? <span style={{color:"#10b981",cursor:"pointer"}} onClick={()=>setAuthView("register")}>Regístrate</span></>
+                <>¿Sin cuenta? <span style={{color:"#00d4ff",cursor:"pointer"}} onClick={()=>setAuthView("register")}>Regístrate</span></>
               ):(
-                <>¿Ya tienes cuenta? <span style={{color:"#10b981",cursor:"pointer"}} onClick={()=>setAuthView("login")}>Entra</span></>
+                <>¿Ya tienes cuenta? <span style={{color:"#00d4ff",cursor:"pointer"}} onClick={()=>setAuthView("login")}>Entra</span></>
               )}
             </div>
           </div>
@@ -2505,10 +2509,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:18,padding:16,background:"rgba(255,255,255,0.03)",borderRadius:12}}>
                   {[
                     {l:"Total",v:savedPreds.length,c:"#e8eaf0"},
-                    {l:"Ganadas ✅",v:won,c:"#10b981"},
+                    {l:"Ganadas ✅",v:won,c:"#00d4ff"},
                     {l:"Perdidas ❌",v:lost,c:"#ef4444"},
                     {l:"Pendientes ⏳",v:pending,c:"#f59e0b"},
-                    {l:"Acierto",v:`${winRate}%`,c:winRate>=60?"#10b981":winRate>=45?"#f59e0b":"#ef4444"},
+                    {l:"Acierto",v:`${winRate}%`,c:winRate>=60?"#00d4ff":winRate>=45?"#f59e0b":"#ef4444"},
                   ].map(({l,v,c})=>(
                     <div key={l} style={{textAlign:"center"}}>
                       <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:c,lineHeight:1}}>{v}</div>
@@ -2518,7 +2522,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   {resolved.length>0 && (
                     <div style={{gridColumn:"1/-1",marginTop:8,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:16,justifyContent:"center"}}>
                       <span style={{fontSize:11,color:"#666"}}>Cuota prom: <b style={{color:"#f59e0b"}}>{avgOdds.toFixed(2)}</b></span>
-                      <span style={{fontSize:11,color:"#666"}}>ROI estimado: <b style={{color:roi>0?"#10b981":"#ef4444"}}>{roi>0?"+":""}{roi}%</b></span>
+                      <span style={{fontSize:11,color:"#666"}}>ROI estimado: <b style={{color:roi>0?"#00d4ff":"#ef4444"}}>{roi>0?"+":""}{roi}%</b></span>
                     </div>
                   )}
                 </div>
@@ -2529,7 +2533,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {savedPreds.length===0 ? (
               <div style={{color:"#555",textAlign:"center",padding:"30px 0"}}>No tienes predicciones guardadas aún</div>
             ) : savedPreds.map(p=>(
-              <div key={p.id} style={{...C.card,marginBottom:8,padding:12,borderColor:p.result==="won"?"rgba(16,185,129,0.2)":p.result==="lost"?"rgba(239,68,68,0.2)":"rgba(255,255,255,0.06)"}}>
+              <div key={p.id} style={{...C.card,marginBottom:8,padding:12,borderColor:p.result==="won"?"rgba(0,212,255,0.2)":p.result==="lost"?"rgba(239,68,68,0.2)":"rgba(255,255,255,0.06)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                   <div>
                     <span style={{fontWeight:700,fontSize:13}}>{p.home_team} vs {p.away_team}</span>
@@ -2540,14 +2544,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                   <span style={{fontSize:11,color:"#bbb"}}>🎯 <b style={{color:"#60a5fa"}}>{p.pick}</b></span>
                   <span style={{fontSize:11,color:"#bbb"}}>Cuota: <b style={{color:"#f59e0b"}}>{p.odds}</b></span>
-                  <span style={{fontSize:11,color:"#bbb"}}>Conf: <b style={{color:"#10b981"}}>{p.confidence}%</b></span>
+                  <span style={{fontSize:11,color:"#bbb"}}>Conf: <b style={{color:"#00d4ff"}}>{p.confidence}%</b></span>
                   <span style={{fontSize:11,color:"#bbb"}}>Marcador: <b style={{color:"#888"}}>{p.predicted_score}</b></span>
                   <div style={{marginLeft:"auto",display:"flex",gap:5}}>
                     {[{r:"won",label:"✅ Ganó"},{r:"lost",label:"❌ Perdió"},{r:"pending",label:"⏳"}].map(({r,label})=>(
                       <button key={r} onClick={()=>handleUpdateResult(p.id,r)}
-                        style={{background:p.result===r?(r==="won"?"rgba(16,185,129,0.25)":r==="lost"?"rgba(239,68,68,0.25)":"rgba(245,158,11,0.2)"):"rgba(255,255,255,0.04)",
-                                border:`1px solid ${p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"rgba(255,255,255,0.08)"}`,
-                                borderRadius:6,padding:"3px 9px",color:p.result===r?(r==="won"?"#10b981":r==="lost"?"#ef4444":"#f59e0b"):"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
+                        style={{background:p.result===r?(r==="won"?"rgba(0,212,255,0.25)":r==="lost"?"rgba(239,68,68,0.25)":"rgba(245,158,11,0.2)"):"rgba(255,255,255,0.04)",
+                                border:`1px solid ${p.result===r?(r==="won"?"#00d4ff":r==="lost"?"#ef4444":"#f59e0b"):"rgba(255,255,255,0.08)"}`,
+                                borderRadius:6,padding:"3px 9px",color:p.result===r?(r==="won"?"#00d4ff":r==="lost"?"#ef4444":"#f59e0b"):"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
                         {label}
                       </button>
                     ))}
@@ -2564,13 +2568,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>setShowJornada(false)}>
           <div style={{...C.card,width:"100%",maxWidth:780,padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa"}}>📋 Análisis de Jornada · {league?.name}</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#67a6ff"}}>📋 Análisis de Jornada · {league?.name}</div>
               <button onClick={()=>setShowJornada(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
             </div>
 
             {loadingJornada && (
               <div style={{textAlign:"center",padding:"40px 0"}}>
-                <div style={{fontSize:14,color:"#a78bfa",marginBottom:8}}>⏳ Analizando jornada completa con IA...</div>
+                <div style={{fontSize:14,color:"#67a6ff",marginBottom:8}}>⏳ Analizando jornada completa con IA...</div>
                 <div style={{fontSize:11,color:"#444"}}>Esto puede tomar 15-30 segundos</div>
               </div>
             )}
@@ -2581,9 +2585,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <>
                 {/* Partidos ordenados por confianza */}
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎯 Apuestas por partido — ordenadas por confianza</div>
+                  <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎯 Apuestas por partido — ordenadas por confianza</div>
                   {(jornadaResult.partidos||[]).map((p,i)=>(
-                    <div key={i} style={{...C.card,marginBottom:8,padding:14,borderColor:p.confianza>=80?"rgba(16,185,129,0.2)":p.confianza>=65?"rgba(245,158,11,0.2)":"rgba(255,255,255,0.08)"}}>
+                    <div key={i} style={{...C.card,marginBottom:8,padding:14,borderColor:p.confianza>=80?"rgba(0,212,255,0.2)":p.confianza>=65?"rgba(245,158,11,0.2)":"rgba(255,255,255,0.08)"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
                         <div style={{flex:1}}>
                           <div style={{fontSize:12,fontWeight:700,marginBottom:3}}>{p.home} <span style={{color:"#444"}}>vs</span> {p.away}</div>
@@ -2591,7 +2595,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           <div style={{fontSize:10,color:"#555"}}>{p.razon}</div>
                         </div>
                         <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:p.confianza>=80?"#10b981":p.confianza>=65?"#f59e0b":"#ef4444",lineHeight:1}}>{p.confianza}%</div>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:p.confianza>=80?"#00d4ff":p.confianza>=65?"#f59e0b":"#ef4444",lineHeight:1}}>{p.confianza}%</div>
                           <div style={{fontSize:10,color:"#666"}}>Cuota {p.odds_sugerido}</div>
                           <div style={{fontSize:9,color:"#333",marginTop:2}}>{p.apuesta}</div>
                         </div>
@@ -2602,8 +2606,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
                 {/* Parlay */}
                 {jornadaResult.parlay && (
-                  <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:14,padding:18}}>
-                    <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎰 Parlay sugerido</div>
+                  <div style={{background:"rgba(59,130,246,0.08)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:14,padding:18}}>
+                    <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎰 Parlay sugerido</div>
                     <div style={{marginBottom:12}}>
                       {(jornadaResult.parlay.picks||[]).map((pick,i)=>(
                         <div key={i} style={{fontSize:12,color:"#c4b5fd",marginBottom:4}}>✓ {pick}</div>
@@ -2612,11 +2616,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     <div style={{display:"flex",gap:20,alignItems:"center"}}>
                       <div>
                         <div style={{fontSize:10,color:"#666"}}>Cuota combinada</div>
-                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#a78bfa",lineHeight:1}}>{jornadaResult.parlay.odds_combinado}</div>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#67a6ff",lineHeight:1}}>{jornadaResult.parlay.odds_combinado}</div>
                       </div>
                       <div>
                         <div style={{fontSize:10,color:"#666"}}>Confianza</div>
-                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#10b981",lineHeight:1}}>{jornadaResult.parlay.confianza}%</div>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#00d4ff",lineHeight:1}}>{jornadaResult.parlay.confianza}%</div>
                       </div>
                       <div style={{flex:1,fontSize:11,color:"#666"}}>{jornadaResult.parlay.descripcion}</div>
                     </div>
@@ -2633,7 +2637,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>setShowAllLeagues(false)}>
           <div style={{...C.card,width:"100%",maxWidth:760,padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#10b981"}}>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#00d4ff"}}>
                 🌍 Todas las ligas {allLeagues.length>0?`· ${allLeagues.length} disponibles`:""}
               </div>
               <button onClick={()=>setShowAllLeagues(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
@@ -2679,9 +2683,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {leagues.map(l=>(
                           <button key={l.id}
                             onClick={()=>{ loadTeams(l); setShowAllLeagues(false); setLeagueSearch(""); }}
-                            style={{background:league?.id===l.id?"rgba(16,185,129,0.15)":"rgba(255,255,255,0.04)",
-                                    border:`1px solid ${league?.id===l.id?"rgba(16,185,129,0.4)":"rgba(255,255,255,0.07)"}`,
-                                    borderRadius:8,padding:"5px 11px",color:league?.id===l.id?"#10b981":"#888",
+                            style={{background:league?.id===l.id?"rgba(0,212,255,0.15)":"rgba(255,255,255,0.04)",
+                                    border:`1px solid ${league?.id===l.id?"rgba(0,212,255,0.4)":"rgba(255,255,255,0.07)"}`,
+                                    borderRadius:8,padding:"5px 11px",color:league?.id===l.id?"#00d4ff":"#888",
                                     cursor:"pointer",fontSize:11,fontWeight:600,display:"flex",alignItems:"center",gap:5}}>
                             {l.flagUrl
                               ? <img src={l.flagUrl} style={{width:14,height:10,objectFit:"cover",borderRadius:1}} onError={e=>e.target.style.display="none"}/>
@@ -2711,7 +2715,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>setShowCompare(false)}>
           <div style={{...C.card,width:"100%",maxWidth:900,padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa"}}>⚖️ Comparación rápida · {league?.name}</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#67a6ff"}}>⚖️ Comparación rápida · {league?.name}</div>
               <button onClick={()=>setShowCompare(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
             </div>
 
@@ -2724,9 +2728,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   return (
                     <button key={t.id}
                       onClick={()=>added ? removeFromCompare(t.id) : addToCompare(t)}
-                      style={{background:added?"rgba(139,92,246,0.2)":"rgba(255,255,255,0.04)",
-                              border:`1px solid ${added?"rgba(139,92,246,0.5)":"rgba(255,255,255,0.07)"}`,
-                              borderRadius:7,padding:"5px 10px",color:added?"#a78bfa":"#777",cursor:"pointer",fontSize:11,fontWeight:600}}>
+                      style={{background:added?"rgba(59,130,246,0.2)":"rgba(255,255,255,0.04)",
+                              border:`1px solid ${added?"rgba(59,130,246,0.5)":"rgba(255,255,255,0.07)"}`,
+                              borderRadius:7,padding:"5px 10px",color:added?"#67a6ff":"#777",cursor:"pointer",fontSize:11,fontWeight:600}}>
                       {added?"✓ ":""}{t.name}
                     </button>
                   );
@@ -2743,7 +2747,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     <tr style={{borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
                       <th style={{textAlign:"left",padding:"8px 10px",color:"#444",fontWeight:600,fontSize:10}}>Métrica</th>
                       {compareData.map(({team},i)=>(
-                        <th key={i} style={{textAlign:"center",padding:"8px 10px",color:["#10b981","#f59e0b","#60a5fa","#f472b6"][i],fontWeight:700,fontSize:11}}>
+                        <th key={i} style={{textAlign:"center",padding:"8px 10px",color:["#00d4ff","#f59e0b","#60a5fa","#f472b6"][i],fontWeight:700,fontSize:11}}>
                           {team.name}
                         </th>
                       ))}
@@ -2771,7 +2775,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             return (
                               <td key={i} style={{textAlign:"center",padding:"7px 10px",
                                 fontFamily:"'Bebas Neue',cursive",fontSize:18,
-                                color:isBest?["#10b981","#f59e0b","#60a5fa","#f472b6"][i]:"#444",
+                                color:isBest?["#00d4ff","#f59e0b","#60a5fa","#f472b6"][i]:"#444",
                                 background:isBest?"rgba(255,255,255,0.03)":"transparent"}}>
                                 {v}{isBest?" ★":""}
                               </td>
@@ -2831,7 +2835,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         <span style={{color:"#555"}}>{d.won}G · {d.lost}P · {d.pending}⏳ {rate!==null?`· ${rate}% acierto`:""}</span>
                       </div>
                       <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden",display:"flex"}}>
-                        <div style={{width:(d.won/total*100).toFixed(1)+"%",background:"#10b981",transition:"width 0.5s"}}/>
+                        <div style={{width:(d.won/total*100).toFixed(1)+"%",background:"#00d4ff",transition:"width 0.5s"}}/>
                         <div style={{width:(d.lost/total*100).toFixed(1)+"%",background:"#ef4444",transition:"width 0.5s"}}/>
                         <div style={{width:(d.pending/total*100).toFixed(1)+"%",background:"rgba(245,158,11,0.4)",transition:"width 0.5s"}}/>
                       </div>
@@ -2858,7 +2862,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     <div key={m} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                       <span style={{fontSize:11,color:"#555",minWidth:65}}>{m}</span>
                       <div style={{flex:1,height:20,background:"rgba(255,255,255,0.04)",borderRadius:4,overflow:"hidden",display:"flex"}}>
-                        <div style={{width:(d.won/maxTotal*100).toFixed(1)+"%",background:"rgba(16,185,129,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <div style={{width:(d.won/maxTotal*100).toFixed(1)+"%",background:"rgba(0,212,255,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
                           {d.won>0&&<span style={{fontSize:9,color:"#fff",fontWeight:700}}>{d.won}</span>}
                         </div>
                         <div style={{width:(d.lost/maxTotal*100).toFixed(1)+"%",background:"rgba(239,68,68,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -2886,106 +2890,86 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       )}
 
       {activeSport === null && (
-        <div style={{minHeight:"calc(100vh - 62px)",background:"#080b14",position:"relative",overflow:"hidden"}}>
+        <div style={{minHeight:"calc(100vh - 62px)",background:"#060d18",position:"relative",overflow:"hidden"}}>
 
-          {/* ── HERO con atletas reales ── */}
-          <div style={{position:"relative",height:400,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            {/* Fondo base oscuro */}
-            <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,#0d1f14 0%,#0a0e18 45%,#1a0d08 100%)"}}/>
+          {/* ── HERO con imagen propia ── */}
+          <div style={{position:"relative",height:420,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
 
-            {/* Grid de datos semitransparente */}
-            <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,232,122,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,232,122,0.03) 1px,transparent 1px)",backgroundSize:"44px 44px",WebkitMaskImage:"radial-gradient(ellipse 80% 60% at 50% 40%,black 0%,transparent 70%)"}}/>
-
-            {/* Atleta izquierda — jugador de fútbol */}
+            {/* Tu imagen de fondo con los 3 atletas */}
             <img
-              src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=420&q=80&fit=crop&crop=top"
+              src="/fondo.jpg"
               alt=""
-              style={{position:"absolute",left:0,bottom:0,height:"95%",width:"auto",objectFit:"cover",objectPosition:"top",opacity:0.55,maskImage:"linear-gradient(to right,transparent 0%,black 20%,black 70%,transparent 100%),linear-gradient(to top,transparent 0%,black 15%)",WebkitMaskImage:"linear-gradient(to right,transparent 0%,black 20%,black 70%,transparent 100%)",maskComposite:"intersect",WebkitMaskComposite:"destination-in",filter:"saturate(0.7) brightness(0.85)"}}
-              onError={e=>{e.target.src="https://images.unsplash.com/photo-1521731978332-9e9e714bdd20?w=420&q=80&fit=crop";}}
+              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%",opacity:0.78}}
             />
-            {/* Glow verde izquierda */}
-            <div style={{position:"absolute",left:0,bottom:0,width:"40%",height:"100%",background:"radial-gradient(ellipse 80% 100% at 20% 80%,rgba(0,180,80,0.28) 0%,transparent 65%)",pointerEvents:"none"}}/>
+            {/* Oscurece laterales, preserva atletas al centro */}
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 65% 100% at 50% 55%, transparent 25%, rgba(6,13,24,0.55) 65%, rgba(6,13,24,0.92) 100%)"}}/>
+            {/* Fade inferior para transición suave a sección de cards */}
+            <div style={{position:"absolute",bottom:0,left:0,right:0,height:180,background:"linear-gradient(to bottom,transparent,#060d18)"}}/>
+            {/* Tinte cián tech sobre el fondo azul de la imagen */}
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 55% at 50% 25%,rgba(0,212,255,0.07) 0%,transparent 60%)"}}/>
 
-            {/* Atleta derecha — jugador de baloncesto */}
-            <img
-              src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=420&q=80&fit=crop&crop=top"
-              alt=""
-              style={{position:"absolute",right:0,bottom:0,height:"92%",width:"auto",objectFit:"cover",objectPosition:"top",opacity:0.5,maskImage:"linear-gradient(to left,transparent 0%,black 20%,black 70%,transparent 100%)",WebkitMaskImage:"linear-gradient(to left,transparent 0%,black 20%,black 70%,transparent 100%)",filter:"saturate(0.65) brightness(0.8)"}}
-              onError={e=>{e.target.src="https://images.unsplash.com/photo-1504450758481-7338eba7524a?w=420&q=80&fit=crop";}}
-            />
-            {/* Glow naranja derecha */}
-            <div style={{position:"absolute",right:0,bottom:0,width:"40%",height:"100%",background:"radial-gradient(ellipse 80% 100% at 80% 80%,rgba(200,70,10,0.28) 0%,transparent 65%)",pointerEvents:"none"}}/>
-
-            {/* Fade inferior */}
-            <div style={{position:"absolute",bottom:0,left:0,right:0,height:140,background:"linear-gradient(to bottom,transparent,#080b14)",pointerEvents:"none"}}/>
-
-            {/* Badge flotante izquierda */}
-            <div style={{position:"absolute",top:90,left:40,background:"rgba(8,14,22,0.88)",border:"1px solid rgba(0,232,122,0.3)",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.8)",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(10px)"}}>
-              <span style={{color:"#34d399",fontSize:13,fontWeight:800}}>87%</span>
-              <span style={{color:"rgba(255,255,255,0.5)"}}>Precisión PL</span>
+            {/* Badge izquierda */}
+            <div style={{position:"absolute",top:72,left:32,background:"rgba(3,9,20,0.84)",border:"1px solid rgba(0,212,255,0.32)",borderRadius:9,padding:"7px 14px",fontSize:11,fontWeight:700,color:"#c8eeff",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(14px)"}}>
+              <span style={{color:"#00d4ff",fontSize:15,fontWeight:800}}>87%</span>
+              <span style={{color:"rgba(0,212,255,0.5)"}}>Precisión PL</span>
             </div>
-            {/* Badge flotante derecha */}
-            <div style={{position:"absolute",top:120,right:44,background:"rgba(8,14,22,0.88)",border:"1px solid rgba(255,92,26,0.3)",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.8)",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(10px)"}}>
-              <span style={{color:"#fb923c",fontSize:13,fontWeight:800}}>+24</span>
-              <span style={{color:"rgba(255,255,255,0.5)"}}>Picks NBA hoy</span>
+            {/* Badge derecha */}
+            <div style={{position:"absolute",top:108,right:36,background:"rgba(3,9,20,0.84)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:9,padding:"7px 14px",fontSize:11,fontWeight:700,color:"#ffd0d0",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(14px)"}}>
+              <span style={{color:"#f87171",fontSize:15,fontWeight:800}}>+24</span>
+              <span style={{color:"rgba(239,68,68,0.55)"}}>Picks NBA hoy</span>
+            </div>
+            {/* Badge live centrado abajo */}
+            <div style={{position:"absolute",bottom:188,left:"50%",transform:"translateX(-50%)",background:"rgba(3,9,20,0.8)",border:"1px solid rgba(0,212,255,0.18)",borderRadius:20,padding:"4px 18px",fontSize:10,fontWeight:700,color:"rgba(0,212,255,0.75)",display:"flex",alignItems:"center",gap:6,backdropFilter:"blur(10px)",whiteSpace:"nowrap"}}>
+              <span style={{width:5,height:5,borderRadius:"50%",background:"#ef4444",display:"inline-block",boxShadow:"0 0 7px #ef4444"}}/>
+              3 PARTIDOS EN VIVO · Real Madrid · Celtics · PSG
             </div>
 
-            {/* Contenido hero central */}
-            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px"}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.28)",borderRadius:30,padding:"5px 16px",fontSize:10,color:"#34d399",fontWeight:800,letterSpacing:3,marginBottom:16}}>
-                <span style={{width:5,height:5,borderRadius:"50%",background:"#34d399",display:"inline-block",animation:"pulse 2s infinite"}}/>
+            {/* Título hero central */}
+            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",marginTop:"-20px"}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3,marginBottom:18}}>
+                <span style={{width:5,height:5,borderRadius:"50%",background:"#00d4ff",display:"inline-block"}}/>
                 ANÁLISIS EN TIEMPO REAL
               </div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:76,background:"linear-gradient(135deg,#ffffff 20%,#34d399 60%,#06b6d4 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.92,marginBottom:12}}>BETANALYTICS</div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,0.3)",letterSpacing:3,textTransform:"uppercase"}}>ESTADÍSTICAS · PREDICCIONES IA · JORNADAS</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:82,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.88,marginBottom:14}}>BETANALYTICS</div>
+              <div style={{fontSize:11,color:"rgba(0,212,255,0.4)",letterSpacing:4,textTransform:"uppercase"}}>ESTADÍSTICAS · PREDICCIONES IA · JORNADAS</div>
             </div>
           </div>
 
-          {/* ── Botones deportes ── */}
-          <div style={{maxWidth:900,margin:"-20px auto 0",padding:"0 24px 40px",position:"relative",zIndex:2}}>
+          {/* ── Cards de deporte ── */}
+          <div style={{maxWidth:900,margin:"-8px auto 0",padding:"0 24px 40px",position:"relative",zIndex:2}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:40}}>
 
               {/* Fútbol */}
               <button onClick={()=>setActiveSport("football")}
-                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"1px solid rgba(0,232,122,0.2)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s",background:"#0b1812"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(0,232,122,0.45)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(0,232,122,0.2)";}}>
-                {/* Imagen de fondo fútbol */}
-                <img
-                  src="https://images.unsplash.com/photo-1551958219-acbc595d6c14?w=600&q=75&fit=crop&crop=center"
-                  alt=""
-                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",opacity:0.18,transition:"opacity 0.3s"}}
-                  onError={e=>e.target.style.display="none"}
-                />
-                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(0,60,25,0.85) 0%,rgba(0,40,20,0.7) 100%)"}}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at top,rgba(0,232,122,0.1),transparent 70%)"}}/>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <span style={{fontSize:42}}>⚽</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"rgba(74,222,128,0.95)",letterSpacing:4,textShadow:"0 2px 20px rgba(0,0,0,0.6)"}}>FÚTBOL</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:1}}>Ligas · Jornadas · IA</div>
-                  <div style={{marginTop:6,background:"rgba(0,232,122,0.08)",border:"1px solid rgba(0,232,122,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"rgba(74,222,128,0.9)",fontWeight:700}}>ENTRAR →</div>
+                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(34,197,94,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,16,10,0.98),rgba(6,22,13,0.96))"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(34,197,94,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(34,197,94,0.14)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(34,197,94,0.22)";e.currentTarget.style.boxShadow="none";}}>
+                <img src="https://images.unsplash.com/photo-1551958219-acbc595d6c14?w=600&q=70&fit=crop" alt=""
+                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(34,197,94,0.11),transparent 70%)"}}/>
+                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(34,197,94,0.8),rgba(0,212,255,0.4),transparent)"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
+                  <span style={{fontSize:40}}>⚽</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#4ade80",letterSpacing:4}}>FÚTBOL</div>
+                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>Ligas · Jornadas · IA</div>
+                  <div style={{marginTop:7,background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#4ade80",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
                 </div>
               </button>
 
               {/* NBA */}
               <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}}
-                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"1px solid rgba(255,92,26,0.2)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s",background:"#130d08"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(255,92,26,0.45)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(255,92,26,0.2)";}}>
-                {/* Imagen de fondo NBA */}
-                <img
-                  src="https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=600&q=75&fit=crop&crop=center"
-                  alt=""
-                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",opacity:0.18,transition:"opacity 0.3s"}}
-                  onError={e=>e.target.style.display="none"}
-                />
-                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(60,20,5,0.88) 0%,rgba(40,12,3,0.75) 100%)"}}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at top,rgba(255,92,26,0.1),transparent 70%)"}}/>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <span style={{fontSize:42}}>🏀</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"rgba(251,146,60,0.95)",letterSpacing:4,textShadow:"0 2px 20px rgba(0,0,0,0.6)"}}>NBA</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:1}}>Partidos · Stats · Picks</div>
-                  <div style={{marginTop:6,background:"rgba(255,92,26,0.08)",border:"1px solid rgba(255,92,26,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"rgba(251,146,60,0.9)",fontWeight:700}}>ENTRAR →</div>
+                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(239,68,68,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(16,4,4,0.98),rgba(22,6,6,0.96))"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(239,68,68,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(239,68,68,0.14)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(239,68,68,0.22)";e.currentTarget.style.boxShadow="none";}}>
+                <img src="https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=600&q=70&fit=crop" alt=""
+                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(239,68,68,0.11),transparent 70%)"}}/>
+                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(239,68,68,0.8),rgba(0,212,255,0.4),transparent)"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
+                  <span style={{fontSize:40}}>🏀</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#f87171",letterSpacing:4}}>NBA</div>
+                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>Partidos · Stats · Picks</div>
+                  <div style={{marginTop:7,background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#f87171",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
                 </div>
               </button>
             </div>
@@ -2994,10 +2978,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:3,height:20,background:"linear-gradient(#34d399,#06b6d4)",borderRadius:2}}/>
-                  <span style={{fontSize:12,color:"#e8eaf0",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📊 Estadísticas del día</span>
+                  <div style={{width:3,height:20,background:"linear-gradient(#00d4ff,#22c55e)",borderRadius:2}}/>
+                  <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📊 Estadísticas del día</span>
                 </div>
-                <button onClick={loadNews} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 14px",color:"#666",cursor:"pointer",fontSize:11,fontWeight:600}}>
+                <button onClick={loadNews} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 14px",color:"rgba(0,212,255,0.6)",cursor:"pointer",fontSize:11,fontWeight:600}}>
                   {loadingNews ? "⏳ Cargando..." : "🔄 Actualizar"}
                 </button>
               </div>
@@ -3019,20 +3003,20 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
                 {news.map((n,i)=>{
                   const isNBA = n.deporte==="NBA";
-                  const accent = isNBA?"#f87171":"#34d399";
+                  const accent = isNBA?"#f87171":"#4ade80";
                   const icons=["📊","⚡","🎯","🔥","📈","💡"];
                   return (
-                    <div key={i} style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"16px",position:"relative",overflow:"hidden",transition:"border 0.2s"}}
-                      onMouseEnter={e=>e.currentTarget.style.border="1px solid rgba(255,255,255,0.14)"}
-                      onMouseLeave={e=>e.currentTarget.style.border="1px solid rgba(255,255,255,0.07)"}>
+                    <div key={i} style={{background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:14,padding:"16px",position:"relative",overflow:"hidden",transition:"border 0.2s"}}
+                      onMouseEnter={e=>e.currentTarget.style.border="1px solid rgba(0,212,255,0.2)"}
+                      onMouseLeave={e=>e.currentTarget.style.border="1px solid rgba(0,212,255,0.09)"}>
                       {/* Acento lateral */}
                       <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:accent,borderRadius:"14px 0 0 14px"}}/>
-                      <div style={{position:"absolute",top:10,right:12,fontSize:24,opacity:0.08}}>{icons[i%icons.length]}</div>
+                      <div style={{position:"absolute",top:10,right:12,fontSize:24,opacity:0.07}}>{icons[i%icons.length]}</div>
                       <div style={{marginBottom:6,paddingLeft:8}}>
-                        <span style={{fontSize:9,fontWeight:800,padding:"2px 8px",borderRadius:20,background:isNBA?"rgba(239,68,68,0.15)":"rgba(16,185,129,0.15)",color:accent,letterSpacing:1}}>{n.deporte}</span>
+                        <span style={{fontSize:9,fontWeight:800,padding:"2px 8px",borderRadius:20,background:isNBA?"rgba(239,68,68,0.12)":"rgba(34,197,94,0.12)",color:accent,letterSpacing:1}}>{n.deporte}</span>
                       </div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#e8eaf0",marginBottom:5,lineHeight:1.4,paddingLeft:8}}>{n.titulo}</div>
-                      <div style={{fontSize:11,color:"#4a5568",lineHeight:1.6,paddingLeft:8}}>{n.dato}</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#c8eeff",marginBottom:5,lineHeight:1.4,paddingLeft:8}}>{n.titulo}</div>
+                      <div style={{fontSize:11,color:"rgba(0,212,255,0.4)",lineHeight:1.6,paddingLeft:8}}>{n.dato}</div>
                     </div>
                   );
                 })}
@@ -3049,11 +3033,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {showMulti && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:1000,overflowY:"auto",padding:"24px 16px"}}
           onClick={()=>!loadingMulti&&setShowMulti(false)}>
-          <div style={{maxWidth:720,margin:"0 auto",background:"#0d1117",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}}
+          <div style={{maxWidth:720,margin:"0 auto",background:"#060d18",border:"1px solid rgba(59,130,246,0.3)",borderRadius:20,padding:24}}
             onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
               <div>
-                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa",letterSpacing:2}}>🤖 ANÁLISIS MULTI-IA</div>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#67a6ff",letterSpacing:2}}>🤖 ANÁLISIS MULTI-IA</div>
                 <div style={{fontSize:11,color:"#555",marginTop:2}}>{homeTeam?.name} vs {awayTeam?.name} · {league?.name}</div>
               </div>
               {!loadingMulti && <button onClick={()=>setShowMulti(false)} style={{background:"none",border:"none",color:"#555",fontSize:22,cursor:"pointer"}}>✕</button>}
@@ -3062,11 +3046,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {loadingMulti && (
               <div style={{textAlign:"center",padding:"40px 0"}}>
                 <div style={{fontSize:32,marginBottom:12}}>⏳</div>
-                <div style={{color:"#a78bfa",fontWeight:700,fontSize:14,marginBottom:6}}>Consultando 7 modelos de IA en paralelo...</div>
+                <div style={{color:"#67a6ff",fontWeight:700,fontSize:14,marginBottom:6}}>Consultando 7 modelos de IA en paralelo...</div>
                 <div style={{color:"#444",fontSize:12,marginBottom:20}}>Esto puede tardar 15-30 segundos</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
                   {["🟣 Claude Haiku","🦙 Llama 3.3","🔵 Gemini Flash","🟤 Mistral","🟡 DeepSeek R1","🟢 GPT-4o Mini","🔴 Command R+"].map(m=>(
-                    <div key={m} style={{background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:20,padding:"4px 12px",fontSize:11,color:"#a78bfa"}}>{m}</div>
+                    <div key={m} style={{background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.2)",borderRadius:20,padding:"4px 12px",fontSize:11,color:"#67a6ff"}}>{m}</div>
                   ))}
                 </div>
               </div>
@@ -3074,10 +3058,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
             {!loadingMulti && multiResult && (
               <div>
-                <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>Respuesta de cada modelo</div>
+                <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>Respuesta de cada modelo</div>
                 <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
                   {(multiResult.responses||[]).map((r,i)=>(
-                    <div key={i} style={{background:r.success?"rgba(139,92,246,0.06)":"rgba(239,68,68,0.04)",border:"1px solid "+(r.success?"rgba(139,92,246,0.2)":"rgba(239,68,68,0.15)"),borderRadius:12,padding:"12px 16px"}}>
+                    <div key={i} style={{background:r.success?"rgba(59,130,246,0.06)":"rgba(239,68,68,0.04)",border:"1px solid "+(r.success?"rgba(59,130,246,0.2)":"rgba(239,68,68,0.15)"),borderRadius:12,padding:"12px 16px"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:r.success?8:0}}>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
                           <span style={{fontSize:16}}>{r.icon}</span>
@@ -3099,10 +3083,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           const resumen = typeof p.resumen === "string" ? p.resumen : "";
                           return (
                             <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap"}}>
-                              <span style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:"#a78bfa",flexShrink:0}}>{marcador}</span>
+                              <span style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:"#67a6ff",flexShrink:0}}>{marcador}</span>
                               {localPct !== null && (
                                 <div style={{display:"flex",gap:6,fontSize:11,flexShrink:0}}>
-                                  <span style={{color:"#10b981"}}>L:{localPct}%</span>
+                                  <span style={{color:"#00d4ff"}}>L:{localPct}%</span>
                                   <span style={{color:"#f59e0b"}}>E:{empatePct}%</span>
                                   <span style={{color:"#ef4444"}}>V:{visitPct}%</span>
                                 </div>
@@ -3141,13 +3125,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     const resumen = typeof c.resumen === "string" ? c.resumen : "";
                     const apuestas = c.apuestasDestacadas || (c.apuestaDestacada ? [c.apuestaDestacada] : []);
                     return (
-                      <div style={{background:"linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:16,padding:20}}>
-                        <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
+                      <div style={{background:"linear-gradient(135deg,rgba(59,130,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(59,130,246,0.4)",borderRadius:16,padding:20}}>
+                        <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
                         <div style={{display:"flex",gap:20,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:42,color:"#a78bfa",lineHeight:1}}>{marcador}</div>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:42,color:"#67a6ff",lineHeight:1}}>{marcador}</div>
                           {consensoPct !== null && (
                             <div style={{textAlign:"center"}}>
-                              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:consensoPct>=70?"#10b981":consensoPct>=50?"#f59e0b":"#ef4444"}}>{consensoPct}%</div>
+                              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:consensoPct>=70?"#00d4ff":consensoPct>=50?"#f59e0b":"#ef4444"}}>{consensoPct}%</div>
                               <div style={{fontSize:10,color:"#555"}}>CONSENSO</div>
                             </div>
                           )}
@@ -3155,7 +3139,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         </div>
                         {(lPct !== null) && (
                           <div style={{display:"flex",gap:12,marginBottom:12}}>
-                            {[["Local",lPct,"#10b981"],["Empate",ePct,"#f59e0b"],["Visitante",vPct,"#ef4444"]].map(([l,v,col])=>(
+                            {[["Local",lPct,"#00d4ff"],["Empate",ePct,"#f59e0b"],["Visitante",vPct,"#ef4444"]].map(([l,v,col])=>(
                               <div key={l} style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 0",textAlign:"center"}}>
                                 <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:col}}>{ss(v)}%</div>
                                 <div style={{fontSize:10,color:"#555"}}>{l}</div>
@@ -3166,7 +3150,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {apuestas.length > 0 && (
                           <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>
                             {apuestas.slice(0,5).map((a,ai)=>(
-                              <span key={ai} style={{fontSize:10,color:"#a78bfa",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:6,padding:"2px 8px"}}>
+                              <span key={ai} style={{fontSize:10,color:"#67a6ff",background:"rgba(59,130,246,0.1)",border:"1px solid rgba(59,130,246,0.2)",borderRadius:6,padding:"2px 8px"}}>
                                 {ss(a.tipo)}: {ss(a.pick||a.seleccion)} {a.confianza?`(${ss(a.confianza)}%)`:""}
                               </span>
                             ))}
@@ -3177,7 +3161,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     );
                   } catch(e) {
                     const safeC = typeof multiResult.consensus === "string" ? multiResult.consensus : JSON.stringify(multiResult.consensus);
-                    return <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:12,padding:16,fontSize:12,color:"#888",lineHeight:1.6}}>{safeC?.slice(0,400)}</div>;
+                    return <div style={{background:"rgba(59,130,246,0.08)",border:"1px solid rgba(59,130,246,0.3)",borderRadius:12,padding:16,fontSize:12,color:"#888",lineHeight:1.6}}>{safeC?.slice(0,400)}</div>;
                   }
                 })()}
               </div>
