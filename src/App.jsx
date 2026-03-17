@@ -1511,48 +1511,64 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {!loadingToday && todayGames.length === 0 && (
                   <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>No hay partidos próximos para esta liga.</div>
                 )}
-                {!loadingToday && todayGames.length > 0 && (
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {todayGames.map((f,i) => {
-                      const st = f.fixture?.status?.short;
-                      const isLive = ["1H","2H","HT","ET","BT","P"].includes(st);
-                      const isDone = ["FT","AET","PEN"].includes(st);
-                      const isPending = !isLive && !isDone;
-                      const hScore = f.goals?.home;
-                      const aScore = f.goals?.away;
-                      const kickoff = f.fixture?.date ? new Date(f.fixture.date).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",timeZone:"America/Mexico_City"}) : "";
-                      const statusColor = isLive ? "#10b981" : isDone ? "#555" : "#f59e0b";
-                      const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ " + st : "🕐 " + kickoff;
-                      const dateObj = f.fixture?.date ? new Date(f.fixture.date) : null;
-                      const fechaStr = dateObj ? dateObj.toLocaleDateString("es-MX",{weekday:"short",day:"numeric",month:"short",timeZone:"America/Mexico_City"}) : "";
-                      return (
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid " + (isLive?"rgba(16,185,129,0.25)":"rgba(255,255,255,0.05)")}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:68,gap:2}}>
-                            <span style={{fontSize:10,fontWeight:700,color:statusColor}}>{statusLabel}</span>
-                            {!isLive && fechaStr && <span style={{fontSize:9,color:"#444",fontWeight:600}}>{fechaStr}</span>}
-                          </div>
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6}}>
-                            <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700,flex:1,textAlign:"right"}}>{f.teams?.home?.name}</span>
-                            <span style={{fontSize:14,fontWeight:900,color:"#e8eaf0",minWidth:36,textAlign:"center"}}>
-                              {hScore != null ? hScore+"-"+aScore : "vs"}
-                            </span>
-                            <span style={{fontSize:12,color:"#e8eaf0",fontWeight:700,flex:1}}>{f.teams?.away?.name}</span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const ht = {id: f.teams?.home?.id, name: f.teams?.home?.name};
-                              const at = {id: f.teams?.away?.id, name: f.teams?.away?.name};
-                              setHomeTeam(ht); setAwayTeam(at);
-                              selectTeam(ht, "home"); selectTeam(at, "away");
-                            }}
-                            style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
-                            🔍 Analizar
-                          </button>
+                {!loadingToday && todayGames.length > 0 && (() => {
+                  const pending = todayGames.filter(f => !["FT","AET","PEN","1H","2H","HT","ET","BT","P"].includes(f.fixture?.status?.short) || ["1H","2H","HT","ET","BT","P"].includes(f.fixture?.status?.short));
+                  const done    = todayGames.filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short));
+                  const renderFixture = (f, i) => {
+                    const st = f.fixture?.status?.short;
+                    const isLive = ["1H","2H","HT","ET","BT","P"].includes(st);
+                    const isDone = ["FT","AET","PEN"].includes(st);
+                    const hScore = f.goals?.home;
+                    const aScore = f.goals?.away;
+                    const kickoff = f.fixture?.date ? new Date(f.fixture.date).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",timeZone:"America/Mexico_City"}) : "";
+                    const statusColor = isLive ? "#10b981" : isDone ? "#555" : "#f59e0b";
+                    const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ " + st : "🕐 " + kickoff;
+                    const dateObj = f.fixture?.date ? new Date(f.fixture.date) : null;
+                    const fechaStr = dateObj ? dateObj.toLocaleDateString("es-MX",{weekday:"short",day:"numeric",month:"short",timeZone:"America/Mexico_City"}) : "";
+                    return (
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background: isDone ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid " + (isLive?"rgba(16,185,129,0.25)":"rgba(255,255,255,0.05)"),opacity: isDone ? 0.6 : 1}}>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:68,gap:2}}>
+                          <span style={{fontSize:10,fontWeight:700,color:statusColor}}>{statusLabel}</span>
+                          {!isLive && fechaStr && <span style={{fontSize:9,color:"#444",fontWeight:600}}>{fechaStr}</span>}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        <div style={{flex:1,display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:12,color: isDone?"#666":"#e8eaf0",fontWeight:700,flex:1,textAlign:"right"}}>{f.teams?.home?.name}</span>
+                          <span style={{fontSize:14,fontWeight:900,color: isDone?"#888":"#e8eaf0",minWidth:36,textAlign:"center"}}>
+                            {hScore != null ? hScore+"-"+aScore : "vs"}
+                          </span>
+                          <span style={{fontSize:12,color: isDone?"#666":"#e8eaf0",fontWeight:700,flex:1}}>{f.teams?.away?.name}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const ht = {id: f.teams?.home?.id, name: f.teams?.home?.name};
+                            const at = {id: f.teams?.away?.id, name: f.teams?.away?.name};
+                            setHomeTeam(ht); setAwayTeam(at);
+                            selectTeam(ht, "home"); selectTeam(at, "away");
+                          }}
+                          style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
+                          🔍 Analizar
+                        </button>
+                      </div>
+                    );
+                  };
+                  return (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {/* Pending + Live first */}
+                      {pending.map((f,i) => renderFixture(f, i))}
+                      {/* Finished games collapsed */}
+                      {done.length > 0 && (
+                        <details style={{marginTop:4}}>
+                          <summary style={{fontSize:10,color:"#444",cursor:"pointer",padding:"4px 8px",userSelect:"none"}}>
+                            ⏱ {done.length} resultado{done.length>1?"s":""} finalizados
+                          </summary>
+                          <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:6}}>
+                            {done.map((f,i) => renderFixture(f, i))}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
