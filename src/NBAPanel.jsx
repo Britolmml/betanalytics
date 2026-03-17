@@ -346,6 +346,9 @@ export default function NBAPanel({ onClose }) {
   const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState("");
   const [allAnalyses, setAllAnalyses] = useState({});
+  const [megaParlay, setMegaParlay] = useState([]);
+  const [loadingMega, setLoadingMega] = useState(false);
+  const [megaProgress, setMegaProgress] = useState("");
   const [selectedDate, setSelectedDate] = useState(getESTDate(0));
 
   useEffect(() => { loadNBA(getESTDate(0)); }, []);
@@ -632,6 +635,111 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
     } finally {
       setLoadingAI(false);
       setSaving(false);
+    }
+  };
+
+  // ── Mega Parlay Auto ──────────────────────────────────────
+  const generateMegaParlay = async () => {
+    setLoadingMega(true);
+    setMegaParlay([]);
+    setMegaProgress("Cargando partidos del día...");
+    const allPicks = [];
+
+    try {
+      // Load all today's games
+      const gamesRes = await nbFetch("/games?season=2025&date=" + selectedDate);
+      const todayGames = (gamesRes?.response || []).filter(g => g.status?.short !== 3);
+      if (todayGames.length === 0) {
+        setMegaProgress("No hay partidos hoy.");
+        setLoadingMega(false);
+        return;
+      }
+
+      // Load all odds at once
+      setMegaProgress(`Cargando momios para ${todayGames.length} partidos...`);
+      let allOddsMap = {};
+      try {
+        const oddsRes = await fetch("/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us");
+        const oddsData = await oddsRes.json();
+        if (Array.isArray(oddsData)) {
+          const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+          allOddsMap = {};
+          oddsData.forEach(g => {
+            allOddsMap[norm(g.home_team) + "|" + norm(g.away_team)] = g;
+          });
+        }
+      } catch(e) { console.warn("Odds load error:", e.message); }
+
+      // Process each game
+      for (let i = 0; i < todayGames.length; i++) {
+        const game = todayGames[i];
+        const home = game.teams?.home?.name;
+        const away = game.teams?.visitors?.name;
+        setMegaProgress(`Analizando ${i+1}/${todayGames.length}: ${home} vs ${away}`);
+
+        try {
+          // Load team stats
+          const [hRes, aRes] = await Promise.allSettled([
+            nbFetch("/games?season=2025&team=" + game.teams?.home?.id + "&last=15"),
+            nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id + "&last=15"),
+          ]);
+          const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
+          const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
+          if (!hStats || !aStats) continue;
+
+          const poisson = calcNBAPoisson(hStats, aStats);
+          if (!poisson) continue;
+
+          // Find odds for this game
+          const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+          const hn = norm(home), an = norm(away);
+          const oddsGame = Object.entries(allOddsMap).find(([k]) => {
+            const [h, a] = k.split("|");
+            return (h.includes(hn.slice(-5)) || hn.includes(h.slice(-5))) &&
+                   (a.includes(an.slice(-5)) || an.includes(a.slice(-5)));
+          })?.[1];
+
+          if (!oddsGame) continue;
+
+          const bk = oddsGame.bookmakers?.find(b=>b.key==="pinnacle") ||
+                     oddsGame.bookmakers?.find(b=>b.key==="draftkings") ||
+                     oddsGame.bookmakers?.[0];
+          const h2hM = bk?.markets?.find(m=>m.key==="h2h");
+          const totalsM = bk?.markets?.find(m=>m.key==="totals");
+          const gameOdds = { h2h: h2hM, totals: totalsM, bookmaker: bk?.title };
+
+          const edges = calcNBAEdges(poisson, gameOdds);
+          const valuePicks = edges.filter(e => e.hasValue);
+
+          valuePicks.forEach(e => {
+            allPicks.push({
+              home, away,
+              market: e.market,
+              pick: e.label,
+              tipo: e.market,
+              american: e.american,
+              decimal: e.decimal,
+              edge: e.edge,
+              ourProb: e.ourProb,
+              impliedProb: e.impliedProb,
+              kelly: e.kelly,
+              bookmaker: bk?.title,
+            });
+          });
+        } catch(e) { console.warn(`Error analyzing ${home}:`, e.message); }
+      }
+
+      // Sort by edge descending, take top 20
+      const top20 = allPicks.sort((a, b) => b.edge - a.edge).slice(0, 20);
+      setMegaParlay(top20);
+      setMegaProgress(top20.length > 0
+        ? `✅ ${top20.length} picks con edge real encontradas`
+        : "⚠️ Sin edges significativos hoy — el mercado está bien calibrado"
+      );
+    } catch(e) {
+      setMegaProgress("Error: " + e.message);
+    } finally {
+      setLoadingMega(false);
     }
   };
 
@@ -1008,9 +1116,84 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         {/* Tab: Parlay */}
         {tab === "parlay" && !loading && (
           <div>
-            <div style={{ fontSize: 11, color: "#555", marginBottom: 16, lineHeight: 1.6 }}>
-              Analiza partidos en la pestaña <span style={{ color: "#f87171", fontWeight: 700 }}>🏀 Partidos</span> y aquí se construirá el parlay del día.
+            {/* Mega Parlay button */}
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <button onClick={generateMegaParlay} disabled={loadingMega}
+                style={{background:loadingMega?"rgba(239,68,68,0.2)":"linear-gradient(135deg,#f59e0b,#ef4444)",border:"none",borderRadius:14,padding:"14px 32px",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:20,letterSpacing:3,cursor:loadingMega?"not-allowed":"pointer",boxShadow:"0 0 30px rgba(245,158,11,0.3)",width:"100%"}}>
+                {loadingMega ? "⏳ ANALIZANDO TODOS LOS PARTIDOS..." : "🚀 GENERAR MEGA PARLAY"}
+              </button>
+              {megaProgress && (
+                <div style={{marginTop:8,fontSize:11,color:megaProgress.startsWith("✅")?"#10b981":megaProgress.startsWith("⚠️")?"#f59e0b":"#888"}}>
+                  {megaProgress}
+                </div>
+              )}
             </div>
+
+            {/* Mega Parlay Results */}
+            {megaParlay.length > 0 && (() => {
+              const combinedOdds = megaParlay.reduce((acc,p) => acc * (p.decimal||1.9), 1);
+              const combinedProb = megaParlay.reduce((acc,p) => acc * (p.ourProb/100), 1) * 100;
+              return (
+                <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.03)",marginBottom:16}}>
+                  <div style={{padding:"12px 16px",background:"rgba(239,68,68,0.1)",borderBottom:"1px solid rgba(239,68,68,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <span style={{fontSize:22}}>🚀</span>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:800,color:"#f87171",letterSpacing:1}}>MEGA PARLAY — TOP {megaParlay.length} EDGES</div>
+                        <div style={{fontSize:10,color:"#666"}}>Solo apuestas con edge real vs mercado</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:24,fontWeight:900,color:"#f87171",lineHeight:1}}>{combinedOdds.toFixed(0)}x</div>
+                      <div style={{fontSize:10,color:"#555"}}>retorno estimado</div>
+                    </div>
+                  </div>
+                  <div style={{padding:"12px 16px"}}>
+                    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
+                      {megaParlay.map((p,i) => (
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10,borderLeft:`3px solid ${p.edge>=10?"#10b981":p.edge>=5?"#f59e0b":"#888"}`}}>
+                          <span style={{fontSize:13,fontWeight:900,color:"#f87171",minWidth:22}}>{i+1}.</span>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:10,color:"#555",marginBottom:1}}>{p.home} vs {p.away}</div>
+                            <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0"}}>{p.pick}</div>
+                            <div style={{fontSize:10,color:"#666"}}>{p.tipo} · {p.bookmaker}</div>
+                          </div>
+                          <div style={{textAlign:"right",flexShrink:0}}>
+                            <div style={{fontSize:14,fontWeight:900,color:p.edge>=10?"#10b981":p.edge>=5?"#f59e0b":"#888"}}>+{p.edge}%</div>
+                            <div style={{fontSize:11,color:"#888",fontWeight:700}}>{p.american}</div>
+                            <div style={{fontSize:9,color:"#555"}}>Kelly {p.kelly}%</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+                      {[
+                        {l:"picks",v:megaParlay.length,c:"#e8eaf0"},
+                        {l:"prob. combinada",v:combinedProb.toFixed(1)+"%",c:combinedProb>5?"#f59e0b":"#ef4444"},
+                        {l:"retorno",v:combinedOdds.toFixed(0)+"x",c:"#f87171"},
+                      ].map(({l,v,c})=>(
+                        <div key={l} style={{textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 4px"}}>
+                          <div style={{fontSize:18,fontWeight:900,color:c}}>{v}</div>
+                          <div style={{fontSize:10,color:"#444"}}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:10,color:"#333",textAlign:"center",lineHeight:1.6}}>
+                      ⚠️ El Mega Parlay es de alto riesgo. Usa Kelly para el monto individual de cada pick.<br/>
+                      Las picks están ordenadas por edge real (Poisson vs mercado).
+                    </div>
+                    <div style={{marginTop:8,textAlign:"right"}}>
+                      <button onClick={()=>setMegaParlay([])} style={{fontSize:10,color:"#333",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Classic Parlay */}
+            <div style={{fontSize:10,color:"#444",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Parlay manual (partidos analizados)</div>
             <ParlayBox allAnalyses={allAnalyses} />
             {Object.keys(allAnalyses).length > 0 && (
               <div style={{ marginTop: 12, textAlign: "right" }}>
