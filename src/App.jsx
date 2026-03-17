@@ -1403,7 +1403,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
     <div style={{minHeight:"100vh",background:"#080b14",color:"#e8eaf0",fontFamily:"'DM Sans','Segoe UI',sans-serif",position:"relative",overflow:"hidden"}}>
       {/* Circuit board background */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0}}>
-        <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.06}} xmlns="http://www.w3.org/2000/svg">
+        <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.12}} xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="circuit" width="100" height="100" patternUnits="userSpaceOnUse">
               <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#34d399" strokeWidth="0.5"/>
@@ -1416,19 +1416,19 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           </defs>
           <rect width="100%" height="100%" fill="url(#circuit)" />
         </svg>
-        {/* Corner accents */}
-        <div style={{position:"absolute",top:0,left:0,width:220,height:220,borderTop:"1px solid rgba(52,211,153,0.2)",borderLeft:"1px solid rgba(52,211,153,0.2)"}} />
-        <div style={{position:"absolute",top:20,left:20,width:80,height:80,borderTop:"1px solid rgba(52,211,153,0.1)",borderLeft:"1px solid rgba(52,211,153,0.1)"}} />
-        <div style={{position:"absolute",bottom:0,right:0,width:220,height:220,borderBottom:"1px solid rgba(6,182,212,0.15)",borderRight:"1px solid rgba(6,182,212,0.15)"}} />
-        <div style={{position:"absolute",bottom:20,right:20,width:80,height:80,borderBottom:"1px solid rgba(6,182,212,0.08)",borderRight:"1px solid rgba(6,182,212,0.08)"}} />
-        {/* Gold accent dots */}
-        <div style={{position:"absolute",top:"35%",right:"2%",width:6,height:6,borderRadius:"50%",background:"rgba(245,158,11,0.4)"}} />
-        <div style={{position:"absolute",top:"65%",right:"2%",width:4,height:4,borderRadius:"50%",background:"rgba(245,158,11,0.3)"}} />
-        <div style={{position:"absolute",top:"50%",left:"1%",width:5,height:5,borderRadius:"50%",background:"rgba(52,211,153,0.3)"}} />
-        {/* Vertical accent line right */}
-        <div style={{position:"absolute",top:"20%",right:"3%",width:1,height:"60%",background:"linear-gradient(transparent,rgba(245,158,11,0.3),transparent)"}} />
-        {/* Horizontal accent line left */}
-        <div style={{position:"absolute",left:"2%",top:"50%",width:"1%",height:1,background:"rgba(52,211,153,0.2)"}} />
+        {/* Corner accents - stronger */}
+        <div style={{position:"absolute",top:0,left:0,width:280,height:280,borderTop:"1px solid rgba(52,211,153,0.35)",borderLeft:"1px solid rgba(52,211,153,0.35)"}} />
+        <div style={{position:"absolute",top:24,left:24,width:100,height:100,borderTop:"1px solid rgba(52,211,153,0.2)",borderLeft:"1px solid rgba(52,211,153,0.2)"}} />
+        <div style={{position:"absolute",bottom:0,right:0,width:280,height:280,borderBottom:"1px solid rgba(245,158,11,0.3)",borderRight:"1px solid rgba(245,158,11,0.3)"}} />
+        <div style={{position:"absolute",bottom:24,right:24,width:100,height:100,borderBottom:"1px solid rgba(245,158,11,0.18)",borderRight:"1px solid rgba(245,158,11,0.18)"}} />
+        {/* Gold accent dots - bigger */}
+        <div style={{position:"absolute",top:"30%",right:"2.5%",width:8,height:8,borderRadius:"50%",background:"rgba(245,158,11,0.6)",boxShadow:"0 0 8px rgba(245,158,11,0.4)"}} />
+        <div style={{position:"absolute",top:"60%",right:"2.5%",width:5,height:5,borderRadius:"50%",background:"rgba(245,158,11,0.4)"}} />
+        <div style={{position:"absolute",top:"45%",left:"1.5%",width:6,height:6,borderRadius:"50%",background:"rgba(52,211,153,0.5)",boxShadow:"0 0 6px rgba(52,211,153,0.3)"}} />
+        <div style={{position:"absolute",top:"70%",left:"1.5%",width:4,height:4,borderRadius:"50%",background:"rgba(6,182,212,0.4)"}} />
+        {/* Vertical accent lines */}
+        <div style={{position:"absolute",top:"15%",right:"3.5%",width:1,height:"70%",background:"linear-gradient(transparent,rgba(245,158,11,0.4),rgba(245,158,11,0.15),transparent)"}} />
+        <div style={{position:"absolute",top:"20%",left:"2%",width:1,height:"60%",background:"linear-gradient(transparent,rgba(52,211,153,0.3),transparent)"}} />
       </div>
       <div style={{position:"relative",zIndex:1}}>
       {/* Header */}
