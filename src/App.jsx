@@ -673,6 +673,7 @@ export default function App() {
   // Load H2H when both teams selected
   const loadH2H = async (hId, aId) => {
     try {
+      // Intentar H2H directo primero (requiere plan premium)
       for (const season of [2026, 2025, 2024, 2023]) {
         const d = await apiFetch(`/fixtures?h2h=${hId}-${aId}&season=${season}`);
         const items = (d.response||[])
@@ -690,7 +691,32 @@ export default function App() {
           return;
         }
       }
-    } catch(e) { console.warn("No H2H:", e.message); }
+    } catch(e) { console.warn("H2H directo no disponible:", e.message); }
+
+    // Fallback: simular H2H buscando fixtures de cada equipo y cruzando
+    try {
+      const [dHome, dAway] = await Promise.all([
+        apiFetch(`/fixtures?team=${hId}&last=50`),
+        apiFetch(`/fixtures?team=${aId}&last=50`),
+      ]);
+      const homeFixIds = new Set((dHome.response||[]).map(f => f.fixture?.id));
+      const shared = (dAway.response||[]).filter(f =>
+        homeFixIds.has(f.fixture?.id) &&
+        ["FT","AET","PEN"].includes(f.fixture?.status?.short)
+      );
+      const items = shared
+        .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+        .slice(0,5);
+      if (items.length) {
+        setH2h(items.map(f => ({
+          date: f.fixture?.date?.split("T")[0] ?? "",
+          home: f.teams?.home?.name ?? "",
+          away: f.teams?.away?.name ?? "",
+          homeGoals: f.goals?.home ?? 0,
+          awayGoals: f.goals?.away ?? 0,
+        })));
+      }
+    } catch(e) { console.warn("H2H simulado error:", e.message); }
   };
 
   const selectTeam = async (team, side) => {
@@ -940,6 +966,7 @@ export default function App() {
     const prompt = `Eres un tipster profesional con 15 años de experiencia y un ROI demostrado del 12% anual. Tu especialidad es encontrar VALUE BETS — apuestas donde la probabilidad real es mayor a la que implica la cuota del mercado. Nunca fuerzas una predicción cuando los datos son ambiguos: en esos casos recomiendas "PASO" en el resultado 1X2 y buscas valor en mercados secundarios.
 
 PARTIDO A ANALIZAR: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name} · Temporada ${SEASON}
+FORMATO: ${isKnockout ? "⚠️ ELIMINATORIA (ida y vuelta) — El empate en 90 min puede ser VÁLIDO si favorece al marcador global. Analiza si algún equipo necesita marcar o puede defenderse. El gol de visitante puede tener peso extra. NO recomiendas resultado 1X2 como apuesta principal si el contexto de eliminatoria cambia el juego." : "Liga regular — resultado 1X2 estándar"}
 
 ════ DATOS ${homeTeam.name} (LOCAL) ════
 TABLA: ${standingBlock(homeTeam.name, homeStanding)}
@@ -1147,6 +1174,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
     307: "soccer_saudi_professional_league",  // Saudi Pro League
     98:  "soccer_japan_j_league",             // J1 League
   };
+
+  // Ligas de eliminatoria (ida y vuelta, no hay empate en el global)
+  const KNOCKOUT_LEAGUES = new Set([2, 3, 4, 848]); // Champions, Europa, Conference, UCL Qualif
+  const isKnockout = league && KNOCKOUT_LEAGUES.has(league.id);
 
 
   const loadOdds = async () => {
@@ -1726,6 +1757,12 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   </div>
                 </div>
                 <div style={{fontSize:12,color:"#888",maxWidth:520,margin:"12px auto 0",lineHeight:1.6}}>{analysis.resumen}</div>
+                {isKnockout && (
+                  <div style={{marginTop:10,padding:"6px 14px",background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",borderRadius:8,display:"inline-flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:13}}>⚔️</span>
+                    <span style={{fontSize:10,color:"#fbbf24",fontWeight:700}}>ELIMINATORIA · El empate puede ser válido según el marcador global</span>
+                  </div>
+                )}
 
                 {/* Nivel de confianza general */}
                 {analysis.contextoExtra?.nivelConfianzaGeneral && (
