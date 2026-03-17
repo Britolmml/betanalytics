@@ -685,20 +685,32 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           ]);
           const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
           const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
-          if (!hStats || !aStats) continue;
+          console.log("[MEGA STATS] " + home + ": games=" + (hStats?.games||0) + " avgPts=" + hStats?.avgPts);
+          console.log("[MEGA STATS] " + away + ": games=" + (aStats?.games||0) + " avgPts=" + aStats?.avgPts);
+          if (!hStats || !aStats) { console.log("[MEGA] SKIP: no stats"); continue; }
 
           const poisson = calcNBAPoisson(hStats, aStats);
-          if (!poisson) continue;
+          if (!poisson) { console.log("[MEGA] SKIP: no poisson"); continue; }
+          console.log("[MEGA POISSON] total=" + poisson.total + " xH=" + poisson.xPtsHome + " xA=" + poisson.xPtsAway);
 
-          // Find odds for this game
-          const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
-          const hn = norm(home), an = norm(away);
-          const oddsGame = Object.entries(allOddsMap).find(([k]) => {
-            const [h, a] = k.split("|");
-            return (h.includes(hn.slice(-5)) || hn.includes(h.slice(-5))) &&
-                   (a.includes(an.slice(-5)) || an.includes(a.slice(-5)));
-          })?.[1];
+          // Find odds for this game - simple direct key lookup first
+          const normG = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+          const hn = normG(home), an = normG(away);
+          const directKey = hn + "|" + an;
+          let oddsGame = allOddsMap[directKey];
 
+          // Fallback: fuzzy match on last 6 chars
+          if (!oddsGame) {
+            const entry = Object.entries(allOddsMap).find(([k]) => {
+              const [h, a] = k.split("|");
+              const hMatch = h === hn || h.includes(hn.slice(-6)) || hn.includes(h.slice(-6));
+              const aMatch = a === an || a.includes(an.slice(-6)) || an.includes(a.slice(-6));
+              return hMatch && aMatch;
+            });
+            if (entry) oddsGame = entry[1];
+          }
+
+          console.log("[MEGA] " + home + " vs " + away + " → odds:", oddsGame ? "FOUND" : "NOT FOUND", "key:", directKey);
           if (!oddsGame) continue;
 
           const bk = oddsGame.bookmakers?.find(b=>b.key==="pinnacle") ||
@@ -709,7 +721,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           const gameOdds = { h2h: h2hM, totals: totalsM, bookmaker: bk?.title };
 
           const edges = calcNBAEdges(poisson, gameOdds);
+          console.log("[MEGA EDGES] " + home + " edges:", edges.map(e=>e.label+" edge="+e.edge+"%"));
           const valuePicks = edges.filter(e => e.hasValue);
+          console.log("[MEGA VALUE] " + home + " value picks:", valuePicks.length);
 
           valuePicks.forEach(e => {
             allPicks.push({
