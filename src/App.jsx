@@ -2893,7 +2893,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{minHeight:"calc(100vh - 62px)",background:"#060d18",position:"relative",overflow:"hidden"}}>
 
           {/* ── HERO con imagen propia ── */}
-          <div style={{position:"relative",height:420,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{position:"relative",height:420,overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
 
             {/* Tu imagen de fondo con los 3 atletas */}
             <img
@@ -2918,24 +2918,21 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <span style={{color:"#f87171",fontSize:15,fontWeight:800}}>+24</span>
               <span style={{color:"rgba(239,68,68,0.55)"}}>Picks NBA hoy</span>
             </div>
-            {/* Badge live — debajo del subtítulo */}
-            <div style={{position:"relative",zIndex:5,textAlign:"center",marginTop:14}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(3,9,20,0.75)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:20,padding:"5px 18px",fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.7)",backdropFilter:"blur(10px)"}}>
-                <span style={{width:6,height:6,borderRadius:"50%",background:"#ef4444",display:"inline-block",boxShadow:"0 0 7px #ef4444"}}/>
-                3 PARTIDOS EN VIVO · Real Madrid · Celtics · PSG
-              </div>
-            </div>
-
-            {/* Título hero central */}
-            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",marginTop:"10px"}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3,marginBottom:18}}>
+            {/* Título hero central — todo centrado en bloque único */}
+            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3,marginBottom:16}}>
                 <span style={{width:5,height:5,borderRadius:"50%",background:"#00d4ff",display:"inline-block"}}/>
                 ANÁLISIS EN TIEMPO REAL
               </div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:82,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.88,marginBottom:20}}>BETANALYTICS</div>
-              {/* Subtitle con fondo para legibilidad */}
-              <div style={{display:"inline-block",background:"rgba(6,13,24,0.55)",backdropFilter:"blur(8px)",borderRadius:8,padding:"6px 18px",fontSize:11,color:"rgba(200,238,255,0.75)",letterSpacing:4,textTransform:"uppercase"}}>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:82,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.88,marginBottom:16}}>BETANALYTICS</div>
+              {/* Subtítulo */}
+              <div style={{display:"inline-block",background:"rgba(6,13,24,0.55)",backdropFilter:"blur(8px)",borderRadius:8,padding:"6px 18px",fontSize:11,color:"rgba(200,238,255,0.75)",letterSpacing:4,textTransform:"uppercase",marginBottom:14}}>
                 ESTADÍSTICAS · PREDICCIONES IA · JORNADAS
+              </div>
+              {/* Badge live */}
+              <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(3,9,20,0.75)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:20,padding:"5px 18px",fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.7)",backdropFilter:"blur(10px)"}}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:"#ef4444",display:"inline-block",boxShadow:"0 0 7px #ef4444"}}/>
+                3 PARTIDOS EN VIVO · Real Madrid · Celtics · PSG
               </div>
             </div>
           </div>
