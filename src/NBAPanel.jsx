@@ -56,43 +56,60 @@ function calcStats(recent, teamId) {
 // ── Modelo Poisson NBA ──────────────────────────────────────
 function calcNBAPoisson(hStats, aStats) {
   if (!hStats || !aStats) return null;
-  const leagueAvg = 113; // promedio puntos por equipo NBA
+  const leagueAvg = 115; // promedio puntos por equipo NBA 2025-26
 
-  // Fuerza ofensiva y defensiva
+  // Fuerza ofensiva y defensiva relativa a liga
   const hOff = parseFloat(hStats.avgPts)    / leagueAvg;
   const hDef = parseFloat(hStats.avgPtsCon) / leagueAvg;
   const aOff = parseFloat(aStats.avgPts)    / leagueAvg;
   const aDef = parseFloat(aStats.avgPtsCon) / leagueAvg;
 
-  // Factor localía NBA ~3-4 puntos extra en casa
-  const homeAdv = 1.03;
+  // Factor localía NBA ~2 puntos extra en casa
+  const homeAdv = 1.018;
 
-  // Puntos esperados
-  let xPtsHome = leagueAvg * hOff * aDef * homeAdv;
-  let xPtsAway = leagueAvg * aOff * hDef;
+  // xPts = promedio ponderado entre modelo Poisson y promedio real
+  // Esto evita sobreajuste cuando un equipo tiene valores extremos
+  const xPtsHomePure = leagueAvg * hOff * aDef * homeAdv;
+  const xPtsAwayPure = leagueAvg * aOff * hDef;
 
-  // Ajuste por forma reciente
+  // Regresión a la media: 60% modelo, 40% promedio del equipo
+  let xPtsHome = 0.6 * xPtsHomePure + 0.4 * parseFloat(hStats.avgPts);
+  let xPtsAway = 0.6 * xPtsAwayPure + 0.4 * parseFloat(aStats.avgPts);
+
+  // Ajuste por forma reciente (pequeño, ±5%)
   const hWinRate = hStats.wins / (hStats.games || 5);
   const aWinRate = aStats.wins / (aStats.games || 5);
-  xPtsHome = xPtsHome * (0.92 + 0.16 * hWinRate);
-  xPtsAway = xPtsAway * (0.92 + 0.16 * aWinRate);
+  xPtsHome = xPtsHome * (0.97 + 0.06 * hWinRate);
+  xPtsAway = xPtsAway * (0.97 + 0.06 * aWinRate);
 
-  xPtsHome = Math.max(90, Math.min(140, xPtsHome));
-  xPtsAway = Math.max(90, Math.min(140, xPtsAway));
+  xPtsHome = Math.max(95, Math.min(135, xPtsHome));
+  xPtsAway = Math.max(95, Math.min(135, xPtsAway));
 
   const total = xPtsHome + xPtsAway;
   const spread = xPtsHome - xPtsAway;
 
   // Probabilidad de victoria (normal distribution approx)
-  const stdDev = 12; // desviación estándar típica NBA
-  const z = spread / stdDev;
-  const pHome = Math.min(95, Math.max(5, Math.round((0.5 + z * 0.19) * 100)));
+  // Desviación estándar NBA: spread ~12pts, total ~16pts
+  const stdDevSpread = 12;
+  const stdDevTotal  = 16;
+
+  // Aproximación CDF normal: Φ(z) ≈ 0.5 * (1 + erf(z/sqrt(2)))
+  const erf = (x) => {
+    const t = 1 / (1 + 0.3275911 * Math.abs(x));
+    const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    const result = 1 - poly * Math.exp(-x * x);
+    return x >= 0 ? result : -result;
+  };
+  const normCDF = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+
+  const zSpread = spread / stdDevSpread;
+  const pHome = Math.min(92, Math.max(8, Math.round(normCDF(zSpread) * 100)));
   const pAway = 100 - pHome;
 
-  // Probabilidad Over/Under líneas comunes
+  // Over probability usando distribución normal del total
   const calcOverProb = (line) => {
-    const diff = total - line;
-    return Math.min(95, Math.max(5, Math.round((0.5 + diff / (stdDev * 2) * 0.8) * 100)));
+    const z = (total - line) / stdDevTotal;
+    return Math.min(92, Math.max(8, Math.round(normCDF(z) * 100)));
   };
 
   return {
