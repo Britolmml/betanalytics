@@ -680,11 +680,14 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         try {
           // Load team stats
           const [hRes, aRes] = await Promise.allSettled([
-            nbFetch("/games?season=2025&team=" + game.teams?.home?.id + "&last=15"),
-            nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id + "&last=15"),
+            nbFetch("/games?season=2025&team=" + game.teams?.home?.id),
+            nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id),
           ]);
           const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
           const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
+          // Debug raw response
+          const hGamesRaw = hRes.status === "fulfilled" ? (hRes.value?.response || []) : [];
+          console.log("[MEGA RAW] " + home + ": total=" + hGamesRaw.length + " statuses=" + [...new Set(hGamesRaw.slice(0,5).map(g=>g.status?.short))].join(","));
           console.log("[MEGA STATS] " + home + ": games=" + (hStats?.games||0) + " avgPts=" + hStats?.avgPts);
           console.log("[MEGA STATS] " + away + ": games=" + (aStats?.games||0) + " avgPts=" + aStats?.avgPts);
           if (!hStats || !aStats) { console.log("[MEGA] SKIP: no stats"); continue; }
