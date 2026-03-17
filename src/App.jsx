@@ -3,41 +3,44 @@ import HistorialPanel from "./HistorialPanel";
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, saveAllPicks, getPredictions, updateResult, autoResolveFootball } from "./supabase";
 
+// API-Football logo CDN
+const LG = id => `https://media.api-sports.io/football/leagues/${id}.png`;
+
 const FEATURED_LEAGUES = [
   // Europa top
-  { id: 39,  name: "Premier League",   country: "Inglaterra",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  { id: 140, name: "La Liga",          country: "España",      flag: "🇪🇸" },
-  { id: 78,  name: "Bundesliga",       country: "Alemania",    flag: "🇩🇪" },
-  { id: 135, name: "Serie A",          country: "Italia",      flag: "🇮🇹" },
-  { id: 61,  name: "Ligue 1",          country: "Francia",     flag: "🇫🇷" },
-  { id: 2,   name: "Champions League", country: "Europa",      flag: "🇪🇺" },
-  { id: 3,   name: "Europa League",    country: "Europa",      flag: "🇪🇺" },
-  { id: 88,  name: "Eredivisie",       country: "Holanda",     flag: "🇳🇱" },
-  { id: 94,  name: "Primeira Liga",    country: "Portugal",    flag: "🇵🇹" },
-  { id: 203, name: "Süper Lig",        country: "Turquía",     flag: "🇹🇷" },
+  { id: 39,  name: "Premier League",   country: "Inglaterra",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", logo: LG(39) },
+  { id: 140, name: "La Liga",          country: "España",      flag: "🇪🇸",    logo: LG(140) },
+  { id: 78,  name: "Bundesliga",       country: "Alemania",    flag: "🇩🇪",    logo: LG(78) },
+  { id: 135, name: "Serie A",          country: "Italia",      flag: "🇮🇹",    logo: LG(135) },
+  { id: 61,  name: "Ligue 1",          country: "Francia",     flag: "🇫🇷",    logo: LG(61) },
+  { id: 2,   name: "Champions League", country: "Europa",      flag: "🇪🇺",    logo: LG(2) },
+  { id: 3,   name: "Europa League",    country: "Europa",      flag: "🇪🇺",    logo: LG(3) },
+  { id: 88,  name: "Eredivisie",       country: "Holanda",     flag: "🇳🇱",    logo: LG(88) },
+  { id: 94,  name: "Primeira Liga",    country: "Portugal",    flag: "🇵🇹",    logo: LG(94) },
+  { id: 203, name: "Süper Lig",        country: "Turquía",     flag: "🇹🇷",    logo: LG(203) },
   // Norteamérica
-  { id: 262, name: "Liga MX",          country: "México",      flag: "🇲🇽" },
-  { id: 253, name: "MLS",              country: "USA",         flag: "🇺🇸" },
+  { id: 262, name: "Liga MX",          country: "México",      flag: "🇲🇽",    logo: LG(262) },
+  { id: 253, name: "MLS",              country: "USA",         flag: "🇺🇸",    logo: LG(253) },
   // Sudamérica
-  { id: 71,  name: "Brasileirao A",    country: "Brasil",      flag: "🇧🇷" },
-  { id: 72,  name: "Brasileirao B",    country: "Brasil",      flag: "🇧🇷" },
-  { id: 128, name: "Liga Profesional", country: "Argentina",   flag: "🇦🇷" },
-  { id: 131, name: "Primera Nacional", country: "Argentina",   flag: "🇦🇷" },
-  { id: 239, name: "Primera A",         country: "Colombia",    flag: "🇨🇴" },
-  { id: 281, name: "Liga 1",            country: "Perú",        flag: "🇵🇪" },
-  { id: 265, name: "Primera División",  country: "Chile",       flag: "🇨🇱" },
-  { id: 268, name: "Primera División",  country: "Uruguay",     flag: "🇺🇾" },
-  { id: 344, name: "Primera División",  country: "Bolivia",     flag: "🇧🇴" },
-  { id: 242, name: "Liga Pro",          country: "Ecuador",     flag: "🇪🇨" },
-  { id: 250, name: "Div. Profesional",  country: "Paraguay",    flag: "🇵🇾" },
-  { id: 299, name: "Primera División",  country: "Venezuela",   flag: "🇻🇪" },
+  { id: 71,  name: "Brasileirao A",    country: "Brasil",      flag: "🇧🇷",    logo: LG(71) },
+  { id: 72,  name: "Brasileirao B",    country: "Brasil",      flag: "🇧🇷",    logo: LG(72) },
+  { id: 128, name: "Liga Profesional", country: "Argentina",   flag: "🇦🇷",    logo: LG(128) },
+  { id: 131, name: "Primera Nacional", country: "Argentina",   flag: "🇦🇷",    logo: LG(131) },
+  { id: 239, name: "Primera A",         country: "Colombia",    flag: "🇨🇴",    logo: LG(239) },
+  { id: 281, name: "Liga 1",            country: "Perú",        flag: "🇵🇪",    logo: LG(281) },
+  { id: 265, name: "Primera División",  country: "Chile",       flag: "🇨🇱",    logo: LG(265) },
+  { id: 268, name: "Primera División",  country: "Uruguay",     flag: "🇺🇾",    logo: LG(268) },
+  { id: 344, name: "Primera División",  country: "Bolivia",     flag: "🇧🇴",    logo: LG(344) },
+  { id: 242, name: "Liga Pro",          country: "Ecuador",     flag: "🇪🇨",    logo: LG(242) },
+  { id: 250, name: "Div. Profesional",  country: "Paraguay",    flag: "🇵🇾",    logo: LG(250) },
+  { id: 299, name: "Primera División",  country: "Venezuela",   flag: "🇻🇪",    logo: LG(299) },
   // Copas Sudamericanas
-  { id: 13,  name: "Copa Libertadores",country: "Sudamérica",  flag: "🌎" },
-  { id: 14,  name: "Copa Sudamericana",country: "Sudamérica",  flag: "🌎" },
+  { id: 13,  name: "Copa Libertadores",country: "Sudamérica",  flag: "🌎",     logo: LG(13) },
+  { id: 14,  name: "Copa Sudamericana",country: "Sudamérica",  flag: "🌎",     logo: LG(14) },
   // Fáciles de predecir ⭐
-  { id: 188, name: "A-League",         country: "Australia",      flag: "🇦🇺" },
-  { id: 307, name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦" },
-  { id: 98,  name: "J1 League",        country: "Japón",          flag: "🇯🇵" },
+  { id: 188, name: "A-League",         country: "Australia",      flag: "🇦🇺",  logo: LG(188) },
+  { id: 307, name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦",  logo: LG(307) },
+  { id: 98,  name: "J1 League",        country: "Japón",          flag: "🇯🇵",  logo: LG(98) },
 ];
 const SEASON = 2026;
 const SEASONS_TO_TRY = [2026, 2025, 2024, 2023];
@@ -1507,17 +1510,28 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         return (
                           <button key={l.id} onClick={()=>loadTeams(l)}
                             style={{
-                              background: active ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.05)",
-                              border: `1px solid ${active ? "rgba(16,185,129,0.5)" : "rgba(255,255,255,0.1)"}`,
-                              borderRadius:10, padding:"8px 14px",
+                              background: active
+                                ? `linear-gradient(135deg, rgba(16,185,129,0.22), rgba(6,182,212,0.15))`
+                                : "rgba(255,255,255,0.04)",
+                              border: `1px solid ${active ? "rgba(16,185,129,0.55)" : "rgba(255,255,255,0.08)"}`,
+                              borderRadius:10, padding:"8px 12px",
                               cursor:"pointer", fontWeight:600,
-                              display:"flex", alignItems:"center", gap:7,
+                              display:"flex", alignItems:"center", gap:8,
                               transition:"all 0.15s",
+                              boxShadow: active ? "0 0 16px rgba(16,185,129,0.15)" : "none",
+                              position:"relative", overflow:"hidden",
                             }}>
-                            <span style={{fontSize:15, lineHeight:1}}>{l.flag}</span>
+                            {/* League logo */}
+                            {l.logo
+                              ? <img src={l.logo} alt={l.name}
+                                  style={{width:22,height:22,objectFit:"contain",flexShrink:0}}
+                                  onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="inline";}}
+                                />
+                              : null}
+                            <span style={{fontSize:14,lineHeight:1,display:"none"}}>{l.flag}</span>
                             <div style={{textAlign:"left"}}>
-                              <div style={{fontSize:12, color: active ? "#10b981" : "#ddd", fontWeight:700}}>{l.name}</div>
-                              <div style={{fontSize:9, color: active ? "rgba(16,185,129,0.7)" : "#666", marginTop:1}}>{l.country}</div>
+                              <div style={{fontSize:11, color: active ? "#10b981" : "#ccc", fontWeight:700}}>{l.name}</div>
+                              <div style={{fontSize:9, color: active ? "rgba(16,185,129,0.7)" : "#555", marginTop:1}}>{l.country}</div>
                             </div>
                           </button>
                         );
@@ -1566,20 +1580,20 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {/* Teams */}
                         <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
                           {/* Home */}
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:7,justifyContent:"flex-end"}}>
-                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,textAlign:"right"}}>{f.teams?.home?.name}</span>
-                            {homeLogo && <img src={homeLogo} alt="" style={{width:22,height:22,objectFit:"contain",flexShrink:0}} />}
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end",minWidth:0}}>
+                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,textAlign:"right",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.teams?.home?.name}</span>
+                            {homeLogo && <img src={homeLogo} alt="" style={{width:20,height:20,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
                           </div>
                           {/* Score */}
-                          <div style={{minWidth:52,textAlign:"center",background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"4px 8px"}}>
-                            <span style={{fontSize:15,fontWeight:900,color: isDone?"#777":isLive?"#10b981":"#e8eaf0",letterSpacing:1}}>
+                          <div style={{minWidth:58,flexShrink:0,textAlign:"center",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"4px 10px",border:`1px solid ${isLive?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.06)"}`}}>
+                            <span style={{fontSize:14,fontWeight:900,color: isDone?"#666":isLive?"#10b981":"#e8eaf0",letterSpacing:2}}>
                               {hScore != null ? hScore+" - "+aScore : "vs"}
                             </span>
                           </div>
                           {/* Away */}
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:7}}>
-                            {awayLogo && <img src={awayLogo} alt="" style={{width:22,height:22,objectFit:"contain",flexShrink:0}} />}
-                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700}}>{f.teams?.away?.name}</span>
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                            {awayLogo && <img src={awayLogo} alt="" style={{width:20,height:20,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
+                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.teams?.away?.name}</span>
                           </div>
                         </div>
                         <button
