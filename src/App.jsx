@@ -270,6 +270,52 @@ const fuzzyMatch = (a, b) => {
   return wa === wb && wa.length >= 4;
 };
 
+
+// ============================================================
+// EDGE & KELLY CRITERION
+// ============================================================
+function calcEdges(poissonResult, gameOdds) {
+  if (!poissonResult || !gameOdds) return null;
+  const h2hM = gameOdds.find(m => m.key === "h2h");
+  const totalsM = gameOdds.find(m => m.key === "totals");
+  const edges = [];
+
+  const addEdge = (market, pick, ourProb, decimal, label) => {
+    if (!decimal || decimal <= 1 || !ourProb) return;
+    const impliedProb = 1 / decimal;
+    const edge = ourProb - impliedProb;
+    const kelly = edge > 0 ? (edge / (decimal - 1)) * 100 : 0;
+    edges.push({
+      market, pick, label,
+      ourProb: Math.round(ourProb * 100),
+      impliedProb: Math.round(impliedProb * 100),
+      edge: Math.round(edge * 100),
+      decimal,
+      american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
+      kelly: Math.min(25, Math.round(kelly * 10) / 10), // cap at 25%
+      hasValue: edge > 0.03, // at least 3% edge to be meaningful
+    });
+  };
+
+  if (h2hM) {
+    const outcomes = h2hM.outcomes || [];
+    const homeO = outcomes.find(o => o.name && !o.name.includes("Draw"));
+    const awayO = outcomes.filter(o => o.name && !o.name.includes("Draw"))[1];
+    const drawO = outcomes.find(o => o.name === "Draw");
+    if (homeO) addEdge("1X2", "Local", poissonResult.pHome/100, homeO.price, homeO.name);
+    if (drawO) addEdge("1X2", "Empate", poissonResult.pDraw/100, drawO.price, "Empate");
+    if (awayO) addEdge("1X2", "Visitante", poissonResult.pAway/100, awayO.price, awayO.name);
+  }
+  if (totalsM) {
+    const overO = totalsM.outcomes?.find(o => o.name === "Over");
+    const underO = totalsM.outcomes?.find(o => o.name === "Under");
+    if (overO) addEdge("Total", "Over " + overO.point, poissonResult.pOver25/100, overO.price, "Over " + overO.point);
+    if (underO) addEdge("Total", "Under " + underO.point, (100-poissonResult.pOver25)/100, underO.price, "Under " + underO.point);
+  }
+
+  return edges.sort((a, b) => b.edge - a.edge);
+}
+
 const confColor = c => c>=80?"#10b981":c>=65?"#f59e0b":"#ef4444";
 const confLabel = c => c>=80?"ALTA":c>=65?"MEDIA":"BAJA";
 
@@ -342,6 +388,7 @@ export default function App() {
   const [loadingStand,  setLoadingStand]  = useState(false);
   const [h2h,           setH2h]           = useState([]);
   const [poisson,       setPoisson]       = useState(null);
+  const [edges,         setEdges]         = useState([]);
   const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
   const [activeTab,     setActiveTab]     = useState("stats");
 
@@ -992,6 +1039,10 @@ ${h2hBlock()}
 ════ MOMIOS DE CASAS DE APUESTA ════
 ${oddsBlock()}
 
+════ EDGES CALCULADOS (Poisson vs Mercado) ════
+${edges.length>0 ? edges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% ImpliedOdds=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% Cuota=${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE BET":"sin valor"}`).join("\n") : "Sin momios cargados - no hay edges disponibles"}
+IMPORTANTE: Solo recomienda apuestas donde Edge > 0. Si no hay edges positivos, di explícitamente que no hay value en este partido.
+
 ════ MODELO POISSON — PROBABILIDADES ESTADÍSTICAS ════
 ${poissonResult ? `xG esperados: ${homeTeam.name}=${poissonResult.xgHome} | ${awayTeam.name}=${poissonResult.xgAway}
 Fuerza de ataque: ${homeTeam.name}=${poissonResult.homeAttack}x | ${awayTeam.name}=${poissonResult.awayAttack}x (1x = promedio liga)
@@ -1195,6 +1246,21 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           map[key] = g.bookmakers?.[0]?.markets || [];
         });
         setOdds(map);
+        // Calculate edges immediately after loading odds
+        if (homeTeam && awayTeam && poisson) {
+          const key1 = `${homeTeam.name}|${awayTeam.name}`;
+          const key2 = `${awayTeam.name}|${homeTeam.name}`;
+          let gOdds = map[key1] || map[key2];
+          if (!gOdds) {
+            const k = Object.keys(map).find(k => {
+              const [h, a] = k.split("|");
+              return (fuzzyMatch(h, homeTeam.name) && fuzzyMatch(a, awayTeam.name)) ||
+                     (fuzzyMatch(h, awayTeam.name) && fuzzyMatch(a, homeTeam.name));
+            });
+            if (k) gOdds = map[k];
+          }
+          if (gOdds) setEdges(calcEdges(poisson, gOdds) || []);
+        }
       }
     } catch(e) { console.warn("Odds error:", e.message); }
     finally { setLoadingOdds(false); }
@@ -1702,13 +1768,18 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* CTA */}
             {homeTeam && awayTeam && hStats && aStats && (
               <div style={{textAlign:"center",marginBottom:20}}>
-                {/* Cargar momios antes de analizar */}
+                {/* Cargar momios — REQUERIDO para analizar */}
                 <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
                   <button onClick={loadOdds} disabled={loadingOdds}
-                    style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:10,padding:"8px 20px",color:"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-                    {loadingOdds?"⏳ Cargando momios...":"💹 Cargar momios (opcional)"}
+                    style={{background:Object.keys(odds).length>0?"rgba(16,185,129,0.12)":"rgba(245,158,11,0.1)",border:`1px solid ${Object.keys(odds).length>0?"rgba(16,185,129,0.4)":"rgba(245,158,11,0.3)"}`,borderRadius:10,padding:"8px 20px",color:Object.keys(odds).length>0?"#10b981":"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                    {loadingOdds?"⏳ Cargando momios...":Object.keys(odds).length>0?"✅ Momios cargados · Recargar":"💹 Cargar momios (necesario para detectar value bets)"}
                   </button>
                 </div>
+                {Object.keys(odds).length===0 && !loadingOdds && (
+                  <div style={{textAlign:"center",fontSize:10,color:"#555",marginBottom:8}}>
+                    ⚠️ Sin momios no se pueden detectar edges ni value bets reales
+                  </div>
+                )}
                 <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
                   <button onClick={predict} disabled={loadingAI||loadingMulti}
                     style={{background:loadingAI?"rgba(16,185,129,0.28)":"linear-gradient(135deg,#10b981,#059669)",
@@ -1876,6 +1947,63 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 </div>
               )}
 
+
+              {/* VALUE BETS & EDGES */}
+              {edges.length > 0 && (
+                <div style={{...C.card, marginBottom:14, border:"1px solid rgba(16,185,129,0.2)", background:"rgba(16,185,129,0.04)"}}>
+                  <div style={{fontSize:10,color:"#10b981",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
+                    🎯 EDGES DETECTADOS — Poisson vs Mercado
+                  </div>
+                  {edges.filter(e=>e.hasValue).length === 0 ? (
+                    <div style={{fontSize:12,color:"#555",textAlign:"center",padding:"8px 0"}}>
+                      Sin edges significativos en este partido — mercado bien calibrado
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {edges.filter(e=>e.hasValue).map((e,i)=>(
+                        <div key={i} style={{
+                          padding:"12px 14px",borderRadius:10,
+                          background: e.edge>=10?"rgba(16,185,129,0.1)":e.edge>=5?"rgba(245,158,11,0.08)":"rgba(255,255,255,0.03)",
+                          border: `1px solid ${e.edge>=10?"rgba(16,185,129,0.3)":e.edge>=5?"rgba(245,158,11,0.25)":"rgba(255,255,255,0.06)"}`
+                        }}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                            <div>
+                              <span style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>{e.market} · </span>
+                              <span style={{fontSize:14,fontWeight:800,color:"#e8eaf0"}}>{e.label}</span>
+                              <span style={{fontSize:11,color:"#888",marginLeft:6}}>{e.american}</span>
+                            </div>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{
+                                fontSize:13,fontWeight:900,
+                                color:e.edge>=10?"#10b981":e.edge>=5?"#f59e0b":"#888"
+                              }}>+{e.edge}% edge</div>
+                            </div>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                            <div style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"4px 8px",textAlign:"center"}}>
+                              <div style={{fontSize:8,color:"#555"}}>Prob. Poisson</div>
+                              <div style={{fontSize:14,fontWeight:700,color:"#a78bfa"}}>{e.ourProb}%</div>
+                            </div>
+                            <div style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"4px 8px",textAlign:"center"}}>
+                              <div style={{fontSize:8,color:"#555"}}>Prob. implícita</div>
+                              <div style={{fontSize:14,fontWeight:700,color:"#666"}}>{e.impliedProb}%</div>
+                            </div>
+                            <div style={{background:"rgba(245,158,11,0.08)",borderRadius:6,padding:"4px 8px",textAlign:"center"}}>
+                              <div style={{fontSize:8,color:"#f59e0b"}}>Kelly sugerido</div>
+                              <div style={{fontSize:14,fontWeight:700,color:"#f59e0b"}}>{e.kelly}%</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {edges.filter(e=>!e.hasValue).length > 0 && (
+                    <div style={{marginTop:8,fontSize:10,color:"#444",textAlign:"center"}}>
+                      {edges.filter(e=>!e.hasValue).length} mercados sin edge suficiente (&lt;3%)
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Contexto extra — lesiones, posición, forma local/visita */}
               {(analysis.homeInjuries?.length>0 || analysis.awayInjuries?.length>0 || analysis.homeStanding || analysis.awayStanding || analysis.homeFormLocal || analysis.awayFormVisita) && (

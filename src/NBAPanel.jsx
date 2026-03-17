@@ -263,6 +263,51 @@ function ProbBar({ name, pct, color }) {
 
 /* ─── main component ─────────────────────────────────────── */
 
+
+// ── NBA Edge Calculator ──────────────────────────────────────
+function calcNBAEdges(nbaPoisson, nbaOdds) {
+  if (!nbaPoisson || !nbaOdds) return [];
+  const edges = [];
+
+  const addEdge = (market, pick, ourProb, decimal, label) => {
+    if (!decimal || decimal <= 1 || !ourProb) return;
+    const impliedProb = 1 / decimal;
+    const edge = ourProb - impliedProb;
+    const kelly = edge > 0 ? Math.min(25, Math.round((edge / (decimal - 1)) * 1000) / 10) : 0;
+    edges.push({
+      market, pick, label,
+      ourProb: Math.round(ourProb * 100),
+      impliedProb: Math.round(impliedProb * 100),
+      edge: Math.round(edge * 100),
+      decimal,
+      american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
+      kelly,
+      hasValue: edge > 0.03,
+    });
+  };
+
+  // Moneyline
+  const outcomes = nbaOdds.h2h?.outcomes || [];
+  if (outcomes.length >= 2) {
+    addEdge("Moneyline", "home", nbaPoisson.pHome/100, outcomes[0]?.price, outcomes[0]?.name);
+    addEdge("Moneyline", "away", nbaPoisson.pAway/100, outcomes[1]?.price, outcomes[1]?.name);
+  }
+  // Totals
+  const totals = nbaOdds.totals?.outcomes || [];
+  const overO = totals.find(o=>o.name==="Over");
+  const underO = totals.find(o=>o.name==="Under");
+  if (overO) {
+    const line = overO.point ?? 220;
+    const pOver = nbaPoisson["pOver"+Math.round(line/5)*5] ?? nbaPoisson.pOver220;
+    if (pOver) {
+      addEdge("Total", "over", pOver/100, overO.price, "Over " + line);
+      addEdge("Total", "under", (100-pOver)/100, underO?.price, "Under " + line);
+    }
+  }
+
+  return edges.sort((a,b) => b.edge - a.edge);
+}
+
 export default function NBAPanel({ onClose }) {
   const [games, setGames] = useState([]);
   const [standings, setStandings] = useState({ east: [], west: [] });
@@ -280,6 +325,7 @@ export default function NBAPanel({ onClose }) {
   const [nbaOdds, setNbaOdds] = useState(null);
   const [nbaPoisson, setNbaPoisson] = useState(null);
   const [nbaH2H, setNbaH2H] = useState([]);
+  const [nbaEdges, setNbaEdges] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
@@ -440,7 +486,9 @@ export default function NBAPanel({ onClose }) {
                      game.bookmakers?.[0];
           const h2hM = bk?.markets?.find(m=>m.key==="h2h");
           const totalsM = bk?.markets?.find(m=>m.key==="totals");
-          setNbaOdds({ h2h: h2hM, totals: totalsM, raw: game, bookmaker: bk?.title });
+          const newOdds = { h2h: h2hM, totals: totalsM, raw: game, bookmaker: bk?.title };
+          setNbaOdds(newOdds);
+          if (nbaPoisson) setNbaEdges(calcNBAEdges(nbaPoisson, newOdds));
         }
       }
     } catch(e) { console.warn("NBA odds error:", e.message); }
@@ -521,6 +569,10 @@ Fuerza defensiva: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
 Probabilidad victoria: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
 Over 220=${nbaPoisson.pOver220}% | Over 225=${nbaPoisson.pOver225}% | Over 230=${nbaPoisson.pOver230}%
 H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "Sin H2H disponible") : "Poisson no disponible") + `
+
+════ EDGES CALCULADOS (Poisson vs Mercado NBA) ════
+` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"sin valor"}`).join("\n") : "Sin momios cargados — carga momios para detectar edges") + `
+IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
 ════ INSTRUCCIONES DE ANÁLISIS ════
 PASO 1 — Analiza el rendimiento ofensivo/defensivo de cada equipo
@@ -821,6 +873,41 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                 ))}
                               </div>
                             )}
+                          </div>
+                        )}
+
+                        {/* NBA EDGES */}
+                        {nbaEdges.length > 0 && (
+                          <div style={{background:"rgba(16,185,129,0.05)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+                            <div style={{fontSize:9,color:"#10b981",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>🎯 Edges detectados — Poisson vs Mercado</div>
+                            {nbaEdges.filter(e=>e.hasValue).length===0 ? (
+                              <div style={{fontSize:12,color:"#555",textAlign:"center"}}>Sin edges significativos — mercado bien calibrado</div>
+                            ) : nbaEdges.filter(e=>e.hasValue).map((e,i)=>(
+                              <div key={i} style={{padding:"10px 12px",borderRadius:8,marginBottom:6,
+                                background:e.edge>=10?"rgba(16,185,129,0.1)":e.edge>=5?"rgba(245,158,11,0.08)":"rgba(255,255,255,0.03)",
+                                border:`1px solid ${e.edge>=10?"rgba(16,185,129,0.3)":e.edge>=5?"rgba(245,158,11,0.25)":"rgba(255,255,255,0.06)"}`}}>
+                                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                                  <div>
+                                    <span style={{fontSize:9,color:"#555",textTransform:"uppercase"}}>{e.market} · </span>
+                                    <span style={{fontSize:13,fontWeight:800,color:"#e8eaf0"}}>{e.label}</span>
+                                    <span style={{fontSize:11,color:"#888",marginLeft:6}}>{e.american}</span>
+                                  </div>
+                                  <span style={{fontSize:13,fontWeight:900,color:e.edge>=10?"#10b981":e.edge>=5?"#f59e0b":"#888"}}>+{e.edge}% edge</span>
+                                </div>
+                                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
+                                  {[
+                                    {l:"Poisson",v:e.ourProb+"%",c:"#a78bfa"},
+                                    {l:"Implied",v:e.impliedProb+"%",c:"#555"},
+                                    {l:"Kelly",v:e.kelly+"%",c:"#f59e0b"},
+                                  ].map(({l,v,c})=>(
+                                    <div key={l} style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"3px 6px",textAlign:"center"}}>
+                                      <div style={{fontSize:7,color:"#444"}}>{l}</div>
+                                      <div style={{fontSize:12,fontWeight:700,color:c}}>{v}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
 
