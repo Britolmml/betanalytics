@@ -114,6 +114,101 @@ function genFake(teamName, count=8) {
   });
 }
 
+
+// ============================================================
+// MODELO POISSON AVANZADO
+// ============================================================
+function poissonProb(lambda, k) {
+  if (lambda <= 0) return k === 0 ? 1 : 0;
+  let logP = -lambda + k * Math.log(lambda);
+  for (let i = 1; i <= k; i++) logP -= Math.log(i);
+  return Math.exp(logP);
+}
+
+function calcPoisson(hS, aS, homeMatchesLocal, awayMatchesVisita) {
+  if (!hS || !aS) return null;
+
+  const leagueAvgGoals = 1.35;
+
+  // Fuerza de ataque y defensa relativa a la liga
+  const homeAttack  = hS.avgScored   > 0 ? hS.avgScored   / leagueAvgGoals : 1;
+  const homeDefense = hS.avgConceded > 0 ? hS.avgConceded / leagueAvgGoals : 1;
+  const awayAttack  = aS.avgScored   > 0 ? aS.avgScored   / leagueAvgGoals : 1;
+  const awayDefense = aS.avgConceded > 0 ? aS.avgConceded / leagueAvgGoals : 1;
+
+  // Factor localía
+  const homeAdvantage = 1.1;
+
+  // xG base
+  let xgHome = leagueAvgGoals * homeAttack * awayDefense * homeAdvantage;
+  let xgAway = leagueAvgGoals * awayAttack * homeDefense;
+
+  // Ajuste por forma reciente
+  xgHome = xgHome * (0.85 + 0.3 * (hS.wins / 5));
+  xgAway = xgAway * (0.85 + 0.3 * (aS.wins / 5));
+
+  // Ajuste por rendimiento real local/visitante
+  if (homeMatchesLocal && homeMatchesLocal.length >= 3) {
+    const localAvg = homeMatchesLocal.map(m => m.homeGoals).reduce((a,b)=>a+b,0) / homeMatchesLocal.length;
+    xgHome = (xgHome + localAvg) / 2;
+  }
+  if (awayMatchesVisita && awayMatchesVisita.length >= 3) {
+    const visitaAvg = awayMatchesVisita.map(m => m.awayGoals).reduce((a,b)=>a+b,0) / awayMatchesVisita.length;
+    xgAway = (xgAway + visitaAvg) / 2;
+  }
+
+  // Ajuste por tiros a puerta (xG mejorado)
+  if (hS.avgShotsOn && hS.avgShotsOn > 0) {
+    const shotXg = hS.avgShotsOn * 0.1; // ~10% conversion rate
+    xgHome = (xgHome + shotXg) / 2;
+  }
+  if (aS.avgShotsOn && aS.avgShotsOn > 0) {
+    const shotXg = aS.avgShotsOn * 0.1;
+    xgAway = (xgAway + shotXg) / 2;
+  }
+
+  xgHome = Math.max(0.3, Math.min(4.0, xgHome));
+  xgAway = Math.max(0.3, Math.min(4.0, xgAway));
+
+  const MAX = 6;
+  let pHome = 0, pDraw = 0, pAway = 0, pBTTS = 0, pOver25 = 0, pOver35 = 0;
+  const scores = [];
+
+  for (let h = 0; h <= MAX; h++) {
+    for (let a = 0; a <= MAX; a++) {
+      const p = poissonProb(xgHome, h) * poissonProb(xgAway, a);
+      if (h > a) pHome += p;
+      else if (h === a) pDraw += p;
+      else pAway += p;
+      if (h > 0 && a > 0) pBTTS += p;
+      if (h + a > 2.5) pOver25 += p;
+      if (h + a > 3.5) pOver35 += p;
+      scores.push({ h, a, p });
+    }
+  }
+
+  const topScores = scores
+    .sort((a, b) => b.p - a.p)
+    .slice(0, 6)
+    .map(s => ({ score: `${s.h}-${s.a}`, prob: Math.round(s.p * 100) }));
+
+  return {
+    xgHome: +xgHome.toFixed(2),
+    xgAway: +xgAway.toFixed(2),
+    homeAttack:  +homeAttack.toFixed(2),
+    awayAttack:  +awayAttack.toFixed(2),
+    homeDefense: +homeDefense.toFixed(2),
+    awayDefense: +awayDefense.toFixed(2),
+    pHome:   Math.round(pHome * 100),
+    pDraw:   Math.round(pDraw * 100),
+    pAway:   Math.round(pAway * 100),
+    pBTTS:   Math.round(pBTTS * 100),
+    pOver25: Math.round(pOver25 * 100),
+    pOver35: Math.round(pOver35 * 100),
+    topScores,
+  };
+}
+
 const confColor = c => c>=80?"#10b981":c>=65?"#f59e0b":"#ef4444";
 const confLabel = c => c>=80?"ALTA":c>=65?"MEDIA":"BAJA";
 
@@ -185,6 +280,7 @@ export default function App() {
   const [standings,     setStandings]     = useState([]);
   const [loadingStand,  setLoadingStand]  = useState(false);
   const [h2h,           setH2h]           = useState([]);
+  const [poisson,       setPoisson]       = useState(null);
   const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
   const [activeTab,     setActiveTab]     = useState("stats");
 
@@ -543,6 +639,14 @@ export default function App() {
     if (side==="home") { setHomeTeam(team); await loadMatches(team, setHomeMatches, "home"); }
     else               { setAwayTeam(team); await loadMatches(team, setAwayMatches, "away"); }
     if (newHome && newAway) await loadH2H(newHome.id, newAway.id);
+    // Recalculate Poisson when both teams ready
+    if (newHome && newAway) {
+      const hMatches = side==="home" ? [] : homeMatches;
+      const aMatches = side==="away" ? [] : awayMatches;
+      const hS = calcStats(hMatches, newHome.name);
+      const aS = calcStats(aMatches, newAway.name);
+      if (hS && aS) setPoisson(calcPoisson(hS, aS, hMatches.filter(m=>m.home===newHome.name), aMatches.filter(m=>m.away===newAway.name)));
+    }
     setLoadingM(false);
   };
 
@@ -551,6 +655,12 @@ export default function App() {
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);
+
+    // Poisson con datos completos
+    const homeLocal  = homeMatches.filter(m => m.home === homeTeam.name);
+    const awayVisita = awayMatches.filter(m => m.away === awayTeam.name);
+    const poissonResult = calcPoisson(hS, aS, homeLocal, awayVisita);
+    setPoisson(poissonResult);
 
     // ── Cargar datos extra en paralelo ────────────────────────
     let homeInjuries = [], awayInjuries = [];
@@ -1604,6 +1714,73 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   ))}
                 </div>
               </div>
+
+              {/* Modelo Poisson */}
+              {poisson && (
+                <div style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎲 Modelo Poisson — Probabilidades estadísticas</div>
+
+                  {/* xG y fuerzas */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                    {[
+                      {label:homeTeam?.name?.split(" ").slice(-1)[0],xg:poisson.xgHome,atk:poisson.homeAttack,def:poisson.homeDefense,c:"#10b981"},
+                      {label:awayTeam?.name?.split(" ").slice(-1)[0],xg:poisson.xgAway,atk:poisson.awayAttack,def:poisson.awayDefense,c:"#3b82f6"},
+                    ].map(({label,xg,atk,def,c})=>(
+                      <div key={label} style={{padding:10,background:"rgba(255,255,255,0.02)",borderRadius:8,border:`1px solid ${c}22`}}>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:13,color:c,marginBottom:6}}>{label}</div>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                          <span style={{fontSize:10,color:"#666"}}>xG esperados</span>
+                          <span style={{fontSize:13,fontWeight:800,color:c}}>{xg}</span>
+                        </div>
+                        <div style={{display:"flex",gap:8}}>
+                          <div style={{flex:1,background:"rgba(16,185,129,0.08)",borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
+                            <div style={{fontSize:8,color:"#10b981"}}>ATAQUE</div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#10b981"}}>{atk}x</div>
+                          </div>
+                          <div style={{flex:1,background:"rgba(239,68,68,0.08)",borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
+                            <div style={{fontSize:8,color:"#ef4444"}}>DEFENSA</div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#ef4444"}}>{def}x</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Probabilidades Poisson */}
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6,marginBottom:12}}>
+                    {[
+                      {l:"Local",v:poisson.pHome,c:"#10b981"},
+                      {l:"Empate",v:poisson.pDraw,c:"#f59e0b"},
+                      {l:"Visitante",v:poisson.pAway,c:"#3b82f6"},
+                      {l:"BTTS",v:poisson.pBTTS,c:"#a78bfa"},
+                      {l:"+2.5 goles",v:poisson.pOver25,c:"#f97316"},
+                      {l:"+3.5 goles",v:poisson.pOver35,c:"#f97316"},
+                    ].map(({l,v,c})=>(
+                      <div key={l} style={{textAlign:"center",padding:"8px 4px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:c,lineHeight:1}}>{v}%</div>
+                        <div style={{fontSize:8,color:"#555",marginTop:2}}>{l}</div>
+                        <div style={{height:2,background:"rgba(255,255,255,0.05)",borderRadius:1,marginTop:4,overflow:"hidden"}}>
+                          <div style={{width:`${v}%`,height:"100%",background:c}}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Marcadores más probables */}
+                  <div>
+                    <div style={{fontSize:9,color:"#555",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Marcadores más probables</div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {poisson.topScores.map(({score,prob},i)=>(
+                        <div key={score} style={{padding:"4px 10px",borderRadius:6,background:i===0?"rgba(167,139,250,0.15)":"rgba(255,255,255,0.04)",border:i===0?"1px solid rgba(167,139,250,0.3)":"1px solid transparent",textAlign:"center"}}>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:16,color:i===0?"#a78bfa":"#888"}}>{score}</div>
+                          <div style={{fontSize:8,color:"#555"}}>{prob}%</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               {/* Contexto extra — lesiones, posición, forma local/visita */}
               {(analysis.homeInjuries?.length>0 || analysis.awayInjuries?.length>0 || analysis.homeStanding || analysis.awayStanding || analysis.homeFormLocal || analysis.awayFormVisita) && (
