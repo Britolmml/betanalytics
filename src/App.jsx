@@ -2888,59 +2888,104 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {activeSport === null && (
         <div style={{minHeight:"calc(100vh - 62px)",background:"#080b14",position:"relative",overflow:"hidden"}}>
 
-          {/* ── HERO con fondo tipo estadio ── */}
-          <div style={{position:"relative",height:340,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            {/* Fondo: imagen de estadio via unsplash */}
-            <img
-              src="/fondo.jpg"
-              alt=""
-              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 30%",opacity:0.22}}
-            />
-            {/* Overlay gradiente */}
-            <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(8,11,20,0.3) 0%, rgba(8,11,20,0.6) 60%, rgba(8,11,20,1) 100%)"}}/>
-            {/* Glow verde */}
-            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 60% at 50% 50%, rgba(16,185,129,0.12) 0%, transparent 70%)"}}/>
+          {/* ── HERO con atletas reales ── */}
+          <div style={{position:"relative",height:400,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {/* Fondo base oscuro */}
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,#0d1f14 0%,#0a0e18 45%,#1a0d08 100%)"}}/>
 
-            {/* Contenido hero */}
-            <div style={{position:"relative",textAlign:"center",padding:"0 24px"}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:30,padding:"5px 16px",fontSize:10,color:"#34d399",fontWeight:800,letterSpacing:3,marginBottom:16}}>
-                ⚡ ANÁLISIS EN TIEMPO REAL
+            {/* Grid de datos semitransparente */}
+            <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,232,122,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,232,122,0.03) 1px,transparent 1px)",backgroundSize:"44px 44px",WebkitMaskImage:"radial-gradient(ellipse 80% 60% at 50% 40%,black 0%,transparent 70%)"}}/>
+
+            {/* Atleta izquierda — jugador de fútbol */}
+            <img
+              src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=420&q=80&fit=crop&crop=top"
+              alt=""
+              style={{position:"absolute",left:0,bottom:0,height:"95%",width:"auto",objectFit:"cover",objectPosition:"top",opacity:0.55,maskImage:"linear-gradient(to right,transparent 0%,black 20%,black 70%,transparent 100%),linear-gradient(to top,transparent 0%,black 15%)",WebkitMaskImage:"linear-gradient(to right,transparent 0%,black 20%,black 70%,transparent 100%)",maskComposite:"intersect",WebkitMaskComposite:"destination-in",filter:"saturate(0.7) brightness(0.85)"}}
+              onError={e=>{e.target.src="https://images.unsplash.com/photo-1521731978332-9e9e714bdd20?w=420&q=80&fit=crop";}}
+            />
+            {/* Glow verde izquierda */}
+            <div style={{position:"absolute",left:0,bottom:0,width:"40%",height:"100%",background:"radial-gradient(ellipse 80% 100% at 20% 80%,rgba(0,180,80,0.28) 0%,transparent 65%)",pointerEvents:"none"}}/>
+
+            {/* Atleta derecha — jugador de baloncesto */}
+            <img
+              src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=420&q=80&fit=crop&crop=top"
+              alt=""
+              style={{position:"absolute",right:0,bottom:0,height:"92%",width:"auto",objectFit:"cover",objectPosition:"top",opacity:0.5,maskImage:"linear-gradient(to left,transparent 0%,black 20%,black 70%,transparent 100%)",WebkitMaskImage:"linear-gradient(to left,transparent 0%,black 20%,black 70%,transparent 100%)",filter:"saturate(0.65) brightness(0.8)"}}
+              onError={e=>{e.target.src="https://images.unsplash.com/photo-1504450758481-7338eba7524a?w=420&q=80&fit=crop";}}
+            />
+            {/* Glow naranja derecha */}
+            <div style={{position:"absolute",right:0,bottom:0,width:"40%",height:"100%",background:"radial-gradient(ellipse 80% 100% at 80% 80%,rgba(200,70,10,0.28) 0%,transparent 65%)",pointerEvents:"none"}}/>
+
+            {/* Fade inferior */}
+            <div style={{position:"absolute",bottom:0,left:0,right:0,height:140,background:"linear-gradient(to bottom,transparent,#080b14)",pointerEvents:"none"}}/>
+
+            {/* Badge flotante izquierda */}
+            <div style={{position:"absolute",top:90,left:40,background:"rgba(8,14,22,0.88)",border:"1px solid rgba(0,232,122,0.3)",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.8)",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(10px)"}}>
+              <span style={{color:"#34d399",fontSize:13,fontWeight:800}}>87%</span>
+              <span style={{color:"rgba(255,255,255,0.5)"}}>Precisión PL</span>
+            </div>
+            {/* Badge flotante derecha */}
+            <div style={{position:"absolute",top:120,right:44,background:"rgba(8,14,22,0.88)",border:"1px solid rgba(255,92,26,0.3)",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.8)",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(10px)"}}>
+              <span style={{color:"#fb923c",fontSize:13,fontWeight:800}}>+24</span>
+              <span style={{color:"rgba(255,255,255,0.5)"}}>Picks NBA hoy</span>
+            </div>
+
+            {/* Contenido hero central */}
+            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px"}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.28)",borderRadius:30,padding:"5px 16px",fontSize:10,color:"#34d399",fontWeight:800,letterSpacing:3,marginBottom:16}}>
+                <span style={{width:5,height:5,borderRadius:"50%",background:"#34d399",display:"inline-block",animation:"pulse 2s infinite"}}/>
+                ANÁLISIS EN TIEMPO REAL
               </div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:72,background:"linear-gradient(135deg,#ffffff 20%,#34d399 60%,#06b6d4 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:1,marginBottom:10}}>BETANALYTICS</div>
-              <div style={{fontSize:14,color:"#4a5568",letterSpacing:2}}>ESTADÍSTICAS · PREDICCIONES IA · JORNADAS</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:76,background:"linear-gradient(135deg,#ffffff 20%,#34d399 60%,#06b6d4 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.92,marginBottom:12}}>BETANALYTICS</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.3)",letterSpacing:3,textTransform:"uppercase"}}>ESTADÍSTICAS · PREDICCIONES IA · JORNADAS</div>
             </div>
           </div>
 
           {/* ── Botones deportes ── */}
-          <div style={{maxWidth:900,margin:"-30px auto 0",padding:"0 24px 40px",position:"relative",zIndex:2}}>
+          <div style={{maxWidth:900,margin:"-20px auto 0",padding:"0 24px 40px",position:"relative",zIndex:2}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:40}}>
 
               {/* Fútbol */}
               <button onClick={()=>setActiveSport("football")}
-                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"none",padding:0,cursor:"pointer",height:180,display:"block",transition:"transform 0.2s"}}
-                onMouseEnter={e=>e.currentTarget.style.transform="scale(1.02)"}
-                onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-                
-                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(16,185,129,0.75) 0%,rgba(6,182,212,0.4) 100%)"}}/>
+                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"1px solid rgba(0,232,122,0.2)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s",background:"#0b1812"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(0,232,122,0.45)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(0,232,122,0.2)";}}>
+                {/* Imagen de fondo fútbol */}
+                <img
+                  src="https://images.unsplash.com/photo-1551958219-acbc595d6c14?w=600&q=75&fit=crop&crop=center"
+                  alt=""
+                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",opacity:0.18,transition:"opacity 0.3s"}}
+                  onError={e=>e.target.style.display="none"}
+                />
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(0,60,25,0.85) 0%,rgba(0,40,20,0.7) 100%)"}}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at top,rgba(0,232,122,0.1),transparent 70%)"}}/>
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <span style={{fontSize:44}}>⚽</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"#fff",letterSpacing:4,textShadow:"0 2px 12px rgba(0,0,0,0.5)"}}>FÚTBOL</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:1}}>Ligas · Jornadas · IA</div>
-                  <div style={{marginTop:4,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"#fff",fontWeight:700,backdropFilter:"blur(4px)"}}>ENTRAR →</div>
+                  <span style={{fontSize:42}}>⚽</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"rgba(74,222,128,0.95)",letterSpacing:4,textShadow:"0 2px 20px rgba(0,0,0,0.6)"}}>FÚTBOL</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:1}}>Ligas · Jornadas · IA</div>
+                  <div style={{marginTop:6,background:"rgba(0,232,122,0.08)",border:"1px solid rgba(0,232,122,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"rgba(74,222,128,0.9)",fontWeight:700}}>ENTRAR →</div>
                 </div>
               </button>
 
               {/* NBA */}
               <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}}
-                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"1px solid rgba(239,68,68,0.4)",padding:0,cursor:"pointer",height:180,display:"block",transition:"transform 0.2s",background:"linear-gradient(135deg,rgba(239,68,68,0.3) 0%,rgba(245,158,11,0.15) 100%)"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.02)";e.currentTarget.style.background="linear-gradient(135deg,rgba(239,68,68,0.45) 0%,rgba(245,158,11,0.25) 100%)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.background="linear-gradient(135deg,rgba(239,68,68,0.3) 0%,rgba(245,158,11,0.15) 100%)";}}>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 80% at 50% 120%,rgba(239,68,68,0.2) 0%,transparent 70%)"}}/>
+                style={{position:"relative",overflow:"hidden",borderRadius:20,border:"1px solid rgba(255,92,26,0.2)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s",background:"#130d08"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(255,92,26,0.45)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(255,92,26,0.2)";}}>
+                {/* Imagen de fondo NBA */}
+                <img
+                  src="https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=600&q=75&fit=crop&crop=center"
+                  alt=""
+                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",opacity:0.18,transition:"opacity 0.3s"}}
+                  onError={e=>e.target.style.display="none"}
+                />
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(60,20,5,0.88) 0%,rgba(40,12,3,0.75) 100%)"}}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at top,rgba(255,92,26,0.1),transparent 70%)"}}/>
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <span style={{fontSize:44}}>🏀</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"#fff",letterSpacing:4,textShadow:"0 2px 12px rgba(0,0,0,0.5)"}}>NBA</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:1}}>Partidos · Stats · Picks</div>
-                  <div style={{marginTop:4,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"#fff",fontWeight:700,backdropFilter:"blur(4px)"}}>ENTRAR →</div>
+                  <span style={{fontSize:42}}>🏀</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"rgba(251,146,60,0.95)",letterSpacing:4,textShadow:"0 2px 20px rgba(0,0,0,0.6)"}}>NBA</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:1}}>Partidos · Stats · Picks</div>
+                  <div style={{marginTop:6,background:"rgba(255,92,26,0.08)",border:"1px solid rgba(255,92,26,0.3)",borderRadius:20,padding:"4px 18px",fontSize:11,color:"rgba(251,146,60,0.9)",fontWeight:700}}>ENTRAR →</div>
                 </div>
               </button>
             </div>
