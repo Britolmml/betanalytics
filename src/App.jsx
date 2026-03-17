@@ -1416,9 +1416,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               📋 JORNADA
             </button>
           )}
-          <button onClick={()=>{setActiveSport(null);setShowNBA(false);}} style={{background:activeSport===null?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",border:activeSport===null?"1px solid rgba(255,255,255,0.25)":"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#e8eaf0":"#555",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
-          <button onClick={()=>{setActiveSport("football");setShowNBA(false);}} style={{background:activeSport==="football"?"rgba(16,185,129,0.2)":"rgba(16,185,129,0.08)",border:activeSport==="football"?"1px solid rgba(16,185,129,0.5)":"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
-          <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}} style={{background:activeSport==="nba"?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.08)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
+          <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",border:activeSport===null?"1px solid rgba(255,255,255,0.25)":"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#e8eaf0":"#555",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
+          <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(16,185,129,0.2)":"rgba(16,185,129,0.08)",border:activeSport==="football"?"1px solid rgba(16,185,129,0.5)":"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"6px 12px",color:"#34d399",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
+          <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.08)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"6px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
           </button>
@@ -1554,18 +1554,33 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ " + st : "🕐 " + kickoff;
                     const dateObj = f.fixture?.date ? new Date(f.fixture.date) : null;
                     const fechaStr = dateObj ? dateObj.toLocaleDateString("es-MX",{weekday:"short",day:"numeric",month:"short",timeZone:"America/Mexico_City"}) : "";
+                    const homeLogo = f.teams?.home?.logo;
+                    const awayLogo = f.teams?.away?.logo;
                     return (
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background: isDone ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid " + (isLive?"rgba(16,185,129,0.25)":"rgba(255,255,255,0.05)"),opacity: isDone ? 0.6 : 1}}>
-                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:68,gap:2}}>
-                          <span style={{fontSize:10,fontWeight:700,color:statusColor}}>{statusLabel}</span>
-                          {!isLive && fechaStr && <span style={{fontSize:9,color:"#444",fontWeight:600}}>{fechaStr}</span>}
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background: isDone ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.025)",borderRadius:12,border:"1px solid " + (isLive?"rgba(16,185,129,0.3)":isDone?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.07)"),opacity: isDone ? 0.55 : 1,transition:"all 0.15s"}}>
+                        {/* Status */}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:72,gap:2}}>
+                          <span style={{fontSize:isLive?10:9,fontWeight:700,color:statusColor,background:isLive?"rgba(16,185,129,0.12)":"transparent",padding:isLive?"2px 6px":"0",borderRadius:4}}>{statusLabel}</span>
+                          {!isLive && fechaStr && <span style={{fontSize:9,color:"#333",fontWeight:600}}>{fechaStr}</span>}
                         </div>
-                        <div style={{flex:1,display:"flex",alignItems:"center",gap:6}}>
-                          <span style={{fontSize:12,color: isDone?"#666":"#e8eaf0",fontWeight:700,flex:1,textAlign:"right"}}>{f.teams?.home?.name}</span>
-                          <span style={{fontSize:14,fontWeight:900,color: isDone?"#888":"#e8eaf0",minWidth:36,textAlign:"center"}}>
-                            {hScore != null ? hScore+"-"+aScore : "vs"}
-                          </span>
-                          <span style={{fontSize:12,color: isDone?"#666":"#e8eaf0",fontWeight:700,flex:1}}>{f.teams?.away?.name}</span>
+                        {/* Teams */}
+                        <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+                          {/* Home */}
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:7,justifyContent:"flex-end"}}>
+                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700,textAlign:"right"}}>{f.teams?.home?.name}</span>
+                            {homeLogo && <img src={homeLogo} alt="" style={{width:22,height:22,objectFit:"contain",flexShrink:0}} />}
+                          </div>
+                          {/* Score */}
+                          <div style={{minWidth:52,textAlign:"center",background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"4px 8px"}}>
+                            <span style={{fontSize:15,fontWeight:900,color: isDone?"#777":isLive?"#10b981":"#e8eaf0",letterSpacing:1}}>
+                              {hScore != null ? hScore+" - "+aScore : "vs"}
+                            </span>
+                          </div>
+                          {/* Away */}
+                          <div style={{flex:1,display:"flex",alignItems:"center",gap:7}}>
+                            {awayLogo && <img src={awayLogo} alt="" style={{width:22,height:22,objectFit:"contain",flexShrink:0}} />}
+                            <span style={{fontSize:12,color: isDone?"#555":"#d1d5db",fontWeight:700}}>{f.teams?.away?.name}</span>
+                          </div>
                         </div>
                         <button
                           onClick={() => {
@@ -2821,6 +2836,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       )}
 
 
+      {/* NBA inline section */}
+      {activeSport === "nba" && (
+        <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
+          <NBAPanel onClose={()=>setActiveSport(null)} inline={true} />
+        </div>
+      )}
+
       {activeSport === null && (
         <div style={{minHeight:"calc(100vh - 62px)",background:"#080b14",position:"relative",overflow:"hidden"}}>
 
@@ -2933,7 +2955,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         </div>
       )}
 
-      {showNBA && <NBAPanel onClose={()=>setShowNBA(false)} />}
+      {/* NBA inline section - rendered in main flow, not as overlay */}
       {showHistorial && <HistorialPanel onClose={()=>setShowHistorial(false)} />}
 
       {/* Modal Multi-IA */}

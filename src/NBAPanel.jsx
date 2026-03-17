@@ -320,7 +320,7 @@ function calcNBAEdges(nbaPoisson, nbaOdds) {
   return edges.sort((a,b) => b.edge - a.edge);
 }
 
-export default function NBAPanel({ onClose }) {
+export default function NBAPanel({ onClose, inline = false }) {
   const [games, setGames] = useState([]);
   const [standings, setStandings] = useState({ east: [], west: [] });
   const [loading, setLoading] = useState(false);
@@ -799,8 +799,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, overflowY: "auto", padding: "20px 16px" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div style={ inline ? { width: "100%" } : { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, overflowY: "auto", padding: "20px 16px" }}>
+      <div style={{ maxWidth: 900, margin: inline ? "0" : "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
@@ -818,9 +818,11 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             <button onClick={() => loadNBA(selectedDate)} style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, padding: "6px 10px", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
               🔄
             </button>
-            <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "#aaa", cursor: "pointer", fontSize: 11 }}>
-              ✕ Cerrar
-            </button>
+            {!inline && (
+              <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "#aaa", cursor: "pointer", fontSize: 11 }}>
+                ✕ Cerrar
+              </button>
+            )}
           </div>
         </div>
 
