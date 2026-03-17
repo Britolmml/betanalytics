@@ -965,6 +965,15 @@ ${h2hBlock()}
 ════ MOMIOS DE CASAS DE APUESTA ════
 ${oddsBlock()}
 
+════ MODELO POISSON — PROBABILIDADES ESTADÍSTICAS ════
+${poissonResult ? `xG esperados: ${homeTeam.name}=${poissonResult.xgHome} | ${awayTeam.name}=${poissonResult.xgAway}
+Fuerza de ataque: ${homeTeam.name}=${poissonResult.homeAttack}x | ${awayTeam.name}=${poissonResult.awayAttack}x (1x = promedio liga)
+Fuerza defensiva: ${homeTeam.name}=${poissonResult.homeDefense}x | ${awayTeam.name}=${poissonResult.awayDefense}x
+Probabilidades Poisson: Local=${poissonResult.pHome}% | Empate=${poissonResult.pDraw}% | Visitante=${poissonResult.pAway}%
+BTTS estadístico=${poissonResult.pBTTS}% | Over 2.5=${poissonResult.pOver25}% | Over 3.5=${poissonResult.pOver35}%
+Marcadores más probables: ${poissonResult.topScores.map(s=>s.score+"("+s.prob+"%)").join(" | ")}
+IMPORTANTE: Compara estas probabilidades Poisson vs las probabilidades implícitas en los momios para detectar value bets.` : "Modelo Poisson no disponible"}
+
 ════ INSTRUCCIONES DE RAZONAMIENTO ════
 Antes de generar el JSON, razona internamente siguiendo ESTOS PASOS en orden:
 
@@ -983,11 +992,12 @@ PASO 3 — Analiza el H2H:
   · ¿Cuál es la tendencia de goles en duelos directos (over/under, BTTS)?
   · ¿El H2H confirma o contradice la forma actual de los equipos?
 
-PASO 4 — Analiza los momios y detecta errores de línea:
+PASO 4 — Analiza los momios usando el Modelo Poisson:
   · Convierte cada cuota a probabilidad implícita (1/cuota)
-  · Compara con tu probabilidad calculada: si tu prob > prob_implícita → HAY VALUE BET
+  · Compara con las probabilidades Poisson: si Poisson > prob_implícita → HAY VALUE BET
+  · Ejemplo: si Poisson dice Over 2.5 = 68% pero la cuota implica 55%, hay edge del 13%
   · Detecta inconsistencias: si BTTS Over está a 1.50 pero Total Under 2.5 a 1.60, hay contradicción → error de línea
-  · Detecta cuotas anormalmente bajas o altas vs tu análisis
+  · Los marcadores más probables del Poisson te indican si apostar Over/Under y BTTS
 
 PASO 5 — Compara y encuentra desequilibrios:
   · ¿Hay una diferencia clara de nivel entre ambos equipos?
