@@ -1108,7 +1108,24 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      const parsed = JSON.parse(data.result);
+      // Clean and parse JSON robustly
+      let parsed;
+      try {
+        const raw = data.result || "";
+        const clean = raw
+          .replace(/```json
+?/g, "").replace(/```
+?/g, "")  // strip markdown
+          .replace(/[ -]/g, c => c === "
+" || c === "" || c === "	" ? c : "") // strip control chars
+          .trim();
+        // Find first { and last }
+        const start = clean.indexOf("{");
+        const end = clean.lastIndexOf("}");
+        parsed = JSON.parse(start >= 0 && end > start ? clean.slice(start, end + 1) : clean);
+      } catch(jsonErr) {
+        throw new Error("Error procesando respuesta IA: " + jsonErr.message);
+      }
       const fullAnalysis = {
         ...parsed,
         hStats: hS, aStats: aS,
