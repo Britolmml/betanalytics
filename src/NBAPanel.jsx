@@ -265,6 +265,19 @@ function ProbBar({ name, pct, color }) {
 
 
 // ── NBA Edge Calculator ──────────────────────────────────────
+// Calcula probabilidad Over para cualquier línea exacta
+function overProbForLine(total, line, stdDevTotal = 16) {
+  const erf = (x) => {
+    const t = 1 / (1 + 0.3275911 * Math.abs(x));
+    const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    const result = 1 - poly * Math.exp(-x * x);
+    return x >= 0 ? result : -result;
+  };
+  const normCDF = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+  const z = (total - line) / stdDevTotal;
+  return Math.min(80, Math.max(20, Math.round(normCDF(z) * 100)));
+}
+
 function calcNBAEdges(nbaPoisson, nbaOdds) {
   if (!nbaPoisson || !nbaOdds) return [];
   const edges = [];
@@ -292,17 +305,16 @@ function calcNBAEdges(nbaPoisson, nbaOdds) {
     addEdge("Moneyline", "home", nbaPoisson.pHome/100, outcomes[0]?.price, outcomes[0]?.name);
     addEdge("Moneyline", "away", nbaPoisson.pAway/100, outcomes[1]?.price, outcomes[1]?.name);
   }
-  // Totals
+  // Totals — usar línea exacta del mercado
   const totals = nbaOdds.totals?.outcomes || [];
   const overO = totals.find(o=>o.name==="Over");
   const underO = totals.find(o=>o.name==="Under");
-  if (overO) {
-    const line = overO.point ?? 220;
-    const pOver = nbaPoisson["pOver"+Math.round(line/5)*5] ?? nbaPoisson.pOver220;
-    if (pOver) {
-      addEdge("Total", "over", pOver/100, overO.price, "Over " + line);
-      addEdge("Total", "under", (100-pOver)/100, underO?.price, "Under " + line);
-    }
+  if (overO && nbaPoisson.total) {
+    const line = parseFloat(overO.point ?? 220);
+    const pOver = overProbForLine(nbaPoisson.total, line);
+    const pUnder = 100 - pOver;
+    addEdge("Total", "over", pOver/100, overO.price, "Over " + line);
+    if (underO) addEdge("Total", "under", pUnder/100, underO.price, "Under " + line);
   }
 
   return edges.sort((a,b) => b.edge - a.edge);
@@ -567,7 +579,7 @@ Total proyectado Poisson: ${nbaPoisson.total} pts | Spread: ${home} ${nbaPoisson
 Fuerza ofensiva: ${home}=${nbaPoisson.hOff}x | ${away}=${nbaPoisson.aOff}x
 Fuerza defensiva: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
 Probabilidad victoria: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
-Over 220=${nbaPoisson.pOver220}% | Over 225=${nbaPoisson.pOver225}% | Over 230=${nbaPoisson.pOver230}%
+Total proyectado: ${nbaPoisson.total} pts | Over línea mercado=${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/D"}: ${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(nbaPoisson.total, parseFloat(nbaOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
 H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "Sin H2H disponible") : "Poisson no disponible") + `
 
 ════ EDGES CALCULADOS (Poisson vs Mercado NBA) ════
@@ -855,14 +867,27 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                 </div>
                               ))}
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }}>
-                              {[215,220,225,230].map(line => (
-                                <div key={line} style={{ textAlign:"center", padding:"4px", background:"rgba(255,255,255,0.02)", borderRadius:6 }}>
-                                  <div style={{fontSize:8,color:"#555"}}>O {line}</div>
-                                  <div style={{fontSize:12,fontWeight:700,color: nbaPoisson["pOver"+line] > 55 ? "#10b981" : nbaPoisson["pOver"+line] < 45 ? "#ef4444" : "#888"}}>{nbaPoisson["pOver"+line]}%</div>
+                            {/* Over/Under para línea exacta del mercado */}
+                            {(() => {
+                              const marketLine = parseFloat(nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? 0);
+                              const lines = marketLine > 0
+                                ? [marketLine - 5, marketLine - 2.5, marketLine, marketLine + 2.5]
+                                : [215, 220, 225, 230];
+                              return (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }}>
+                                  {lines.map(line => {
+                                    const p = overProbForLine(nbaPoisson.total, line);
+                                    const isMarket = line === marketLine;
+                                    return (
+                                      <div key={line} style={{ textAlign:"center", padding:"4px", background: isMarket ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.02)", borderRadius:6, border: isMarket ? "1px solid rgba(245,158,11,0.3)" : "1px solid transparent" }}>
+                                        <div style={{fontSize:8,color: isMarket ? "#f59e0b" : "#555"}}>O {line}</div>
+                                        <div style={{fontSize:12,fontWeight:700,color: p > 55 ? "#10b981" : p < 45 ? "#ef4444" : "#888"}}>{p}%</div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              ))}
-                            </div>
+                              );
+                            })()}
                             {nbaH2H.length > 0 && (
                               <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 8 }}>
                                 <div style={{fontSize:8,color:"#555",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>H2H esta temporada</div>
