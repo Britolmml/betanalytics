@@ -53,6 +53,73 @@ function calcStats(recent, teamId) {
   };
 }
 
+// ── Modelo Poisson NBA ──────────────────────────────────────
+function calcNBAPoisson(hStats, aStats) {
+  if (!hStats || !aStats) return null;
+  const leagueAvg = 113; // promedio puntos por equipo NBA
+
+  // Fuerza ofensiva y defensiva
+  const hOff = parseFloat(hStats.avgPts)    / leagueAvg;
+  const hDef = parseFloat(hStats.avgPtsCon) / leagueAvg;
+  const aOff = parseFloat(aStats.avgPts)    / leagueAvg;
+  const aDef = parseFloat(aStats.avgPtsCon) / leagueAvg;
+
+  // Factor localía NBA ~3-4 puntos extra en casa
+  const homeAdv = 1.03;
+
+  // Puntos esperados
+  let xPtsHome = leagueAvg * hOff * aDef * homeAdv;
+  let xPtsAway = leagueAvg * aOff * hDef;
+
+  // Ajuste por forma reciente
+  const hWinRate = hStats.wins / (hStats.games || 5);
+  const aWinRate = aStats.wins / (aStats.games || 5);
+  xPtsHome = xPtsHome * (0.92 + 0.16 * hWinRate);
+  xPtsAway = xPtsAway * (0.92 + 0.16 * aWinRate);
+
+  xPtsHome = Math.max(90, Math.min(140, xPtsHome));
+  xPtsAway = Math.max(90, Math.min(140, xPtsAway));
+
+  const total = xPtsHome + xPtsAway;
+  const spread = xPtsHome - xPtsAway;
+
+  // Probabilidad de victoria (normal distribution approx)
+  const stdDev = 12; // desviación estándar típica NBA
+  const z = spread / stdDev;
+  const pHome = Math.min(95, Math.max(5, Math.round((0.5 + z * 0.19) * 100)));
+  const pAway = 100 - pHome;
+
+  // Probabilidad Over/Under líneas comunes
+  const calcOverProb = (line) => {
+    const diff = total - line;
+    return Math.min(95, Math.max(5, Math.round((0.5 + diff / (stdDev * 2) * 0.8) * 100)));
+  };
+
+  return {
+    xPtsHome: +xPtsHome.toFixed(1),
+    xPtsAway: +xPtsAway.toFixed(1),
+    total:    +total.toFixed(1),
+    spread:   +spread.toFixed(1),
+    hOff:     +hOff.toFixed(2),
+    hDef:     +hDef.toFixed(2),
+    aOff:     +aOff.toFixed(2),
+    aDef:     +aDef.toFixed(2),
+    pHome,
+    pAway,
+    pOver215: calcOverProb(215),
+    pOver220: calcOverProb(220),
+    pOver225: calcOverProb(225),
+    pOver230: calcOverProb(230),
+  };
+}
+
+// Formato americano de cuotas
+function toAmerican(decimal) {
+  if (!decimal || decimal <= 1) return "N/D";
+  if (decimal >= 2) return "+" + Math.round((decimal - 1) * 100);
+  return "-" + Math.round(100 / (decimal - 1));
+}
+
 /* ─── sub-components ─────────────────────────────────────── */
 
 function GameCard({ game, isSelected, onSelect }) {
@@ -194,6 +261,8 @@ export default function NBAPanel({ onClose }) {
   const [multiResult, setMultiResult] = useState(null);
   const [showMulti, setShowMulti] = useState(false);
   const [nbaOdds, setNbaOdds] = useState(null);
+  const [nbaPoisson, setNbaPoisson] = useState(null);
+  const [nbaH2H, setNbaH2H] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
@@ -244,6 +313,30 @@ export default function NBAPanel({ onClose }) {
       const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
       const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
       setPreview({ home: hStats, away: aStats });
+      setNbaPoisson(calcNBAPoisson(hStats, aStats));
+      setNbaH2H([]);
+      // H2H simulado: cruzar fixtures de ambos equipos
+      try {
+        const [hAll, aAll] = await Promise.allSettled([
+          nbFetch("/games?season=2025&team=" + game.teams?.home?.id),
+          nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id),
+        ]);
+        const hGames = hRes.status === "fulfilled" ? (hRes.value?.response || []) : [];
+        const aGames = aRes.status === "fulfilled" ? (aRes.value?.response || []) : [];
+        const hIds = new Set(hGames.map(g => g.id));
+        const shared = aGames.filter(g => hIds.has(g.id) && g.status?.short === 3)
+          .sort((a,b) => new Date(b.date?.start) - new Date(a.date?.start))
+          .slice(0, 5);
+        if (shared.length) {
+          setNbaH2H(shared.map(g => ({
+            date: g.date?.start?.split("T")[0] ?? "",
+            home: g.teams?.home?.name ?? "",
+            away: g.teams?.visitors?.name ?? "",
+            hPts: g.scores?.home?.points ?? 0,
+            aPts: g.scores?.visitors?.points ?? 0,
+          })));
+        }
+      } catch(e) { /* silencioso */ }
 
       // Cargar top jugadores
       setLoadingPlayers(true);
@@ -316,13 +409,21 @@ export default function NBAPanel({ onClose }) {
       const res = await fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        const game = data.find(g =>
-          (g.home_team?.includes(home?.split(" ").pop()) || g.away_team?.includes(away?.split(" ").pop()))
-        );
+        const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+        const nh = norm(home), na = norm(away);
+        const game = data.find(g => {
+          const gh = norm(g.home_team), ga = norm(g.away_team);
+          return (gh.includes(nh.slice(-6)) || nh.includes(gh.slice(-6))) &&
+                 (ga.includes(na.slice(-6)) || na.includes(ga.slice(-6)));
+        });
         if (game) {
-          const h2hM = game.bookmakers?.[0]?.markets?.find(m=>m.key==="h2h");
-          const totalsM = game.bookmakers?.[0]?.markets?.find(m=>m.key==="totals");
-          setNbaOdds({ h2h: h2hM, totals: totalsM, raw: game });
+          // Usar el mejor bookmaker disponible (Pinnacle > DraftKings > primero)
+          const bk = game.bookmakers?.find(b=>b.key==="pinnacle") ||
+                     game.bookmakers?.find(b=>b.key==="draftkings") ||
+                     game.bookmakers?.[0];
+          const h2hM = bk?.markets?.find(m=>m.key==="h2h");
+          const totalsM = bk?.markets?.find(m=>m.key==="totals");
+          setNbaOdds({ h2h: h2hM, totals: totalsM, raw: game, bookmaker: bk?.title });
         }
       }
     } catch(e) { console.warn("NBA odds error:", e.message); }
@@ -395,12 +496,21 @@ Total proyectado: ${totalLine} pts
 ${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
 ${nbaOdds ? "MOMIOS REALES: Moneyline " + (nbaOdds.h2h?.outcomes?.map(o=>o.name+" "+o.price).join(" | ") || "N/D") + " | Total " + (nbaOdds.totals?.outcomes?.map(o=>o.name+" "+o.point+" @"+o.price).join(" | ") || "N/D") : "Momios no cargados (opcional: presiona Cargar momios NBA)"}
 
+════ MODELO POISSON NBA ════
+` + (nbaPoisson ? `xPts esperados: ${home}=${nbaPoisson.xPtsHome} | ${away}=${nbaPoisson.xPtsAway}
+Total proyectado Poisson: ${nbaPoisson.total} pts | Spread: ${home} ${nbaPoisson.spread > 0 ? "+"+nbaPoisson.spread : nbaPoisson.spread}
+Fuerza ofensiva: ${home}=${nbaPoisson.hOff}x | ${away}=${nbaPoisson.aOff}x
+Fuerza defensiva: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
+Probabilidad victoria: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
+Over 220=${nbaPoisson.pOver220}% | Over 225=${nbaPoisson.pOver225}% | Over 230=${nbaPoisson.pOver230}%
+H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "Sin H2H disponible") : "Poisson no disponible") + `
+
 ════ INSTRUCCIONES DE ANÁLISIS ════
 PASO 1 — Analiza el rendimiento ofensivo/defensivo de cada equipo
 PASO 2 — Evalúa el impacto de los jugadores clave disponibles
 PASO 3 — Detecta tendencias: ¿Over/Under consistente? ¿Equipo con racha?
-PASO 4 — Detecta errores de línea: si el total proyectado difiere >10pts del mercado, hay valor
-PASO 5 — Identifica value bets: probabilidad calculada vs implícita en los momios
+PASO 4 — Usa el Modelo Poisson: compara xPts vs línea del mercado para detectar errores de línea
+PASO 5 — Identifica value bets: probabilidades Poisson vs implícitas en momios
 PASO 6 — Genera el JSON final
 
 Responde SOLO JSON sin texto extra: ` + JSON.stringify({
@@ -600,6 +710,103 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     {analysis && (
                       <div>
                         <p style={{ color: "#aaa", fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>{analysis.resumen}</p>
+
+                        {/* Momios en formato americano */}
+                        {nbaOdds && (() => {
+                          const outcomes = nbaOdds.h2h?.outcomes || [];
+                          const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+                          const hn = norm(selectedGame?.teams?.home?.name);
+                          const an = norm(selectedGame?.teams?.visitors?.name);
+                          const homeO = outcomes.find(o => norm(o.name).includes(hn.slice(-5)) || hn.includes(norm(o.name).slice(-5)));
+                          const awayO = outcomes.find(o => norm(o.name).includes(an.slice(-5)) || an.includes(norm(o.name).slice(-5)));
+                          const overO = nbaOdds.totals?.outcomes?.find(o=>o.name==="Over");
+                          const underO = nbaOdds.totals?.outcomes?.find(o=>o.name==="Under");
+                          return (
+                            <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
+                              <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+                                💰 Momios reales — {nbaOdds.bookmaker || "Bookmaker"}
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
+                                {[
+                                  {l:"LOCAL", name:selectedGame?.teams?.home?.name?.split(" ").pop(), v:homeO?.price},
+                                  {l:"VISITANTE", name:selectedGame?.teams?.visitors?.name?.split(" ").pop(), v:awayO?.price},
+                                  {l:"MAS " + (overO?.point ?? ""), name:"Over", v:overO?.price},
+                                  {l:"MENOS " + (underO?.point ?? ""), name:"Under", v:underO?.price},
+                                ].map(({l,name,v}) => v ? (
+                                  <div key={l} style={{ textAlign: "center", padding: "8px 4px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                                    <div style={{ fontSize: 8, color: "#666", marginBottom: 2, fontWeight: 700 }}>{l}</div>
+                                    <div style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 22, color: "#f59e0b", lineHeight: 1 }}>
+                                      {v >= 2 ? "+" + Math.round((v-1)*100) : "-" + Math.round(100/(v-1))}
+                                    </div>
+                                    <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{name}</div>
+                                  </div>
+                                ) : null)}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Modelo Poisson NBA */}
+                        {nbaPoisson && (
+                          <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.2)", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+                            <div style={{ fontSize: 9, color: "#a78bfa", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>🎲 Modelo Poisson NBA</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                              {[
+                                {name:selectedGame?.teams?.home?.name?.split(" ").pop(), xpts:nbaPoisson.xPtsHome, off:nbaPoisson.hOff, def:nbaPoisson.hDef, c:"#f97316"},
+                                {name:selectedGame?.teams?.visitors?.name?.split(" ").pop(), xpts:nbaPoisson.xPtsAway, off:nbaPoisson.aOff, def:nbaPoisson.aDef, c:"#60a5fa"},
+                              ].map(({name,xpts,off,def,c}) => (
+                                <div key={name} style={{ background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "8px 10px", border: `1px solid ${c}22` }}>
+                                  <div style={{ fontSize: 11, color: c, fontWeight: 700, marginBottom: 6 }}>{name}</div>
+                                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                    <span style={{ fontSize: 10, color: "#666" }}>xPts</span>
+                                    <span style={{ fontSize: 16, fontWeight: 800, color: c }}>{xpts}</span>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <div style={{ flex:1, background:"rgba(16,185,129,0.08)", borderRadius:4, padding:"2px 4px", textAlign:"center" }}>
+                                      <div style={{fontSize:7,color:"#10b981"}}>OFENSA</div>
+                                      <div style={{fontSize:10,fontWeight:700,color:"#10b981"}}>{off}x</div>
+                                    </div>
+                                    <div style={{ flex:1, background:"rgba(239,68,68,0.08)", borderRadius:4, padding:"2px 4px", textAlign:"center" }}>
+                                      <div style={{fontSize:7,color:"#ef4444"}}>DEFENSA</div>
+                                      <div style={{fontSize:10,fontWeight:700,color:"#ef4444"}}>{def}x</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginBottom: 8 }}>
+                              {[
+                                {l:"Total", v:nbaPoisson.total, c:"#a78bfa"},
+                                {l:"Spread", v:(nbaPoisson.spread>0?"+":"")+nbaPoisson.spread, c:"#f59e0b"},
+                                {l:selectedGame?.teams?.home?.name?.split(" ").pop(), v:nbaPoisson.pHome+"%", c:"#f97316"},
+                              ].map(({l,v,c}) => (
+                                <div key={l} style={{ textAlign:"center", padding:"6px 4px", background:"rgba(255,255,255,0.03)", borderRadius:8 }}>
+                                  <div style={{fontSize:8,color:"#555",marginBottom:2}}>{l}</div>
+                                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:c,lineHeight:1}}>{v}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }}>
+                              {[215,220,225,230].map(line => (
+                                <div key={line} style={{ textAlign:"center", padding:"4px", background:"rgba(255,255,255,0.02)", borderRadius:6 }}>
+                                  <div style={{fontSize:8,color:"#555"}}>O {line}</div>
+                                  <div style={{fontSize:12,fontWeight:700,color: nbaPoisson["pOver"+line] > 55 ? "#10b981" : nbaPoisson["pOver"+line] < 45 ? "#ef4444" : "#888"}}>{nbaPoisson["pOver"+line]}%</div>
+                                </div>
+                              ))}
+                            </div>
+                            {nbaH2H.length > 0 && (
+                              <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 8 }}>
+                                <div style={{fontSize:8,color:"#555",marginBottom:4,letterSpacing:1,textTransform:"uppercase"}}>H2H esta temporada</div>
+                                {nbaH2H.slice(0,3).map((g,i) => (
+                                  <div key={i} style={{fontSize:10,color:"#666",marginBottom:2}}>
+                                    {g.date}: <span style={{color:"#888"}}>{g.home} <span style={{color:"#f59e0b",fontWeight:700}}>{g.hPts}-{g.aPts}</span> {g.away}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                           {[
                             [selectedGame?.teams?.home?.name, analysis.probabilidades?.home, "#f97316"],
