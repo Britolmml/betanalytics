@@ -1048,17 +1048,64 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
   // Odds API
   // Fuzzy match - handles name differences between APIs (e.g. "Wolves" vs "Wolverhampton Wanderers")
+  // Mapa de equivalencias conocidas entre API-Football y The Odds API
+  const TEAM_ALIASES = {
+    "sporting cp":         "sporting lisbon",
+    "sporting lisbon":     "sporting cp",
+    "atletico madrid":     "atletico de madrid",
+    "atletico de madrid":  "atletico madrid",
+    "paris sg":            "paris saint germain",
+    "paris saint germain": "paris sg",
+    "psg":                 "paris saint germain",
+    "inter milan":         "internazionale",
+    "internazionale":      "inter milan",
+    "bayer 04 leverkusen": "bayer leverkusen",
+    "bayer leverkusen":    "bayer 04 leverkusen",
+    "tottenham":           "tottenham hotspur",
+    "tottenham hotspur":   "tottenham",
+    "man city":            "manchester city",
+    "manchester city":     "man city",
+    "man utd":             "manchester united",
+    "manchester united":   "man utd",
+    "wolves":              "wolverhampton wanderers",
+    "wolverhampton wanderers": "wolves",
+    "newcastle":           "newcastle united",
+    "newcastle united":    "newcastle",
+    "brighton":            "brighton hove albion",
+    "brighton hove albion":"brighton",
+    "tigres uanl":         "tigres",
+    "tigres":              "tigres uanl",
+    "club queretaro":      "queretaro",
+    "queretaro":           "club queretaro",
+    "atletico san luis":   "san luis",
+    "san luis":            "atletico san luis",
+    "fc juarez":           "juarez",
+    "juarez":              "fc juarez",
+    "bodo glimt":          "bodo/glimt",
+    "bodo/glimt":          "bodo glimt",
+    "atalanta bc":         "atalanta",
+    "atalanta":            "atalanta bc",
+  };
+
   const fuzzyMatch = (a, b) => {
     if (!a || !b) return false;
-    const clean = s => s.toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")  // remove accents
-      .replace(/\b(fc|cf|ac|sc|rc|cd|sd|ud|ca|club|atletico|deportivo|real|sporting|united|city|hotspur)\b/g,"")
-      .replace(/[^a-z0-9]/g,"").trim();
-    const na = clean(a), nb = clean(b);
-    if (!na || !nb) return false;
-    if (na === nb) return true;
-    if (na.includes(nb) || nb.includes(na)) return true;
-    const wa = na.slice(0,5), wb = nb.slice(0,5);
+    const norm = s => s.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-z0-9]/g," ").replace(/\s+/g," ").trim();
+    const clean = s => norm(s)
+      .replace(/\b(fc|cf|ac|sc|rc|cd|sd|ud|ca|club)\b/g,"")
+      .replace(/\s+/g,"").trim();
+    const na = norm(a), nb = norm(b);
+    const ca = clean(a), cb = clean(b);
+
+    if (na === nb || ca === cb) return true;
+    // Alias map check
+    if (TEAM_ALIASES[na] === nb || TEAM_ALIASES[nb] === na) return true;
+    if (TEAM_ALIASES[ca] === cb || TEAM_ALIASES[cb] === ca) return true;
+    // Contains check
+    if (ca.includes(cb) || cb.includes(ca)) return true;
+    // First word match (at least 4 chars)
+    const wa = ca.slice(0,5), wb = cb.slice(0,5);
     return wa === wb && wa.length >= 4;
   };
 
