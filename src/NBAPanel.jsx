@@ -485,13 +485,15 @@ export default function NBAPanel({ onClose }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
-      const topPick = parsed.apuestasDestacadas?.[0];
+      const allPicks = (parsed.apuestasDestacadas || []).map(p => ({
+        ...p,
+        pick_type: p.tipo || p.categoria || "general",
+      }));
       await saveNBAPrediction(session.user.id, {
         homeTeam: selectedGame.teams?.home?.name,
         awayTeam: selectedGame.teams?.visitors?.name,
-        pick: topPick ? (topPick.tipo + ": " + topPick.pick) : parsed.ganadorProbable,
-        odds: topPick?.odds_sugerido || null,
-        confidence: topPick?.confianza || parsed.probabilidades?.home || null,
+        predictedScore: parsed.marcadorEstimado || null,
+        allPicks,
         analysis: parsed,
         gameDate: selectedGame.date?.start ? selectedGame.date.start.split("T")[0] : null,
         gameId: String(selectedGame.id || ""),

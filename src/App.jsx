@@ -1,7 +1,7 @@
 import NBAPanel from "./NBAPanel";
 import HistorialPanel from "./HistorialPanel";
 import { useState, useCallback, useEffect } from "react";
-import { supabase, savePrediction, getPredictions, updateResult } from "./supabase";
+import { supabase, savePrediction, saveAllPicks, getPredictions, updateResult, autoResolveFootball } from "./supabase";
 
 const FEATURED_LEAGUES = [
   // Europa top
@@ -388,6 +388,7 @@ export default function App() {
   const [loadingStand,  setLoadingStand]  = useState(false);
   const [h2h,           setH2h]           = useState([]);
   const [poisson,       setPoisson]       = useState(null);
+  const [selectedFixture, setSelectedFixture] = useState(null);
   const [edges,         setEdges]         = useState([]);
   const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
   const [activeTab,     setActiveTab]     = useState("stats");
@@ -1119,23 +1120,22 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       setAnalysis(fullAnalysis);
       setView("analysis");
       loadOdds();
-      // Auto-save to Supabase if user is logged in
+      // Auto-save ALL picks to Supabase if user is logged in
       try {
         const { data: { session } } = await supabase?.auth.getSession() || {};
         if (session?.user) {
-          const best = (parsed.apuestasDestacadas||[]).sort((a,b)=>b.confianza-a.confianza)[0];
-          await savePrediction(session.user.id, {
+          const picks = parsed.apuestasDestacadas || [];
+          await saveAllPicks(session.user.id, {
             league: league?.name,
             homeTeam: homeTeam?.name,
             awayTeam: awayTeam?.name,
             score: parsed.prediccionMarcador,
-            pick: best?.pick,
-            odds: best?.odds_sugerido,
-            confidence: best?.confianza,
+            fixtureId: selectedFixture?.fixture?.id || null,
+            gameDate: selectedFixture?.fixture?.date?.split("T")[0] || null,
             analysis: fullAnalysis,
-          });
+          }, picks, "football");
         }
-      } catch(e) { /* silencioso — no interrumpir el flujo */ }
+      } catch(e) { /* silencioso */ }
     } catch(e) { setAiErr("Error: "+e.message); }
     finally { setLoadingAI(false); }
   };
@@ -1561,6 +1561,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             const ht = {id: f.teams?.home?.id, name: f.teams?.home?.name};
                             const at = {id: f.teams?.away?.id, name: f.teams?.away?.name};
                             setHomeTeam(ht); setAwayTeam(at);
+                            setSelectedFixture(f);
                             selectTeam(ht, "home"); selectTeam(at, "away");
                           }}
                           style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>

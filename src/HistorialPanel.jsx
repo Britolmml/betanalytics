@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAllPredictions, updateResult, supabase } from "./supabase";
+import { getAllPredictions, updateResult, autoResolveFootball, autoResolveNBA, supabase } from "./supabase";
 
 const C = {
   card: { background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:14, padding:16 },
@@ -41,6 +41,8 @@ export default function HistorialPanel({ onClose }) {
   const [bankroll, setBankroll] = useState(() => parseFloat(localStorage.getItem("bankroll") || "0"));
   const [bankrollInput, setBankrollInput] = useState("");
   const [editingBankroll, setEditingBankroll] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolveMsg, setResolveMsg] = useState("");
 
   useEffect(() => {
     loadAll();
@@ -55,6 +57,23 @@ export default function HistorialPanel({ onClose }) {
       setPreds(data || []);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const handleAutoResolve = async () => {
+    setResolving(true);
+    setResolveMsg("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const [ftResult, nbaResult] = await Promise.all([
+        autoResolveFootball(session.user.id),
+        autoResolveNBA(session.user.id),
+      ]);
+      const total = (ftResult?.resolved || 0) + (nbaResult?.resolved || 0);
+      setResolveMsg(total > 0 ? `✅ ${total} resultado${total>1?"s":""} actualizados` : "Sin resultados nuevos para actualizar");
+      if (total > 0) await loadAll();
+    } catch(e) { setResolveMsg("Error: " + e.message); }
+    finally { setResolving(false); }
   };
 
   const handleUpdateResult = async (id, result) => {
@@ -147,8 +166,23 @@ export default function HistorialPanel({ onClose }) {
             <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:26, color:"#60a5fa", letterSpacing:2 }}>📊 HISTORIAL DE PREDICCIONES</div>
             <div style={{ fontSize:11, color:"#555" }}>{preds.length} predicciones guardadas</div>
           </div>
-          <button onClick={onClose} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:24 }}>✕</button>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <button onClick={handleAutoResolve} disabled={resolving}
+              style={{ background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:8, padding:"6px 12px", color:"#10b981", cursor:resolving?"not-allowed":"pointer", fontSize:11, fontWeight:700 }}>
+              {resolving ? "⏳ Verificando..." : "🔄 Verificar resultados"}
+            </button>
+            <button onClick={onClose} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:24 }}>✕</button>
+          </div>
         </div>
+
+        {resolveMsg && (
+          <div style={{ marginBottom:12, padding:"8px 12px", borderRadius:8,
+            background: resolveMsg.startsWith("✅") ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)",
+            border: `1px solid ${resolveMsg.startsWith("✅") ? "rgba(16,185,129,0.3)" : "rgba(245,158,11,0.3)"}`,
+            fontSize:11, color: resolveMsg.startsWith("✅") ? "#10b981" : "#f59e0b" }}>
+            {resolveMsg}
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display:"flex", gap:6, marginBottom:16, background:"rgba(255,255,255,0.03)", borderRadius:10, padding:4 }}>
