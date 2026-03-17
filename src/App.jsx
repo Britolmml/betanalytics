@@ -2855,22 +2855,29 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{minHeight:"calc(100vh - 62px)",position:"relative",overflow:"hidden",background:"#07090f"}}>
           {/* Futuristic AI background */}
           <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:0}}>
-            {/* Radial gradient center glow */}
-            <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:700,height:400,background:"radial-gradient(ellipse at center, rgba(239,68,68,0.07) 0%, rgba(99,102,241,0.04) 50%, transparent 70%)",borderRadius:"50%",filter:"blur(40px)"}} />
-            {/* Grid lines */}
-            <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.04}} xmlns="http://www.w3.org/2000/svg">
+            {/* Center glow - stronger */}
+            <div style={{position:"absolute",top:"10%",left:"50%",transform:"translateX(-50%)",width:900,height:500,background:"radial-gradient(ellipse at center, rgba(239,68,68,0.12) 0%, rgba(99,102,241,0.07) 40%, transparent 70%)",filter:"blur(60px)"}} />
+            <div style={{position:"absolute",bottom:"5%",right:"10%",width:400,height:300,background:"radial-gradient(ellipse at center, rgba(249,115,22,0.08) 0%, transparent 70%)",filter:"blur(40px)"}} />
+            {/* Grid lines - more visible */}
+            <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.07}} xmlns="http://www.w3.org/2000/svg">
               <defs>
-                <pattern id="nbagrid" width="60" height="60" patternUnits="userSpaceOnUse">
-                  <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#f87171" strokeWidth="0.5"/>
+                <pattern id="nbagrid" width="50" height="50" patternUnits="userSpaceOnUse">
+                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#f87171" strokeWidth="0.6"/>
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#nbagrid)" />
             </svg>
+            {/* Diagonal accent */}
+            <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0.04}} xmlns="http://www.w3.org/2000/svg">
+              <line x1="0" y1="0" x2="100%" y2="100%" stroke="#ef4444" strokeWidth="1"/>
+              <line x1="100%" y1="0" x2="0" y2="100%" stroke="#6366f1" strokeWidth="1"/>
+            </svg>
             {/* Corner accent lines */}
-            <div style={{position:"absolute",top:0,left:0,width:180,height:180,borderTop:"1px solid rgba(239,68,68,0.15)",borderLeft:"1px solid rgba(239,68,68,0.15)"}} />
-            <div style={{position:"absolute",bottom:0,right:0,width:180,height:180,borderBottom:"1px solid rgba(239,68,68,0.1)",borderRight:"1px solid rgba(239,68,68,0.1)"}} />
-            {/* Subtle scan line */}
-            <div style={{position:"absolute",inset:0,background:"repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)"}} />
+            <div style={{position:"absolute",top:0,left:0,width:200,height:200,borderTop:"1px solid rgba(239,68,68,0.2)",borderLeft:"1px solid rgba(239,68,68,0.2)"}} />
+            <div style={{position:"absolute",top:16,left:16,width:80,height:80,borderTop:"1px solid rgba(239,68,68,0.1)",borderLeft:"1px solid rgba(239,68,68,0.1)"}} />
+            <div style={{position:"absolute",bottom:0,right:0,width:200,height:200,borderBottom:"1px solid rgba(99,102,241,0.15)",borderRight:"1px solid rgba(99,102,241,0.15)"}} />
+            {/* Horizontal scan line */}
+            <div style={{position:"absolute",inset:0,background:"repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(239,68,68,0.015) 3px, rgba(239,68,68,0.015) 4px)"}} />
           </div>
           <div style={{position:"relative",zIndex:1,maxWidth:1060,margin:"0 auto",padding:"18px 16px"}}>
             <NBAPanel onClose={()=>setActiveSport(null)} inline={true} />

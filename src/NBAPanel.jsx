@@ -179,13 +179,13 @@ function GameCard({ game, isSelected, onSelect }) {
     : isLive
     ? "1.5px solid rgba(16,185,129,0.35)"
     : "1.5px solid rgba(255,255,255,0.07)";
-  const cardBg = isSelected ? "rgba(239,68,68,0.07)" : "rgba(7,9,15,0.9)";
+  const cardBg = isSelected ? "rgba(239,68,68,0.12)" : "rgba(7,9,15,0.45)";
   const headerBg = isLive ? "rgba(16,185,129,0.08)" : isDone ? "rgba(255,255,255,0.03)" : "rgba(245,158,11,0.06)";
   const statusColor = isLive ? "#10b981" : isDone ? "#666" : "#f59e0b";
   const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ FINAL" : "🕐 " + timeStr;
 
   return (
-    <div onClick={() => onSelect(game)} style={{ cursor: "pointer", borderRadius: 14, overflow: "hidden", border: cardBorder, background: cardBg, transition: "all 0.2s", boxShadow: isSelected ? "0 0 20px rgba(239,68,68,0.1)" : "none" }}>
+    <div onClick={() => onSelect(game)} style={{ cursor: "pointer", borderRadius: 14, overflow: "hidden", border: cardBorder, background: cardBg, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", transition: "all 0.2s", boxShadow: isSelected ? "0 0 24px rgba(239,68,68,0.15)" : "0 2px 8px rgba(0,0,0,0.3)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", background: headerBg }}>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: statusColor }}>{statusLabel}</span>
         <span style={{ fontSize: 10, color: "#444" }}>{game.arena?.city || ""}</span>
@@ -888,7 +888,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             {selectedGame && (
               <div style={{ marginTop: 8 }}>
                 {preview && !loadingAI && (
-                  <div style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <div style={{ background: "rgba(7,9,15,0.5)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
                     <div style={{ fontSize: 11, color: "#666", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>
                       📊 VISTA PREVIA — {selectedGame.teams?.home?.name} vs {selectedGame.teams?.visitors?.name}
                     </div>
@@ -968,13 +968,13 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                 )}
 
                 {loadingAI && !preview && (
-                  <div style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, textAlign: "center", color: "#f87171", fontSize: 13 }}>
+                  <div style={{ background: "rgba(7,9,15,0.5)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, textAlign: "center", color: "#f87171", fontSize: 13 }}>
                     ⏳ Cargando estadísticas del partido...
                   </div>
                 )}
 
                 {(analysis || aiErr || (loadingAI && preview)) && (
-                  <div style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 14, padding: 16, marginTop: 8 }}>
+                  <div style={{ background: "rgba(7,9,15,0.5)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 14, padding: 16, marginTop: 8 }}>
                     <div style={{ fontSize: 12, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>🤖 ANÁLISIS IA NBA</div>
                     {loadingAI && <div style={{ textAlign: "center", padding: 24, color: "#f87171", fontSize: 13 }}>⚙️ Analizando partido...</div>}
                     {aiErr && <div style={{ color: "#ef4444", fontSize: 12 }}>{aiErr}</div>}
@@ -1291,7 +1291,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         {tab === "standings" && !loading && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {[["east", "🔵 Conferencia Este"], ["west", "🔴 Conferencia Oeste"]].map(([conf, label]) => (
-              <div key={conf} style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
+              <div key={conf} style={{ background: "rgba(7,9,15,0.5)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
                 <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>{label}</div>
                 {standings[conf].length === 0 && <div style={{ color: "#444", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos. Pulsa Actualizar.</div>}
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
@@ -1333,7 +1333,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
       {showMulti && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>!loadingMulti&&setShowMulti(false)}>
-          <div style={{maxWidth:680,margin:"0 auto",background:"rgba(7,9,15,0.9)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}} onClick={e=>e.stopPropagation()}>
+          <div style={{maxWidth:680,margin:"0 auto",background:"rgba(7,9,15,0.55)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
               <div>
                 <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa",letterSpacing:2}}>🤖 ANÁLISIS MULTI-IA NBA</div>
