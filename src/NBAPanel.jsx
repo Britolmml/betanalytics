@@ -370,16 +370,15 @@ export default function NBAPanel({ onClose }) {
       const all1 = res1.status === "fulfilled" ? (res1.value?.response || []) : [];
       // From tomorrow UTC: only include if the game is actually TODAY in EST/CST
       // Convert each game's start time to EST date and compare with selected date
-      const all1Filtered = all1.filter(g => {
-        if (!g.date?.start) return false;
-        const gameDate = new Date(g.date.start)
-          .toLocaleDateString("en-CA", { timeZone: "America/New_York" }); // YYYY-MM-DD in EST
-        return gameDate === date0; // same day as selected date in EST
-      });
+      // Filter ALL games by EST date matching selected date — handles UTC day boundary
+      const toESTDate = g => g.date?.start
+        ? new Date(g.date.start).toLocaleDateString("en-CA", { timeZone: "America/New_York" })
+        : null;
       const seen = new Set();
-      const all = [...all0, ...all1Filtered].filter(g => {
+      const all = [...all0, ...all1].filter(g => {
         if (seen.has(g.id)) return false;
-        seen.add(g.id); return true;
+        seen.add(g.id);
+        return toESTDate(g) === date0;
       });
       const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
       const ns   = all.filter(g => g.status?.short === 1);
