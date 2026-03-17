@@ -356,12 +356,28 @@ export default function NBAPanel({ onClose }) {
   const loadNBA = async (dateStr) => {
     setLoading(true); setErr("");
     try {
-      const res = await nbFetch("/games?season=2025&date=" + (dateStr || selectedDate));
-      const all = res?.response || [];
+      const date0 = dateStr || selectedDate;
+      // Also load next day to catch late-night games that appear as tomorrow in UTC
+      const d = new Date(date0 + "T12:00:00");
+      d.setDate(d.getDate() + 1);
+      const date1 = d.toISOString().split("T")[0];
+
+      const [res0, res1] = await Promise.allSettled([
+        nbFetch("/games?season=2025&date=" + date0),
+        nbFetch("/games?season=2025&date=" + date1),
+      ]);
+      const all0 = res0.status === "fulfilled" ? (res0.value?.response || []) : [];
+      const all1 = res1.status === "fulfilled" ? (res1.value?.response || []) : [];
+      // Deduplicate by game id
+      const seen = new Set();
+      const all = [...all0, ...all1].filter(g => {
+        if (seen.has(g.id)) return false;
+        seen.add(g.id); return true;
+      });
       const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
       const ns   = all.filter(g => g.status?.short === 1);
       const done = all.filter(g => g.status?.short === 3);
-      setGames([...live, ...ns, ...done].slice(0, 15));
+      setGames([...live, ...ns, ...done].slice(0, 20));
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
@@ -647,8 +663,22 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
     try {
       // Load all today's games
-      const gamesRes = await nbFetch("/games?season=2025&date=" + selectedDate);
-      const todayGames = (gamesRes?.response || []).filter(g => g.status?.short !== 3);
+      const date1 = new Date(selectedDate + "T12:00:00");
+      date1.setDate(date1.getDate() + 1);
+      const nextDate = date1.toISOString().split("T")[0];
+      const [gamesRes0, gamesRes1] = await Promise.allSettled([
+        nbFetch("/games?season=2025&date=" + selectedDate),
+        nbFetch("/games?season=2025&date=" + nextDate),
+      ]);
+      const allGamesRaw = [
+        ...(gamesRes0.status === "fulfilled" ? gamesRes0.value?.response || [] : []),
+        ...(gamesRes1.status === "fulfilled" ? gamesRes1.value?.response || [] : []),
+      ];
+      const seenIds = new Set();
+      const todayGames = allGamesRaw.filter(g => {
+        if (seenIds.has(g.id) || g.status?.short === 3) return false;
+        seenIds.add(g.id); return true;
+      });
       if (todayGames.length === 0) {
         setMegaProgress("No hay partidos hoy.");
         setLoadingMega(false);
