@@ -139,6 +139,27 @@ function toAmerican(decimal) {
 
 /* ─── sub-components ─────────────────────────────────────── */
 
+
+// NBA team logos via ESPN CDN
+const NBA_LOGO = (abbr) => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr?.toLowerCase()}.png`;
+// Fallback map for common team codes
+const NBA_ABBR = {
+  "Lakers": "lal", "Warriors": "gsw", "Celtics": "bos", "Nets": "bkn",
+  "Knicks": "ny", "Bulls": "chi", "Heat": "mia", "Bucks": "mil",
+  "76ers": "phi", "Raptors": "tor", "Cavaliers": "cle", "Pistons": "det",
+  "Pacers": "ind", "Hawks": "atl", "Hornets": "cha", "Magic": "orl",
+  "Wizards": "wsh", "Nuggets": "den", "Thunder": "okc", "Jazz": "utah",
+  "Suns": "phx", "Clippers": "lac", "Kings": "sac", "Blazers": "por",
+  "Timberwolves": "min", "Mavericks": "dal", "Rockets": "hou",
+  "Grizzlies": "mem", "Pelicans": "no", "Spurs": "sa",
+};
+const getNBALogo = (teamName) => {
+  if (!teamName) return null;
+  const lastWord = teamName.split(" ").pop();
+  const abbr = NBA_ABBR[lastWord];
+  return abbr ? NBA_LOGO(abbr) : null;
+};
+
 function GameCard({ game, isSelected, onSelect }) {
   const home = game.teams?.home;
   const away = game.teams?.visitors;
@@ -158,7 +179,7 @@ function GameCard({ game, isSelected, onSelect }) {
     : isLive
     ? "1.5px solid rgba(16,185,129,0.35)"
     : "1.5px solid rgba(255,255,255,0.07)";
-  const cardBg = isSelected ? "rgba(239,68,68,0.07)" : "#0d1117";
+  const cardBg = isSelected ? "rgba(239,68,68,0.07)" : "rgba(7,9,15,0.9)";
   const headerBg = isLive ? "rgba(16,185,129,0.08)" : isDone ? "rgba(255,255,255,0.03)" : "rgba(245,158,11,0.06)";
   const statusColor = isLive ? "#10b981" : isDone ? "#666" : "#f59e0b";
   const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ FINAL" : "🕐 " + timeStr;
@@ -186,18 +207,22 @@ function GameCard({ game, isSelected, onSelect }) {
 }
 
 function TeamRow({ name, code, score, win, isDone, isLive }) {
+  const logo = getNBALogo(name);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#aaa" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {logo
+          ? <img src={logo} alt={code} style={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0, filter: isDone && !win ? "grayscale(0.5) opacity(0.6)" : "none" }} onError={e => { e.target.style.display="none"; e.target.nextSibling.style.display="flex"; }} />
+          : null}
+        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.06)", display: logo ? "none" : "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#aaa", flexShrink: 0 }}>
           {code?.[0] || "?"}
         </div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: win ? "#10b981" : "#e8eaf0", lineHeight: 1.2 }}>{name}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: win ? "#10b981" : isDone ? "#888" : "#e8eaf0", lineHeight: 1.2 }}>{name}</div>
           <div style={{ fontSize: 10, color: "#555" }}>{code}</div>
         </div>
       </div>
-      <div style={{ fontSize: score != null ? 32 : 18, fontWeight: 900, color: win ? "#10b981" : "#e8eaf0", minWidth: 40, textAlign: "right" }}>
+      <div style={{ fontSize: score != null ? 30 : 16, fontWeight: 900, color: win ? "#10b981" : isDone ? "#666" : "#e8eaf0", minWidth: 40, textAlign: "right" }}>
         {score != null ? score : (isDone || isLive) ? "—" : ""}
       </div>
     </div>
@@ -863,7 +888,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             {selectedGame && (
               <div style={{ marginTop: 8 }}>
                 {preview && !loadingAI && (
-                  <div style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  <div style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
                     <div style={{ fontSize: 11, color: "#666", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>
                       📊 VISTA PREVIA — {selectedGame.teams?.home?.name} vs {selectedGame.teams?.visitors?.name}
                     </div>
@@ -943,13 +968,13 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                 )}
 
                 {loadingAI && !preview && (
-                  <div style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, textAlign: "center", color: "#f87171", fontSize: 13 }}>
+                  <div style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, textAlign: "center", color: "#f87171", fontSize: 13 }}>
                     ⏳ Cargando estadísticas del partido...
                   </div>
                 )}
 
                 {(analysis || aiErr || (loadingAI && preview)) && (
-                  <div style={{ background: "#0d1117", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 14, padding: 16, marginTop: 8 }}>
+                  <div style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 14, padding: 16, marginTop: 8 }}>
                     <div style={{ fontSize: 12, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>🤖 ANÁLISIS IA NBA</div>
                     {loadingAI && <div style={{ textAlign: "center", padding: 24, color: "#f87171", fontSize: 13 }}>⚙️ Analizando partido...</div>}
                     {aiErr && <div style={{ color: "#ef4444", fontSize: 12 }}>{aiErr}</div>}
@@ -1266,7 +1291,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         {tab === "standings" && !loading && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             {[["east", "🔵 Conferencia Este"], ["west", "🔴 Conferencia Oeste"]].map(([conf, label]) => (
-              <div key={conf} style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
+              <div key={conf} style={{ background: "rgba(7,9,15,0.85)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
                 <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>{label}</div>
                 {standings[conf].length === 0 && <div style={{ color: "#444", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos. Pulsa Actualizar.</div>}
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
@@ -1308,7 +1333,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
       {showMulti && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>!loadingMulti&&setShowMulti(false)}>
-          <div style={{maxWidth:680,margin:"0 auto",background:"#0d1117",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}} onClick={e=>e.stopPropagation()}>
+          <div style={{maxWidth:680,margin:"0 auto",background:"rgba(7,9,15,0.9)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:20,padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
               <div>
                 <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#a78bfa",letterSpacing:2}}>🤖 ANÁLISIS MULTI-IA NBA</div>
