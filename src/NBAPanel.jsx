@@ -452,6 +452,7 @@ export default function NBAPanel({ onClose, inline = false }) {
     setAnalysis(null); setAiErr(""); setPreview(null);
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setSaved(false); setSaveErr("");
+    setNbaOdds(null); setNbaEdges([]);
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
@@ -461,7 +462,8 @@ export default function NBAPanel({ onClose, inline = false }) {
       const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
       const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
       setPreview({ home: hStats, away: aStats });
-      setNbaPoisson(calcNBAPoisson(hStats, aStats));
+      const poisson = calcNBAPoisson(hStats, aStats);
+      setNbaPoisson(poisson);
       setNbaH2H([]);
       // H2H simulado: cruzar fixtures de ambos equipos
       try {
@@ -485,6 +487,61 @@ export default function NBAPanel({ onClose, inline = false }) {
           })));
         }
       } catch(e) { /* silencioso */ }
+
+      // ── Auto-cargar momios NBA sin botón ──────────────────
+      try {
+        setLoadingOdds(true);
+        const home = game.teams?.home?.name;
+        const away = game.teams?.visitors?.name;
+        const resOdds = await fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`);
+        const dataOdds = await resOdds.json();
+        if (Array.isArray(dataOdds)) {
+          const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+          const nh = norm(home), na = norm(away);
+          const matchedGame = dataOdds.find(g => {
+            const gh = norm(g.home_team), ga = norm(g.away_team);
+            return (gh.includes(nh.slice(-6)) || nh.includes(gh.slice(-6))) &&
+                   (ga.includes(na.slice(-6)) || na.includes(ga.slice(-6)));
+          });
+          if (matchedGame) {
+            const bk = matchedGame.bookmakers?.find(b=>b.key==="pinnacle") ||
+                       matchedGame.bookmakers?.find(b=>b.key==="draftkings") ||
+                       matchedGame.bookmakers?.[0];
+            const h2hM = bk?.markets?.find(m=>m.key==="h2h");
+            const totalsM = bk?.markets?.find(m=>m.key==="totals");
+            const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
+            setNbaOdds(newOdds);
+            if (poisson) setNbaEdges(calcNBAEdges(poisson, newOdds));
+          }
+        }
+      } catch(e) { console.warn("Auto-load odds error:", e.message); }
+      finally { setLoadingOdds(false); }
+
+      // ── Cargar bajas/lesiones de jugadores ────────────────
+      try {
+        const [injH, injA] = await Promise.allSettled([
+          nbFetch("/injuries?team=" + game.teams?.home?.id + "&season=2025"),
+          nbFetch("/injuries?team=" + game.teams?.visitors?.id + "&season=2025"),
+        ]);
+        const parseInjuries = (res, teamName) => {
+          if (res.status !== "fulfilled") return [];
+          return (res.value?.response || [])
+            .filter(p => p.player?.name)
+            .map(p => ({
+              name: p.player?.name,
+              reason: p.comment || p.type || "Lesión",
+              status: p.status || "Out",
+              team: teamName,
+            }))
+            .slice(0, 5);
+        };
+        const homeInjuries = parseInjuries(injH, game.teams?.home?.name);
+        const awayInjuries = parseInjuries(injA, game.teams?.visitors?.name);
+        const allInjuries = [...homeInjuries, ...awayInjuries];
+        if (allInjuries.length > 0) {
+          setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
+        }
+      } catch(e) { console.warn("Injuries error:", e.message); }
 
       // Cargar top jugadores
       setLoadingPlayers(true);
@@ -656,7 +713,14 @@ Puntos esperados (modelo): ${aLine}
 ════ LÍNEAS DE MERCADO ════
 Total proyectado: ${totalLine} pts
 ${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
-${nbaOdds ? "MOMIOS REALES: Moneyline " + (nbaOdds.h2h?.outcomes?.map(o=>o.name+" "+o.price).join(" | ") || "N/D") + " | Total " + (nbaOdds.totals?.outcomes?.map(o=>o.name+" "+o.point+" @"+o.price).join(" | ") || "N/D") : "Momios no cargados (opcional: presiona Cargar momios NBA)"}
+${nbaOdds ? `MOMIOS REALES (${nbaOdds.bookmaker || "Bookmaker"}):
+  Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
+  const dec = o.price;
+  const am = dec >= 2 ? "+" + Math.round((dec-1)*100) : "-" + Math.round(100/(dec-1));
+  return o.name + " " + am + " (dec:" + dec + ")";
+}).join(" | ") || "N/D") + `
+  Total: ` + (nbaOdds.totals?.outcomes?.map(o => o.name + " " + o.point + " @ " + (o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)))).join(" | ") || "N/D") + `
+CRÍTICO: Usa EXACTAMENTE estas líneas de totales en tus picks (Over/Under X.X donde X.X es el punto de la línea real). NO inventes líneas.` : "Momios no disponibles"}
 
 ════ MODELO POISSON NBA ════
 ` + (nbaPoisson ? `xPts esperados: ${home}=${nbaPoisson.xPtsHome} | ${away}=${nbaPoisson.xPtsAway}
@@ -664,12 +728,18 @@ Total proyectado Poisson: ${nbaPoisson.total} pts | Spread: ${home} ${nbaPoisson
 Fuerza ofensiva: ${home}=${nbaPoisson.hOff}x | ${away}=${nbaPoisson.aOff}x
 Fuerza defensiva: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
 Probabilidad victoria: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
-Total proyectado: ${nbaPoisson.total} pts | Over línea mercado=${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/D"}: ${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(nbaPoisson.total, parseFloat(nbaOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
+Over línea mercado real (${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/D"}): ${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(nbaPoisson.total, parseFloat(nbaOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
 H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "Sin H2H disponible") : "Poisson no disponible") + `
 
 ════ EDGES CALCULADOS (Poisson vs Mercado NBA) ════
 ` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"sin valor"}`).join("\n") : "Sin momios cargados — carga momios para detectar edges") + `
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
+
+════ BAJAS Y LESIONES ════
+${preview?.injuries?.length > 0
+  ? preview.injuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
+  : "Sin bajas reportadas para este partido"}
+IMPORTANTE: Las bajas de jugadores clave (estrellas, titulares) deben reducir la confianza del equipo afectado.
 
 ════ CANDIDATOS A TRIPLE DOBLE ════
 ${tdNote}
@@ -999,6 +1069,27 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       ))}
                     </div>
 
+                    {/* Bajas y lesiones */}
+                    {preview?.injuries?.length > 0 && (
+                      <div style={{ marginBottom: 14, background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: "#f87171", fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>🚑 BAJAS / LESIONES</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                          {preview.injuries.map((p, i) => (
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                              <div>
+                                <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>
+                                <span style={{ color: "#555", marginLeft: 6 }}>{p.team?.split(" ").pop()}</span>
+                              </div>
+                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                <span style={{ color: "#888" }}>{p.reason}</span>
+                                <span style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", borderRadius: 4, padding: "1px 6px", fontSize: 9, fontWeight: 700 }}>{p.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Top jugadores */}
                     {(players.home.length > 0 || players.away.length > 0) && (
                       <div style={{ marginBottom: 14 }}>
@@ -1030,11 +1121,21 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     )}
 
                     <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
-                      <button onClick={loadNBAOdds} disabled={loadingOdds}
-                        style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"6px 16px",color:"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:11,fontWeight:700}}>
-                        {loadingOdds?"⏳ Cargando...":"💹 Cargar momios NBA (opcional)"}
-                        {nbaOdds && " ✓"}
-                      </button>
+                      {loadingOdds ? (
+                        <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"6px 14px",color:"#f59e0b",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                          ⏳ Cargando momios...
+                        </div>
+                      ) : nbaOdds ? (
+                        <div style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 14px",color:"#00d4ff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                          💹 Momios cargados · {nbaOdds.bookmaker || "Bookmaker"}
+                          <button onClick={loadNBAOdds} style={{background:"none",border:"none",color:"rgba(0,212,255,0.5)",cursor:"pointer",fontSize:10,padding:0,marginLeft:4}}>↻</button>
+                        </div>
+                      ) : (
+                        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 14px",color:"#555",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+                          💹 Sin momios disponibles
+                          <button onClick={loadNBAOdds} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:10,padding:0,marginLeft:4}}>↻ reintentar</button>
+                        </div>
+                      )}
                     </div>
                     <div style={{display:"flex",gap:8}}>
                       <button onClick={runAI} disabled={loadingAI||loadingMulti} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingMulti)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer"}}>
@@ -1074,8 +1175,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           const underO = nbaOdds.totals?.outcomes?.find(o=>o.name==="Under");
                           return (
                             <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
-                              <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
-                                💰 Momios reales — {nbaOdds.bookmaker || "Bookmaker"}
+                              <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                <span>💰 Momios reales — {nbaOdds.bookmaker || "Bookmaker"}</span>
+                                <span style={{fontSize:8,color:"#555",fontWeight:400,textTransform:"none"}}>⚠️ Líneas pueden diferir de Bet365</span>
                               </div>
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
                                 {[
@@ -1083,15 +1185,23 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                   {l:"VISITANTE", name:selectedGame?.teams?.visitors?.name?.split(" ").pop(), v:awayO?.price},
                                   {l:"MAS " + (overO?.point ?? ""), name:"Over", v:overO?.price},
                                   {l:"MENOS " + (underO?.point ?? ""), name:"Under", v:underO?.price},
-                                ].map(({l,name,v}) => v ? (
-                                  <div key={l} style={{ textAlign: "center", padding: "8px 4px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
-                                    <div style={{ fontSize: 8, color: "#666", marginBottom: 2, fontWeight: 700 }}>{l}</div>
-                                    <div style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 22, color: "#f59e0b", lineHeight: 1 }}>
-                                      {v >= 2 ? "+" + Math.round((v-1)*100) : "-" + Math.round(100/(v-1))}
+                                ].map(({l,name,v}) => {
+                                  if (!v) return null;
+                                  // Conversión decimal → americano correcta
+                                  const american = v >= 2
+                                    ? "+" + Math.round((v - 1) * 100)
+                                    : "-" + Math.round(100 / (v - 1));
+                                  return (
+                                    <div key={l} style={{ textAlign: "center", padding: "8px 4px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                                      <div style={{ fontSize: 8, color: "#666", marginBottom: 2, fontWeight: 700 }}>{l}</div>
+                                      <div style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 22, color: "#f59e0b", lineHeight: 1 }}>
+                                        {american}
+                                      </div>
+                                      <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{name}</div>
+                                      <div style={{ fontSize: 8, color: "#444", marginTop: 1 }}>{v.toFixed(2)}</div>
                                     </div>
-                                    <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{name}</div>
-                                  </div>
-                                ) : null)}
+                                  );
+                                })}
                               </div>
                             </div>
                           );
