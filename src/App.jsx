@@ -441,7 +441,7 @@ export default function App() {
     setLoadingNews(true);
     try {
       const res = await fetch("/api/predict", { method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({prompt:'Analista deportivo. Dame 6 estadisticas destacadas de HOY sobre NBA y futbol. SOLO JSON sin markdown: {"noticias":[{"titulo":"","deporte":"NBA o FUTBOL","dato":""}]}'}) });
+        body: JSON.stringify({prompt:'Eres un periodista deportivo. Dame 6 noticias deportivas REALES y ACTUALES de HOY sobre NBA y fútbol internacional. Incluye resultados recientes, fichajes, lesiones de estrellas, standings o records. SOLO JSON sin markdown: {"noticias":[{"titulo":"","deporte":"NBA o FUTBOL","dato":""}]}'}) });
       const data = await res.json();
       const text = data.content?.[0]?.text||"";
       const clean = text.replace(/```json|```/g,"").trim();
@@ -449,12 +449,12 @@ export default function App() {
       if (parsed.noticias?.length > 0) { setNews(parsed.noticias); setLoadingNews(false); return; }
     } catch(e){ console.warn("loadNews error", e.message); }
     setNews([
+      {deporte:"FUTBOL", titulo:"Champions League — Cuartos de final", dato:"Real Madrid y Bayern Munich avanzan como favoritos. PSG busca su primer título."},
+      {deporte:"NBA",    titulo:"MVP Race 2025-26", dato:"Nikola Jokic lidera la carrera al MVP con 29.5 pts y 13.1 reb por partido."},
       {deporte:"FUTBOL", titulo:"Premier League — Jornada 30", dato:"Arsenal lidera la tabla. Liverpool es segundo a 2 puntos de diferencia."},
-      {deporte:"FUTBOL", titulo:"Champions League", dato:"Cuartos de final esta semana. Real Madrid y Bayern son los favoritos."},
-      {deporte:"NBA",    titulo:"Conferencia Este", dato:"Cleveland Cavaliers lideran con 51-17. Boston y Milwaukee pelean el 2do lugar."},
-      {deporte:"NBA",    titulo:"MVP Race", dato:"Nikola Jokic encabeza la carrera al MVP con 29.5 pts y 13.1 reb por partido."},
+      {deporte:"NBA",    titulo:"Playoffs en camino", dato:"Cavaliers lideran el Este con 51-17. Play-in inicia en abril."},
       {deporte:"FUTBOL", titulo:"Liga MX — Clausura", dato:"América y Cruz Azul lideran el torneo rumbo a la liguilla."},
-      {deporte:"NBA",    titulo:"Playoffs en camino", dato:"Faltan 15 juegos para el final de temporada regular. El play-in inicia en abril."},
+      {deporte:"NBA",    titulo:"Lesión de impacto", dato:"Sigue de cerca el reporte médico de las estrellas antes de apostar en props."},
     ]);
     setLoadingNews(false);
   };
@@ -2914,16 +2914,6 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* Tinte cián tech sobre el fondo azul de la imagen */}
             <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 55% at 50% 25%,rgba(0,212,255,0.07) 0%,transparent 60%)"}}/>
 
-            {/* Badge izquierda */}
-            <div style={{position:"absolute",top:72,left:32,background:"rgba(3,9,20,0.84)",border:"1px solid rgba(0,212,255,0.32)",borderRadius:9,padding:"7px 14px",fontSize:11,fontWeight:700,color:"#c8eeff",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(14px)"}}>
-              <span style={{color:"#00d4ff",fontSize:15,fontWeight:800}}>87%</span>
-              <span style={{color:"rgba(0,212,255,0.5)"}}>Precisión PL</span>
-            </div>
-            {/* Badge derecha */}
-            <div style={{position:"absolute",top:108,right:36,background:"rgba(3,9,20,0.84)",border:"1px solid rgba(239,68,68,0.35)",borderRadius:9,padding:"7px 14px",fontSize:11,fontWeight:700,color:"#ffd0d0",display:"flex",alignItems:"center",gap:8,backdropFilter:"blur(14px)"}}>
-              <span style={{color:"#f87171",fontSize:15,fontWeight:800}}>+24</span>
-              <span style={{color:"rgba(239,68,68,0.55)"}}>Picks NBA hoy</span>
-            </div>
             {/* Título hero central — todo centrado en bloque único */}
             <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
               <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3,marginBottom:16}}>
@@ -2931,14 +2921,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 ANÁLISIS EN TIEMPO REAL
               </div>
               <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:82,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.88,marginBottom:16}}>BETANALYTICS</div>
-              {/* Subtítulo */}
-              <div style={{display:"inline-block",background:"rgba(6,13,24,0.55)",backdropFilter:"blur(8px)",borderRadius:8,padding:"6px 18px",fontSize:11,color:"rgba(200,238,255,0.75)",letterSpacing:4,textTransform:"uppercase",marginBottom:14}}>
+              <div style={{display:"inline-block",background:"rgba(6,13,24,0.55)",backdropFilter:"blur(8px)",borderRadius:8,padding:"6px 18px",fontSize:11,color:"rgba(200,238,255,0.75)",letterSpacing:4,textTransform:"uppercase"}}>
                 ESTADÍSTICAS · PREDICCIONES IA · JORNADAS
-              </div>
-              {/* Badge live */}
-              <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(3,9,20,0.75)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:20,padding:"5px 18px",fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.7)",backdropFilter:"blur(10px)"}}>
-                <span style={{width:6,height:6,borderRadius:"50%",background:"#ef4444",display:"inline-block",boxShadow:"0 0 7px #ef4444"}}/>
-                3 PARTIDOS EN VIVO · Real Madrid · Celtics · PSG
               </div>
             </div>
           </div>
@@ -2987,7 +2971,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div style={{width:3,height:20,background:"linear-gradient(#00d4ff,#22c55e)",borderRadius:2}}/>
-                  <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📊 Estadísticas del día</span>
+                  <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📰 Noticias del día</span>
                 </div>
                 <button onClick={loadNews} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 14px",color:"rgba(0,212,255,0.6)",cursor:"pointer",fontSize:11,fontWeight:600}}>
                   {loadingNews ? "⏳ Cargando..." : "🔄 Actualizar"}
