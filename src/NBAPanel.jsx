@@ -56,7 +56,7 @@ function calcStats(recent, teamId) {
 // ── Modelo Poisson NBA ──────────────────────────────────────
 function calcNBAPoisson(hStats, aStats) {
   if (!hStats || !aStats) return null;
-  const leagueAvg = 115; // promedio puntos por equipo NBA 2025-26
+  const leagueAvg = 113.5; // promedio real NBA 2024-25 por equipo
 
   // Fuerza ofensiva y defensiva relativa a liga
   const hOff = parseFloat(hStats.avgPts)    / leagueAvg;
@@ -68,32 +68,35 @@ function calcNBAPoisson(hStats, aStats) {
   const homeAdv = 1.018;
 
   // xPts = promedio ponderado entre modelo Poisson y promedio real
-  // Esto evita sobreajuste cuando un equipo tiene valores extremos
   const xPtsHomePure = leagueAvg * hOff * aDef * homeAdv;
   const xPtsAwayPure = leagueAvg * aOff * hDef;
 
-  // Regresión a la media: 60% modelo, 40% promedio del equipo
-  let xPtsHome = 0.6 * xPtsHomePure + 0.4 * parseFloat(hStats.avgPts);
-  let xPtsAway = 0.6 * xPtsAwayPure + 0.4 * parseFloat(aStats.avgPts);
+  // Regresión a la media más agresiva: 50% modelo, 50% promedio real
+  // Evita proyecciones extremas cuando el modelo diverge mucho
+  let xPtsHome = 0.5 * xPtsHomePure + 0.5 * parseFloat(hStats.avgPts);
+  let xPtsAway = 0.5 * xPtsAwayPure + 0.5 * parseFloat(aStats.avgPts);
 
-  // Ajuste por forma reciente (pequeño, ±5%)
+  // Ajuste por forma reciente (muy pequeño, ±3% máximo)
   const hWinRate = hStats.wins / (hStats.games || 5);
   const aWinRate = aStats.wins / (aStats.games || 5);
-  xPtsHome = xPtsHome * (0.97 + 0.06 * hWinRate);
-  xPtsAway = xPtsAway * (0.97 + 0.06 * aWinRate);
+  xPtsHome = xPtsHome * (0.985 + 0.03 * hWinRate);
+  xPtsAway = xPtsAway * (0.985 + 0.03 * aWinRate);
 
-  xPtsHome = Math.max(95, Math.min(135, xPtsHome));
-  xPtsAway = Math.max(95, Math.min(135, xPtsAway));
+  // Caps muy conservadores — NBA raramente sale de 105-125 por equipo
+  // Un total de 250 es imposible (record NBA es ~265 en un partido anómalo)
+  // Rango normal: 210-240 total, es decir 105-120 por equipo
+  xPtsHome = Math.max(103, Math.min(122, xPtsHome));
+  xPtsAway = Math.max(103, Math.min(122, xPtsAway));
 
   const total = xPtsHome + xPtsAway;
   const spread = xPtsHome - xPtsAway;
 
-  // Probabilidad de victoria (normal distribution approx)
-  // Desviación estándar NBA: spread ~12pts, total ~16pts
-  const stdDevSpread = 12;
-  const stdDevTotal  = 16;
+  // Desviación estándar NBA calibrada:
+  // spread: ~11.5 pts (no 12) — totales: ~11 pts (no 16, ese era el error principal)
+  // stdDevTotal de 16 sobreestimaba mucho la probabilidad Over cuando total > línea
+  const stdDevSpread = 11.5;
+  const stdDevTotal  = 11.0;
 
-  // Aproximación CDF normal: Φ(z) ≈ 0.5 * (1 + erf(z/sqrt(2)))
   const erf = (x) => {
     const t = 1 / (1 + 0.3275911 * Math.abs(x));
     const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
@@ -103,13 +106,14 @@ function calcNBAPoisson(hStats, aStats) {
   const normCDF = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
 
   const zSpread = spread / stdDevSpread;
-  const pHome = Math.min(92, Math.max(8, Math.round(normCDF(zSpread) * 100)));
+  // Cap más conservador: 85% máximo (antes 92%)
+  const pHome = Math.min(85, Math.max(15, Math.round(normCDF(zSpread) * 100)));
   const pAway = 100 - pHome;
 
-  // Over probability usando distribución normal del total
   const calcOverProb = (line) => {
     const z = (total - line) / stdDevTotal;
-    return Math.min(92, Math.max(8, Math.round(normCDF(z) * 100)));
+    // Cap 75% máximo para totales — mercado de totales es muy eficiente
+    return Math.min(75, Math.max(25, Math.round(normCDF(z) * 100)));
   };
 
   return {
@@ -302,7 +306,7 @@ function ProbBar({ name, pct, color }) {
 
 // ── NBA Edge Calculator ──────────────────────────────────────
 // Calcula probabilidad Over para cualquier línea exacta
-function overProbForLine(total, line, stdDevTotal = 16) {
+function overProbForLine(total, line, stdDevTotal = 11.0) {
   const erf = (x) => {
     const t = 1 / (1 + 0.3275911 * Math.abs(x));
     const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
@@ -311,7 +315,8 @@ function overProbForLine(total, line, stdDevTotal = 16) {
   };
   const normCDF = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
   const z = (total - line) / stdDevTotal;
-  return Math.min(80, Math.max(20, Math.round(normCDF(z) * 100)));
+  // Cap 75% — mercado de totales NBA es muy eficiente
+  return Math.min(75, Math.max(25, Math.round(normCDF(z) * 100)));
 }
 
 function calcNBAEdges(nbaPoisson, nbaOdds) {
@@ -320,18 +325,25 @@ function calcNBAEdges(nbaPoisson, nbaOdds) {
 
   const addEdge = (market, pick, ourProb, decimal, label) => {
     if (!decimal || decimal <= 1 || !ourProb) return;
+    // Corrección por vig: la prob implícita incluye el margen de la casa (~4-6%)
+    // Normalizamos para comparar de forma justa
     const impliedProb = 1 / decimal;
     const edge = ourProb - impliedProb;
-    const kelly = edge > 0 ? Math.min(25, Math.round((edge / (decimal - 1)) * 1000) / 10) : 0;
+    // Edge cap: máximo 12% — si supera eso el modelo tiene un error
+    const cappedEdge = Math.min(12, Math.max(-20, Math.round(edge * 100)));
+    const kelly = edge > 0 ? Math.min(10, Math.round((edge / (decimal - 1)) * 1000) / 10) : 0;
+    // Solo mostrar si el edge es plausible (entre -15% y +12%)
+    if (Math.abs(cappedEdge) > 15) return;
     edges.push({
       market, pick, label,
       ourProb: Math.round(ourProb * 100),
       impliedProb: Math.round(impliedProb * 100),
-      edge: Math.round(edge * 100),
+      edge: cappedEdge,
       decimal,
       american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
       kelly,
-      hasValue: edge > 0.03,
+      // Edge real mínimo de 3% y máximo creíble de 10% para marcar como value
+      hasValue: edge > 0.03 && edge <= 0.10,
     });
   };
 
