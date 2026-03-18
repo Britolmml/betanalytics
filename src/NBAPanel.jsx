@@ -258,16 +258,27 @@ function NivelConfianza({ nivel, razon }) {
 }
 
 function ApuestaCard({ a }) {
+  const isTripleDouble = a.tipo === "Triple Doble";
   const color = a.confianza > 69 ? "#00d4ff" : a.confianza > 59 ? "#f59e0b" : "#ef4444";
+  const tipoColor = isTripleDouble ? "#a78bfa" : "#f87171";
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{
+      background: isTripleDouble ? "rgba(167,139,250,0.06)" : "rgba(255,255,255,0.03)",
+      border: isTripleDouble ? "1px solid rgba(167,139,250,0.2)" : "1px solid transparent",
+      borderRadius: 10, padding: "10px 12px",
+      display: "flex", justifyContent: "space-between", alignItems: "center"
+    }}>
       <div style={{ flex: 1 }}>
-        <span style={{ fontSize: 10, color: "#f87171", fontWeight: 700 }}>{a.tipo} </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+          {isTripleDouble && <span style={{ fontSize: 12 }}>🔱</span>}
+          <span style={{ fontSize: 10, color: tipoColor, fontWeight: 700 }}>{a.tipo} </span>
+          {a.jugador && <span style={{ fontSize: 10, color: "#666", fontWeight: 600 }}>· {a.jugador}</span>}
+        </div>
         <span style={{ fontSize: 13, color: "#e8eaf0", fontWeight: 700 }}>{a.pick}</span>
         <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{a.razon}</div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 900, color: color }}>{a.confianza}%</div>
+        <div style={{ fontSize: 14, fontWeight: 900, color: isTripleDouble ? "#a78bfa" : color }}>{a.confianza}%</div>
         <div style={{ fontSize: 10, color: "#444" }}>odds {a.odds_sugerido}</div>
       </div>
     </div>
@@ -602,8 +613,18 @@ export default function NBAPanel({ onClose, inline = false }) {
       const topH = players.home.slice(0, 3).map(p => p.name + " " + p.pts + "pts/" + p.reb + "reb/" + p.ast + "ast").join(", ");
       const topA = players.away.slice(0, 3).map(p => p.name + " " + p.pts + "pts/" + p.reb + "reb/" + p.ast + "ast").join(", ");
 
-      // Build H2H summary if available (reuse last 5 games data as proxy)
-      const h2hNote = "Sin historial H2H disponible en este análisis";
+      // Detectar candidatos a triple doble — jugadores con ≥7 en al menos 2 categorías
+      const tripleDoubleCandidate = (playerList) => {
+        return playerList.find(p => {
+          const cats = [p.pts >= 7, p.reb >= 7, p.ast >= 7];
+          return cats.filter(Boolean).length >= 2;
+        });
+      };
+      const tdHome = tripleDoubleCandidate(players.home);
+      const tdAway = tripleDoubleCandidate(players.away);
+      const tdNote = [tdHome, tdAway].filter(Boolean)
+        .map(p => `${p.name} (${p.pts}pts/${p.reb}reb/${p.ast}ast) — candidato triple doble`)
+        .join(" | ") || "Sin candidatos claros a triple doble";
 
       const prompt = `Eres un analista NBA experto con especialidad en apuestas deportivas y detección de value bets.
 IMPORTANTE: Datos en tiempo real temporada 2025-2026. Confía 100% en los datos proporcionados, NO en tu conocimiento previo.
@@ -638,6 +659,10 @@ H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "
 ` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"sin valor"}`).join("\n") : "Sin momios cargados — carga momios para detectar edges") + `
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
+════ CANDIDATOS A TRIPLE DOBLE ════
+${tdNote}
+Un triple doble requiere ≥10 en puntos, rebotes Y asistencias. Evalúa la probabilidad real basándote en el promedio del jugador y el ritmo del partido proyectado.
+
 ════ INSTRUCCIONES DE ANÁLISIS ════
 PASO 1 — Analiza el rendimiento ofensivo/defensivo de cada equipo
 PASO 2 — Evalúa el impacto de los jugadores clave disponibles
@@ -669,6 +694,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             {tipo:"Jugador Puntos",pick:"",odds_sugerido:"",confianza:57,razon:"",categoria:"jugador",jugador:"nombre"},
             {tipo:"Jugador Asistencias",pick:"",odds_sugerido:"",confianza:55,razon:"",categoria:"jugador",jugador:"nombre"},
             {tipo:"Jugador Rebotes",pick:"",odds_sugerido:"",confianza:56,razon:"",categoria:"jugador",jugador:"nombre"},
+            {tipo:"Triple Doble",pick:"Sí/No logrará triple doble",odds_sugerido:"",confianza:52,razon:"basado en promedios pts/reb/ast vs defensa rival",categoria:"jugador",jugador:"nombre del candidato o null si no hay"},
             {tipo:"Primera Mitad",pick:"",odds_sugerido:"",confianza:59,razon:"",categoria:"mitad",jugador:null},
             {tipo:"Doble Oportunidad",pick:"",odds_sugerido:"",confianza:63,razon:"",categoria:"alternativo",jugador:null}
           ],
