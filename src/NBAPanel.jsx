@@ -517,31 +517,51 @@ export default function NBAPanel({ onClose, inline = false }) {
       } catch(e) { console.warn("Auto-load odds error:", e.message); }
       finally { setLoadingOdds(false); }
 
-      // ── Cargar bajas/lesiones de jugadores ────────────────
+      // ── Cargar bajas/lesiones via ESPN (API pública, no requiere key) ──
       try {
-        const [injH, injA] = await Promise.allSettled([
-          nbFetch("/injuries?team=" + game.teams?.home?.id + "&season=2025"),
-          nbFetch("/injuries?team=" + game.teams?.visitors?.id + "&season=2025"),
-        ]);
-        const parseInjuries = (res, teamName) => {
-          if (res.status !== "fulfilled") return [];
-          return (res.value?.response || [])
-            .filter(p => p.player?.name)
-            .map(p => ({
-              name: p.player?.name,
-              reason: p.comment || p.type || "Lesión",
-              status: p.status || "Out",
-              team: teamName,
-            }))
-            .slice(0, 5);
+        const homeId = game.teams?.home?.id;
+        const awayId = game.teams?.visitors?.id;
+        const homeName = game.teams?.home?.name;
+        const awayName = game.teams?.visitors?.name;
+
+        // Mapeo de IDs de api-basketball a abreviaturas ESPN
+        const teamAbbrMap = {
+          1: "ATL", 2: "BOS", 3: "BKN", 4: "CHA", 5: "CHI",
+          6: "CLE", 7: "DAL", 8: "DEN", 9: "DET", 10: "GSW",
+          11: "HOU", 12: "IND", 13: "LAC", 14: "LAL", 15: "MEM",
+          16: "MIA", 17: "MIL", 18: "MIN", 19: "NOP", 20: "NYK",
+          21: "OKC", 22: "ORL", 23: "PHI", 24: "PHX", 25: "POR",
+          26: "SAC", 27: "SAS", 28: "TOR", 29: "UTA", 30: "WAS",
+          38: "BKN", 41: "CHA",
         };
-        const homeInjuries = parseInjuries(injH, game.teams?.home?.name);
-        const awayInjuries = parseInjuries(injA, game.teams?.visitors?.name);
-        const allInjuries = [...homeInjuries, ...awayInjuries];
-        if (allInjuries.length > 0) {
-          setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
-        }
-      } catch(e) { console.warn("Injuries error:", e.message); }
+
+        const fetchESPNInjuries = async (teamId, teamName) => {
+          const abbr = teamAbbrMap[teamId];
+          if (!abbr) return [];
+          try {
+            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${abbr}/injuries`);
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data.injuries || [])
+              .map(p => ({
+                name: p.athlete?.displayName || p.athlete?.fullName || "Jugador",
+                reason: p.details?.returnDate
+                  ? `${p.details?.type || "Lesión"} — Regreso: ${p.details.returnDate}`
+                  : (p.details?.type || p.details?.detail || "Lesión"),
+                status: p.status || "Out",
+                team: teamName,
+              }))
+              .slice(0, 5);
+          } catch { return []; }
+        };
+
+        const [homeInj, awayInj] = await Promise.all([
+          fetchESPNInjuries(homeId, homeName),
+          fetchESPNInjuries(awayId, awayName),
+        ]);
+        const allInjuries = [...homeInj, ...awayInj];
+        setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
+      } catch(e) { console.warn("Injuries ESPN error:", e.message); }
 
       // Cargar top jugadores
       setLoadingPlayers(true);
@@ -713,7 +733,7 @@ Puntos esperados (modelo): ${aLine}
 ════ LÍNEAS DE MERCADO ════
 Total proyectado: ${totalLine} pts
 ${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
-${nbaOdds ? `MOMIOS REALES (${nbaOdds.bookmaker || "Bookmaker"}):
+${nbaOdds ? `MOMIOS REFERENCIA (${nbaOdds.bookmaker || "DraftKings"} — pueden diferir de tu casa de apuestas):
   Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
   const dec = o.price;
   const am = dec >= 2 ? "+" + Math.round((dec-1)*100) : "-" + Math.round(100/(dec-1));
@@ -1070,23 +1090,27 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     </div>
 
                     {/* Bajas y lesiones */}
-                    {preview?.injuries?.length > 0 && (
-                      <div style={{ marginBottom: 14, background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: "#f87171", fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>🚑 BAJAS / LESIONES</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                          {preview.injuries.map((p, i) => (
-                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
-                              <div>
-                                <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>
-                                <span style={{ color: "#555", marginLeft: 6 }}>{p.team?.split(" ").pop()}</span>
-                              </div>
-                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                                <span style={{ color: "#888" }}>{p.reason}</span>
-                                <span style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", borderRadius: 4, padding: "1px 6px", fontSize: 9, fontWeight: 700 }}>{p.status}</span>
-                              </div>
-                            </div>
-                          ))}
+                    {preview && (
+                      <div style={{ marginBottom: 14, background: preview?.injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${preview?.injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: preview?.injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: preview?.injuries?.length > 0 ? 8 : 0 }}>
+                          🚑 BAJAS / LESIONES {preview?.injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
                         </div>
+                        {preview?.injuries?.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            {preview.injuries.map((p, i) => (
+                              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                                <div>
+                                  <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>
+                                  <span style={{ color: "#555", marginLeft: 6 }}>{p.team?.split(" ").pop()}</span>
+                                </div>
+                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                  <span style={{ color: "#888" }}>{p.reason}</span>
+                                  <span style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", borderRadius: 4, padding: "1px 6px", fontSize: 9, fontWeight: 700 }}>{p.status}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1126,9 +1150,10 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           ⏳ Cargando momios...
                         </div>
                       ) : nbaOdds ? (
-                        <div style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 14px",color:"#00d4ff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-                          💹 Momios cargados · {nbaOdds.bookmaker || "Bookmaker"}
-                          <button onClick={loadNBAOdds} style={{background:"none",border:"none",color:"rgba(0,212,255,0.5)",cursor:"pointer",fontSize:10,padding:0,marginLeft:4}}>↻</button>
+                        <div style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 14px",color:"#00d4ff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                          <span>💹 Momios referencia — {nbaOdds.bookmaker || "DraftKings"}</span>
+                          <span style={{fontSize:9,color:"#ef4444",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:4,padding:"2px 6px",fontWeight:700}}>⚠️ Compara con tu casa de apuestas favorita</span>
+                          <button onClick={loadNBAOdds} style={{background:"none",border:"none",color:"rgba(0,212,255,0.5)",cursor:"pointer",fontSize:10,padding:0}}>↻</button>
                         </div>
                       ) : (
                         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 14px",color:"#555",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
@@ -1176,8 +1201,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           return (
                             <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
                               <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                <span>💰 Momios reales — {nbaOdds.bookmaker || "Bookmaker"}</span>
-                                <span style={{fontSize:8,color:"#555",fontWeight:400,textTransform:"none"}}>⚠️ Líneas pueden diferir de Bet365</span>
+                                <span>💹 Momios referencia — {nbaOdds.bookmaker || "DraftKings"}</span>
+                                <span style={{fontSize:9,color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:4,padding:"2px 6px"}}>⚠️ Compara con tu casa antes de apostar</span>
                               </div>
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
                                 {[
