@@ -258,7 +258,7 @@ function NivelConfianza({ nivel, razon }) {
 }
 
 function ApuestaCard({ a }) {
-  const color = a.confianza > 74 ? "#10b981" : a.confianza > 59 ? "#f59e0b" : "#ef4444";
+  const color = a.confianza > 69 ? "#00d4ff" : a.confianza > 59 ? "#f59e0b" : "#ef4444";
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div style={{ flex: 1 }}>
@@ -646,25 +646,37 @@ PASO 4 — Usa el Modelo Poisson: compara xPts vs línea del mercado para detect
 PASO 5 — Identifica value bets: probabilidades Poisson vs implícitas en momios
 PASO 6 — Genera el JSON final
 
+════ REGLAS CRÍTICAS DE CALIBRACIÓN DE CONFIANZA ════
+Los porcentajes de confianza DEBEN ser realistas. En apuestas deportivas profesionales:
+- NUNCA uses confianza > 80% — ningún modelo serio lo justifica
+- NUNCA uses confianza > 75% salvo que el edge sea clarísimo y los datos sean contundentes
+- Rango normal: 52%-68% para la mayoría de apuestas
+- Rango bueno: 69%-74% solo si hay edge real y datos sólidos
+- Rango excepcional: 75%-80% solo para situaciones extremas (lesión estrella clave, diferencia abismal de forma)
+- Props de jugadores: MÁXIMO 68% — hay demasiada varianza
+- Doble Oportunidad: aunque tenga alta probabilidad, el valor es bajo — confianza máxima 70%
+- Si un equipo es favorito pero el mercado ya lo refleja, la confianza baja (el mercado es eficiente)
+- Sé honesto: si los datos son escasos o el partido es parejo, usa 52%-60%
+
 Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           resumen:"análisis detallado 3-4 oraciones con razonamiento",
           ganadorProbable:"equipo",
           probabilidades:{home:52,away:48},
           apuestasDestacadas:[
-            {tipo:"Moneyline",pick:"",odds_sugerido:"",confianza:75,razon:"",categoria:"principal",jugador:null},
-            {tipo:"Spread",pick:"",odds_sugerido:"",confianza:70,razon:"",categoria:"principal",jugador:null},
-            {tipo:"Over/Under",pick:"",odds_sugerido:"",confianza:72,razon:"",categoria:"totales",jugador:null},
-            {tipo:"Jugador Puntos",pick:"",odds_sugerido:"",confianza:68,razon:"",categoria:"jugador",jugador:"nombre"},
-            {tipo:"Jugador Asistencias",pick:"",odds_sugerido:"",confianza:65,razon:"",categoria:"jugador",jugador:"nombre"},
-            {tipo:"Jugador Rebotes",pick:"",odds_sugerido:"",confianza:65,razon:"",categoria:"jugador",jugador:"nombre"},
-            {tipo:"Primera Mitad",pick:"",odds_sugerido:"",confianza:65,razon:"",categoria:"mitad",jugador:null},
-            {tipo:"Doble Oportunidad",pick:"",odds_sugerido:"",confianza:70,razon:"",categoria:"alternativo",jugador:null}
+            {tipo:"Moneyline",pick:"",odds_sugerido:"",confianza:62,razon:"",categoria:"principal",jugador:null},
+            {tipo:"Spread",pick:"",odds_sugerido:"",confianza:58,razon:"",categoria:"principal",jugador:null},
+            {tipo:"Over/Under",pick:"",odds_sugerido:"",confianza:61,razon:"",categoria:"totales",jugador:null},
+            {tipo:"Jugador Puntos",pick:"",odds_sugerido:"",confianza:57,razon:"",categoria:"jugador",jugador:"nombre"},
+            {tipo:"Jugador Asistencias",pick:"",odds_sugerido:"",confianza:55,razon:"",categoria:"jugador",jugador:"nombre"},
+            {tipo:"Jugador Rebotes",pick:"",odds_sugerido:"",confianza:56,razon:"",categoria:"jugador",jugador:"nombre"},
+            {tipo:"Primera Mitad",pick:"",odds_sugerido:"",confianza:59,razon:"",categoria:"mitad",jugador:null},
+            {tipo:"Doble Oportunidad",pick:"",odds_sugerido:"",confianza:63,razon:"",categoria:"alternativo",jugador:null}
           ],
           valueBet:{existe:true,mercado:"",explicacion:"",odds_recomendado:"",edge:""},
           erroresLinea:[{descripcion:"",mercado:"",contradiccion:""}],
           tendenciasDetectadas:["tendencia concreta 1","tendencia concreta 2"],
           alertas:[""],
-          nivelConfianza:"ALTO",
+          nivelConfianza:"MEDIO",
           razonConfianza:""
         });
 
@@ -1472,7 +1484,7 @@ function ParlayBox({ allAnalyses }) {
 
   const picks = entries.map(({ game, analysis }) => {
     const best = (analysis.apuestasDestacadas || [])
-      .filter(a => a.confianza >= 65 && a.categoria !== "jugador")
+      .filter(a => a.confianza >= 58 && a.categoria !== "jugador")
       .sort((a, b) => b.confianza - a.confianza)[0];
     if (!best) return null;
     return {
