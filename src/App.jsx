@@ -319,8 +319,8 @@ function calcEdges(poissonResult, gameOdds) {
   return edges.sort((a, b) => b.edge - a.edge);
 }
 
-const confColor = c => c>=80?"#00d4ff":c>=65?"#f59e0b":"#ef4444";
-const confLabel = c => c>=80?"ALTA":c>=65?"MEDIA":"BAJA";
+const confColor = c => c>=70?"#00d4ff":c>=58?"#f59e0b":"#ef4444";
+const confLabel = c => c>=70?"ALTA":c>=58?"MEDIA":"BAJA";
 
 const DEMO_TEAMS = [
   {id:529,name:"FC Barcelona"},{id:541,name:"Real Madrid"},{id:530,name:"Atlético Madrid"},
@@ -1092,20 +1092,26 @@ PASO 5 — Compara y encuentra desequilibrios:
 
 PASO 6 — Identifica value bets:
   · Si el resultado 1X2 es muy parejo (menos de 10% de diferencia entre las 3 opciones), marca ese mercado como bajo valor y busca mercados alternativos.
-  · Solo asigna confianza 80%+ cuando AL MENOS 3 factores apuntan en la misma dirección.
-  · Confianza 90%+ solo si hay 4+ factores alineados Y no hay factores en contra.
+  · Solo asigna confianza 70%+ cuando AL MENOS 3 factores apuntan en la misma dirección.
+  · Confianza 75%+ solo si hay 4+ factores alineados Y no hay factores en contra.
   · Si hay incertidumbre alta, baja la confianza honestamente aunque la pick sea válida.
 
 PASO 7 — Genera el JSON final con tus conclusiones.
 
 ════ REGLAS DE CONFIANZA (MUY IMPORTANTE) ════
-- 90-95%: 4+ factores alineados, sin bajas clave, forma consistente → apuesta segura
-- 75-89%: 2-3 factores alineados, alguna incertidumbre menor → apuesta recomendada  
-- 60-74%: datos mixtos, partido equilibrado → apostar con precaución
-- <60%: demasiada incertidumbre → mejor "PASO" en ese mercado
+El fútbol es el deporte más impredecible. Los mercados son eficientes. Sé conservador:
+- NUNCA uses confianza > 78% — ningún modelo serio lo justifica en fútbol
+- NUNCA uses confianza > 75% salvo que el edge sea clarísimo y todos los datos sean contundentes
+- 70-75%: 3-4 factores alineados, sin bajas clave, forma muy consistente → apuesta recomendada
+- 60-69%: 2-3 factores alineados, alguna incertidumbre → apostar con precaución
+- 52-59%: datos mixtos, partido equilibrado → valor bajo, mercados alternativos
+- <52%: demasiada incertidumbre → marcar como "PASO" en ese mercado
+- Mercados de corners y tarjetas: MÁXIMO 65% — alta varianza
+- Resultado 1X2 en partidos parejos: MÁXIMO 62%
+- El mercado ya descuenta al favorito — que alguien sea favorito NO justifica confianza alta
 
 Responde SOLO con JSON válido sin texto extra ni backticks markdown:
-{"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":82,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":74,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":70,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":65,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":60,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":85,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"ALTO/MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]},"h2hResumen":{"dominador":"...","tendenciaGoles":"over/under","bttsH2H":true,"alertaH2H":"..."},"momiosAnalisis":{"valueBetsDetectados":[{"mercado":"...","cuotaReal":"1.90","probImplicita":"52%","probCalculada":"65%","valorEdge":"13%"}],"erroresLinea":[{"descripcion":"...","mercado1":"...","mercado2":"...","contradiccion":"..."}],"recomendacionMomios":"..."},"tendenciasDetectadas":["Tendencia concreta 1 basada en datos","Tendencia concreta 2","Tendencia concreta 3"]}}`;
+{"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":63,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":61,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":59,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":55,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":54,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":64,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]},"h2hResumen":{"dominador":"...","tendenciaGoles":"over/under","bttsH2H":true,"alertaH2H":"..."},"momiosAnalisis":{"valueBetsDetectados":[{"mercado":"...","cuotaReal":"1.90","probImplicita":"52%","probCalculada":"62%","valorEdge":"10%"}],"erroresLinea":[{"descripcion":"...","mercado1":"...","mercado2":"...","contradiccion":"..."}],"recomendacionMomios":"..."},"tendenciasDetectadas":["Tendencia concreta 1 basada en datos","Tendencia concreta 2","Tendencia concreta 3"]}}`;
 
     try {
       const res = await fetch("/api/predict", {
@@ -2301,7 +2307,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         </div>
                         <div style={{textAlign:"right"}}>
                           <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:24,color:confColor(a.confianza)}}>{a.confianza}%</div>
-                          <Pill rgb={a.confianza>=80?"16,185,129":a.confianza>=65?"245,158,11":"239,68,68"}>{confLabel(a.confianza)}</Pill>
+                          <Pill rgb={a.confianza>=70?"0,212,255":a.confianza>=58?"245,158,11":"239,68,68"}>{confLabel(a.confianza)}</Pill>
                         </div>
                       </div>
                       <div style={{height:2,background:"rgba(255,255,255,0.05)",borderRadius:1,marginTop:9,overflow:"hidden"}}>
@@ -2587,7 +2593,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{marginBottom:20}}>
                   <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎯 Apuestas por partido — ordenadas por confianza</div>
                   {(jornadaResult.partidos||[]).map((p,i)=>(
-                    <div key={i} style={{...C.card,marginBottom:8,padding:14,borderColor:p.confianza>=80?"rgba(0,212,255,0.2)":p.confianza>=65?"rgba(245,158,11,0.2)":"rgba(255,255,255,0.08)"}}>
+                    <div key={i} style={{...C.card,marginBottom:8,padding:14,borderColor:p.confianza>=70?"rgba(0,212,255,0.2)":p.confianza>=58?"rgba(245,158,11,0.2)":"rgba(255,255,255,0.08)"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
                         <div style={{flex:1}}>
                           <div style={{fontSize:12,fontWeight:700,marginBottom:3}}>{p.home} <span style={{color:"#444"}}>vs</span> {p.away}</div>
@@ -2595,7 +2601,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           <div style={{fontSize:10,color:"#555"}}>{p.razon}</div>
                         </div>
                         <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:p.confianza>=80?"#00d4ff":p.confianza>=65?"#f59e0b":"#ef4444",lineHeight:1}}>{p.confianza}%</div>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:p.confianza>=70?"#00d4ff":p.confianza>=58?"#f59e0b":"#ef4444",lineHeight:1}}>{p.confianza}%</div>
                           <div style={{fontSize:10,color:"#666"}}>Cuota {p.odds_sugerido}</div>
                           <div style={{fontSize:9,color:"#333",marginTop:2}}>{p.apuesta}</div>
                         </div>
