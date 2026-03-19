@@ -17,9 +17,6 @@ function getESTDate(offsetDays = 0) {
 }
 
 function getRecentGames(res, teamId) {
-  // Solo mostrar bajas del partido actual
-  const safeInjuries = injuriesGameId === selectedGame?.id ? injuries : [];
-
   return (res?.response || [])
     .filter(g => g.status?.short === 3)
     .sort((a, b) => new Date(b.date?.start) - new Date(a.date?.start))
@@ -399,7 +396,6 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [loadingInjuries, setLoadingInjuries] = useState(false);
   const [injuries, setInjuries] = useState([]);
-  const [injuriesGameId, setInjuriesGameId] = useState(null);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -418,6 +414,23 @@ export default function NBAPanel({ onClose, inline = false }) {
   }, [selectedGame?.id]);
 
   useEffect(() => { loadNBA(getESTDate(0)); }, []);
+
+  useEffect(() => {
+    if (!selectedGame) { setInjuries([]); setLoadingInjuries(false); return; }
+    setInjuries([]);
+    setLoadingInjuries(true);
+    const homeId = selectedGame.teams?.home?.id;
+    const awayId = selectedGame.teams?.visitors?.id;
+    const homeName = selectedGame.teams?.home?.name;
+    const awayName = selectedGame.teams?.visitors?.name;
+    const fetchInj = (teamId, teamName) =>
+      fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}&_t=${Date.now()}`)
+        .then(r => r.json()).then(d => d.injuries || []).catch(() => []);
+    Promise.all([fetchInj(homeId, homeName), fetchInj(awayId, awayName)])
+      .then(([hi, ai]) => setInjuries([...hi, ...ai]))
+      .catch(() => setInjuries([]))
+      .finally(() => setLoadingInjuries(false));
+  }, [selectedGame?.id]);
 
   // Cargar injuries cuando cambia el partido seleccionado
   useEffect(() => {
@@ -769,8 +782,8 @@ H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
 ════ BAJAS Y LESIONES ════
-${safeInjuries.length > 0
-  ? safeInjuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
+${(injuries||[]).length > 0
+  ? (injuries||[]).map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
   : "Sin bajas reportadas para este partido"}
 IMPORTANTE: Las bajas de jugadores clave (estrellas, titulares) deben reducir la confianza del equipo afectado.
 
@@ -1104,12 +1117,12 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
                     {/* Bajas y lesiones */}
                     {selectedGame && (
-                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: safeInjuries.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${safeInjuries.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: safeInjuries.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: safeInjuries.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: (injuries||[]).length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${(injuries||[]).length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: (injuries||[]).length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: (injuries||[]).length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
                             🚑 BAJAS / LESIONES
                             {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
-                            {!loadingInjuries && safeInjuries.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                            {!loadingInjuries && (injuries||[]).length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
                           </div>
                           {/* Botón actualizar bajas */}
                           {!loadingInjuries && selectedGame && (
@@ -1133,9 +1146,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                             </button>
                           )}
                         </div>
-                        {safeInjuries.length > 0 && (
+                        {(injuries||[]).length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {safeInjuries.map((p, i) => (
+                            {(injuries||[]).map((p, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
                                 <div>
                                   <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>
