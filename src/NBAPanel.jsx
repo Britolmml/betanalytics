@@ -1095,10 +1095,33 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     {/* Bajas y lesiones */}
                     {preview && (
                       <div style={{ marginBottom: 14, background: preview?.injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${preview?.injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: preview?.injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: preview?.injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", gap:6 }}>
-                          🚑 BAJAS / LESIONES
-                          {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
-                          {!loadingInjuries && preview?.injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                        <div style={{ fontSize: 10, color: preview?.injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: preview?.injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            🚑 BAJAS / LESIONES
+                            {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
+                            {!loadingInjuries && preview?.injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                          </div>
+                          {/* Botón actualizar bajas */}
+                          {!loadingInjuries && selectedGame && (
+                            <button onClick={async () => {
+                              setLoadingInjuries(true);
+                              try {
+                                const fetchInj = async (teamId, teamName) => {
+                                  const r = await fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}`);
+                                  const d = await r.json();
+                                  return d.injuries || [];
+                                };
+                                const [hi, ai] = await Promise.all([
+                                  fetchInj(selectedGame.teams?.home?.id, selectedGame.teams?.home?.name),
+                                  fetchInj(selectedGame.teams?.visitors?.id, selectedGame.teams?.visitors?.name),
+                                ]);
+                                setPreview(prev => prev ? { ...prev, injuries: [...hi, ...ai] } : prev);
+                              } catch(e) { console.warn(e); }
+                              finally { setLoadingInjuries(false); }
+                            }} style={{background:"none",border:"none",color:"rgba(239,68,68,0.5)",cursor:"pointer",fontSize:11,padding:"0 2px",lineHeight:1}}>
+                              ↻
+                            </button>
+                          )}
                         </div>
                         {preview?.injuries?.length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>

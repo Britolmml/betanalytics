@@ -105,7 +105,7 @@ export default async function handler(req, res) {
       // Formato sports.core.api — resuelve $ref
       if (data.items?.length > 0) {
         const resolved = await Promise.all(
-          data.items.slice(0, 8).map(async item => {
+          data.items.slice(0, 20).map(async item => {
             try {
               const refUrl = item["$ref"];
               if (!refUrl) return null;
@@ -116,10 +116,13 @@ export default async function handler(req, res) {
               if (d.athlete?.displayName) {
                 athleteName = d.athlete.displayName;
               } else if (d.athlete?.["$ref"]) {
-                const ar = await fetch(d.athlete["$ref"], { headers: espnHeaders });
-                const ad = await ar.json();
-                athleteName = ad.displayName || ad.fullName || "Jugador";
+                try {
+                  const ar = await fetch(d.athlete["$ref"], { headers: espnHeaders });
+                  const ad = await ar.json();
+                  athleteName = ad.displayName || ad.fullName || ad.shortName || "Jugador";
+                } catch { }
               }
+              if (athleteName === "Jugador") return null; // skip unresolved
               return {
                 name: athleteName,
                 reason: d.details?.returnDate
