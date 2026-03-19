@@ -38,32 +38,18 @@ export default async function handler(req, res) {
 
   const tid = parseInt(teamId);
 
-  // ── FUENTE 1: NBA CDN (oficial, más rápido) ──────────────────
+  // ── FUENTE 1: NBA CDN (oficial) — con timeout agresivo ───────
   try {
-    // Probar múltiples URLs de NBA
-    const nbaCDNUrls = [
-      "https://cdn.nba.com/static/json/liveData/injuryreport/injuryreport.json",
-      "https://cdn.nba.com/static/json/staticData/injuryreport/injuryreport.json",
-      "https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2024/league/00_injuries.json",
-      "https://stats.nba.com/stats/leagueinjuries?LeagueID=00&TeamID=0",
-    ];
-
-    const nbaCDNHeaders = {
-      ...BROWSER_HEADERS,
-      "x-nba-stats-origin": "stats",
-      "x-nba-stats-token": "true",
-      "Accept": "application/json, text/plain, */*",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Connection": "keep-alive",
-    };
-
-    for (const cdnUrl of nbaCDNUrls) {
-      try {
-        const nbaCDN = await fetch(cdnUrl, { headers: nbaCDNHeaders });
-        if (!nbaCDN.ok) continue;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000); // 3s máximo
+    try {
+      const nbaCDN = await fetch(
+        "https://cdn.nba.com/static/json/liveData/injuryreport/injuryreport.json",
+        { headers: BROWSER_HEADERS, signal: controller.signal }
+      );
+      clearTimeout(timeout);
+      if (nbaCDN.ok) {
         const data = await nbaCDN.json();
-
-        // Formato injuryreport.json
         const allPlayers = data?.InjuryReport?.InjuredPlayers || [];
         if (allPlayers.length > 0) {
           const teamInjuries = allPlayers.filter(p => NBA_TEAM_NAMES[p.TeamName] === tid);
@@ -73,34 +59,11 @@ export default async function handler(req, res) {
             status: p.CurrentStatus || "Out",
             team: teamName || p.TeamName || "",
           })).slice(0, 10);
-          return res.status(200).json({ injuries, source: "nba-cdn:" + cdnUrl });
+          return res.status(200).json({ injuries, source: "nba-cdn" });
         }
-
-        // Formato stats.nba.com leagueinjuries
-        const resultSets = data?.resultSets || [];
-        const injurySet = resultSets.find(r => r.name === "LeagueInjuries");
-        if (injurySet?.rowSet?.length > 0) {
-          const headers_arr = injurySet.headers || [];
-          const teamNameIdx = headers_arr.indexOf("TEAM_NAME");
-          const playerIdx = headers_arr.indexOf("PLAYER_NAME");
-          const statusIdx = headers_arr.indexOf("RETURN_DATE");
-          const noteIdx = headers_arr.indexOf("NOTE");
-          // Map team name to filter
-          const teamNameMap = Object.entries(NBA_TEAM_NAMES).find(([k,v]) => v === tid)?.[0];
-          const rows = injurySet.rowSet.filter(r => r[teamNameIdx] === teamNameMap);
-          const injuries = rows.map(r => ({
-            name: r[playerIdx] || "Jugador",
-            reason: r[noteIdx] || "Lesión",
-            status: r[statusIdx] ? `Regreso: ${r[statusIdx]}` : "Out",
-            team: teamName || "",
-          })).slice(0, 10);
-          if (injuries.length > 0) {
-            return res.status(200).json({ injuries, source: "nba-stats" });
-          }
-        }
-      } catch { continue; }
-    }
-  } catch(e) { /* fallback a ESPN */ }
+      }
+    } catch { clearTimeout(timeout); /* timeout o bloqueado, ir a ESPN */ }
+  } catch { /* ignorar */ }
 
   // ── FUENTE 2: ESPN (fallback) ─────────────────────────────────
   const espnId = NBA_ID_TO_ESPN[tid];
@@ -120,7 +83,10 @@ export default async function handler(req, res) {
 
   for (const url of urls) {
     try {
-      const r = await fetch(url, { headers: espnHeaders });
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 5000);
+      const r = await fetch(url, { headers: espnHeaders, signal: ctrl.signal });
+      clearTimeout(t);
       if (!r.ok) continue;
       const data = await r.json();
 
@@ -144,7 +110,10 @@ export default async function handler(req, res) {
             try {
               const refUrl = item["$ref"];
               if (!refUrl) return null;
-              const rr = await fetch(refUrl, { headers: espnHeaders });
+              const ctrl = new AbortController();
+              const t = setTimeout(() => ctrl.abort(), 4000);
+              const rr = await fetch(refUrl, { headers: espnHeaders, signal: ctrl.signal });
+              clearTimeout(t);
               if (!rr.ok) return null;
               const d = await rr.json();
               let athleteName = "Jugador";
@@ -152,12 +121,15 @@ export default async function handler(req, res) {
                 athleteName = d.athlete.displayName;
               } else if (d.athlete?.["$ref"]) {
                 try {
-                  const ar = await fetch(d.athlete["$ref"], { headers: espnHeaders });
+                  const ctrl2 = new AbortController();
+                  const t2 = setTimeout(() => ctrl2.abort(), 3000);
+                  const ar = await fetch(d.athlete["$ref"], { headers: espnHeaders, signal: ctrl2.signal });
+                  clearTimeout(t2);
                   const ad = await ar.json();
                   athleteName = ad.displayName || ad.fullName || ad.shortName || "Jugador";
                 } catch { }
               }
-              if (athleteName === "Jugador") return null; // skip unresolved
+              if (athleteName === "Jugador") return null;
               return {
                 name: athleteName,
                 reason: d.details?.returnDate
