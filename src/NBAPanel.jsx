@@ -546,15 +546,19 @@ export default function NBAPanel({ onClose, inline = false }) {
 
       // ── Cargar bajas/lesiones via ESPN proxy ──────────────
       setLoadingInjuries(true);
+      setInjuries([]); // reset explícito antes del fetch
       try {
         const homeId = game.teams?.home?.id;
         const awayId = game.teams?.visitors?.id;
         const homeName = game.teams?.home?.name;
         const awayName = game.teams?.visitors?.name;
+        const gameId = game.id; // capturar el ID del partido actual
 
         const fetchInjuries = async (teamId, teamName) => {
           try {
-            const res = await fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}`);
+            // Cache-busting con timestamp para evitar respuestas cacheadas
+            const ts = Date.now();
+            const res = await fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}&_t=${ts}`);
             const data = await res.json();
             return data.injuries || [];
           } catch { return []; }
@@ -565,8 +569,12 @@ export default function NBAPanel({ onClose, inline = false }) {
           fetchInjuries(awayId, awayName),
         ]);
         const allInjuries = [...homeInj, ...awayInj];
-        setInjuries(allInjuries);
-        setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
+
+        // Solo actualizar si el partido no cambió mientras cargaba
+        if (gameId === game.id) {
+          setInjuries(allInjuries);
+          setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
+        }
       } catch(e) { console.warn("Injuries error:", e.message); }
       finally { setLoadingInjuries(false); }
 
