@@ -1148,15 +1148,58 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      // Clean and parse JSON robustly
+
+      // Parser robusto — maneja respuestas malformadas de la IA
       let parsed;
       try {
-        const raw = data.result || "";
-        const clean = raw.replace(/```[\w]*[\r\n]*/g, "").trim();
-        // Find first { and last }
+        const raw = data.result || data.content?.[0]?.text || "";
+
+        // 1. Quitar bloques markdown
+        let clean = raw.replace(/```[\w]*\n?/g, "").replace(/```/g, "").trim();
+
+        // 2. Extraer solo el JSON entre { y }
         const start = clean.indexOf("{");
-        const end = clean.lastIndexOf("}");
-        parsed = JSON.parse(start >= 0 && end > start ? clean.slice(start, end + 1) : clean);
+        const end   = clean.lastIndexOf("}");
+        if (start >= 0 && end > start) clean = clean.slice(start, end + 1);
+
+        // 3. Intentar parse directo primero
+        try {
+          parsed = JSON.parse(clean);
+        } catch {
+          // 4. Limpiezas adicionales para JSON malformado
+          let fixed = clean
+            // Saltos de línea dentro de strings → espacio
+            .replace(/("(?:[^"\\]|\\.)*")|[\r\n]+/g, (m, str) => str ? str.replace(/[\r\n]+/g, " ") : " ")
+            // Comas dobles
+            .replace(/,\s*,/g, ",")
+            // Comas antes de cierre
+            .replace(/,\s*([}\]])/g, "$1")
+            // Comillas simples → dobles (solo en claves/valores simples)
+            .replace(/:\s*'([^']*?)'/g, ':"$1"')
+            // Caracteres de control
+            .replace(/[\x00-\x1F\x7F]/g, " ");
+          try {
+            parsed = JSON.parse(fixed);
+          } catch {
+            // 5. Último recurso: extraer campos clave con regex
+            const get = (key) => {
+              const m = fixed.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*?)"`));
+              return m ? m[1] : "";
+            };
+            const getNum = (key) => {
+              const m = fixed.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+              return m ? parseInt(m[1]) : 0;
+            };
+            parsed = {
+              resumen: get("resumen") || "Análisis completado",
+              prediccionMarcador: get("prediccionMarcador") || "1-1",
+              probabilidades: { local: getNum("local") || 40, empate: getNum("empate") || 30, visitante: getNum("visitante") || 30 },
+              apuestasDestacadas: [],
+              alertas: ["Respuesta parcial — regenera el análisis para más detalles"],
+              nivelConfianza: "MEDIO",
+            };
+          }
+        }
       } catch(jsonErr) {
         throw new Error("Error procesando respuesta IA: " + jsonErr.message);
       }
