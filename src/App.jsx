@@ -1,4 +1,5 @@
 import NBAPanel from "./NBAPanel";
+import MLBPanel from "./MLBPanel";
 import HistorialPanel from "./HistorialPanel";
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, saveAllPicks, getPredictions, updateResult, autoResolveFootball } from "./supabase";
@@ -1521,6 +1522,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(0,212,255,0.12)":"rgba(0,212,255,0.04)",border:activeSport===null?"1px solid rgba(0,212,255,0.4)":"1px solid rgba(0,212,255,0.1)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#00d4ff":"#4a7a8a",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
           <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(34,197,94,0.15)":"rgba(34,197,94,0.06)",border:activeSport==="football"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
           <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.18)":"rgba(239,68,68,0.06)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.18)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
+          <button onClick={()=>setActiveSport("mlb")} style={{background:activeSport==="mlb"?"rgba(251,146,60,0.18)":"rgba(251,146,60,0.06)",border:activeSport==="mlb"?"1px solid rgba(251,146,60,0.5)":"1px solid rgba(251,146,60,0.18)",borderRadius:8,padding:"6px 12px",color:"#fb923c",cursor:"pointer",fontSize:11,fontWeight:700}}>⚾ MLB</button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 12px",color:"#67c8e0",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
           </button>
@@ -2956,6 +2958,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {activeSport === "nba" && (
         <NBAPanel onClose={()=>setActiveSport(null)} inline={true} />
       )}
+      {activeSport === "mlb" && (
+        <MLBPanel onClose={()=>setActiveSport(null)} inline={true} />
+      )}
 
       {activeSport === null && (
         <div style={{minHeight:"calc(100vh - 62px)",background:"#060d18",position:"relative",overflow:"hidden"}}>
@@ -3026,9 +3031,24 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <div style={{marginTop:7,background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#f87171",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
                 </div>
               </button>
-            </div>
 
-            {/* ── Estadísticas del día ── */}
+              {/* MLB Card */}
+              <button onClick={()=>setActiveSport("mlb")}
+                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(251,146,60,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(16,8,4,0.98),rgba(22,10,6,0.96))"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(251,146,60,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(251,146,60,0.14)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(251,146,60,0.22)";e.currentTarget.style.boxShadow="none";}}>
+                <img src="https://images.unsplash.com/photo-1540747913346-19212a4b423f?w=600&q=70&fit=crop" alt=""
+                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(251,146,60,0.11),transparent 70%)"}}/>
+                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(251,146,60,0.4),rgba(251,146,60,0.8),rgba(251,146,60,0.4),transparent)"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
+                  <span style={{fontSize:40}}>⚾</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#fb923c",letterSpacing:4}}>MLB</div>
+                  <div style={{fontSize:11,color:"rgba(251,146,60,0.45)",letterSpacing:1}}>Partidos · Stats · Picks</div>
+                  <div style={{marginTop:7,background:"rgba(251,146,60,0.07)",border:"1px solid rgba(251,146,60,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#fb923c",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
+                </div>
+              </button>
+            </div>
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
