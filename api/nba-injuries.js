@@ -52,13 +52,16 @@ export default async function handler(req, res) {
 
       // Formato sports.core.api.espn.com
       if (data.items && data.items.length > 0) {
+        // Log raw para debug
+        const rawFirst = JSON.stringify(data.items[0]).slice(0, 500);
         const injuries = data.items.map(p => ({
-          name: p.athlete?.displayName || p.athlete?.fullName || p.description || "Jugador",
-          reason: p.type?.text || p.status?.type?.description || "Lesión",
-          status: p.status?.type?.name || "Out",
+          name: p.athlete?.displayName || p.athlete?.fullName || p.athlete?.shortName || p.description || "Jugador",
+          reason: p.type?.text || p.status?.type?.description || p.shortDescription || "Lesión",
+          status: p.status?.type?.name || p.status?.type?.shortDetail || "Out",
           team: teamName || "",
+          _raw: JSON.stringify(p).slice(0, 200),
         }));
-        return res.status(200).json({ injuries, source: url });
+        return res.status(200).json({ injuries, source: url, rawFirst });
       }
     } catch(e) { continue; }
   }
