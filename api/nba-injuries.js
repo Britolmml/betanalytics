@@ -40,30 +40,65 @@ export default async function handler(req, res) {
 
   // ── FUENTE 1: NBA CDN (oficial, más rápido) ──────────────────
   try {
-    const nbaCDN = await fetch(
+    // Probar múltiples URLs de NBA
+    const nbaCDNUrls = [
       "https://cdn.nba.com/static/json/liveData/injuryreport/injuryreport.json",
-      { headers: BROWSER_HEADERS }
-    );
-    if (nbaCDN.ok) {
-      const data = await nbaCDN.json();
-      const allPlayers = data?.InjuryReport?.InjuredPlayers || [];
-      if (allPlayers.length > 0) {
-        // Filtrar por equipo — comparar con nombre del equipo
-        const teamInjuries = allPlayers.filter(p => {
-          const pTeamId = NBA_TEAM_NAMES[p.TeamName];
-          return pTeamId === tid;
-        });
-        if (teamInjuries.length > 0 || allPlayers.length > 50) {
-          // NBA CDN respondió con datos válidos
+      "https://cdn.nba.com/static/json/staticData/injuryreport/injuryreport.json",
+      "https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2024/league/00_injuries.json",
+      "https://stats.nba.com/stats/leagueinjuries?LeagueID=00&TeamID=0",
+    ];
+
+    const nbaCDNHeaders = {
+      ...BROWSER_HEADERS,
+      "x-nba-stats-origin": "stats",
+      "x-nba-stats-token": "true",
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Connection": "keep-alive",
+    };
+
+    for (const cdnUrl of nbaCDNUrls) {
+      try {
+        const nbaCDN = await fetch(cdnUrl, { headers: nbaCDNHeaders });
+        if (!nbaCDN.ok) continue;
+        const data = await nbaCDN.json();
+
+        // Formato injuryreport.json
+        const allPlayers = data?.InjuryReport?.InjuredPlayers || [];
+        if (allPlayers.length > 0) {
+          const teamInjuries = allPlayers.filter(p => NBA_TEAM_NAMES[p.TeamName] === tid);
           const injuries = teamInjuries.map(p => ({
             name: `${p.FirstName} ${p.LastName}`.trim() || "Jugador",
             reason: p.Reason || p.InjuryDescription || "Lesión",
             status: p.CurrentStatus || "Out",
             team: teamName || p.TeamName || "",
-          })).slice(0, 8);
-          return res.status(200).json({ injuries, source: "nba-cdn" });
+          })).slice(0, 10);
+          return res.status(200).json({ injuries, source: "nba-cdn:" + cdnUrl });
         }
-      }
+
+        // Formato stats.nba.com leagueinjuries
+        const resultSets = data?.resultSets || [];
+        const injurySet = resultSets.find(r => r.name === "LeagueInjuries");
+        if (injurySet?.rowSet?.length > 0) {
+          const headers_arr = injurySet.headers || [];
+          const teamNameIdx = headers_arr.indexOf("TEAM_NAME");
+          const playerIdx = headers_arr.indexOf("PLAYER_NAME");
+          const statusIdx = headers_arr.indexOf("RETURN_DATE");
+          const noteIdx = headers_arr.indexOf("NOTE");
+          // Map team name to filter
+          const teamNameMap = Object.entries(NBA_TEAM_NAMES).find(([k,v]) => v === tid)?.[0];
+          const rows = injurySet.rowSet.filter(r => r[teamNameIdx] === teamNameMap);
+          const injuries = rows.map(r => ({
+            name: r[playerIdx] || "Jugador",
+            reason: r[noteIdx] || "Lesión",
+            status: r[statusIdx] ? `Regreso: ${r[statusIdx]}` : "Out",
+            team: teamName || "",
+          })).slice(0, 10);
+          if (injuries.length > 0) {
+            return res.status(200).json({ injuries, source: "nba-stats" });
+          }
+        }
+      } catch { continue; }
     }
   } catch(e) { /* fallback a ESPN */ }
 
