@@ -1,5 +1,4 @@
 import { useState, useEffect, useLayoutEffect } from "react";
-import { flushSync } from "react-dom";
 import { saveNBAPrediction, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -396,7 +395,7 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [nbaEdges, setNbaEdges] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [loadingInjuries, setLoadingInjuries] = useState(false);
-  const [injuriesMap, setInjuriesMap] = useState({}); // keyed by gameId
+
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -463,7 +462,7 @@ export default function NBAPanel({ onClose, inline = false }) {
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setSaved(false); setSaveErr("");
     setNbaOdds(null); setNbaEdges([]);
-    // injuries cleared via map
+
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
@@ -542,8 +541,7 @@ export default function NBAPanel({ onClose, inline = false }) {
 
       // ── Cargar bajas/lesiones via ESPN proxy ──────────────
       setLoadingInjuries(true);
-      // flushSync fuerza React a renderizar el [] ANTES de continuar
-      // injuries reset via map
+   // reset explícito antes del fetch
       try {
         const homeId = game.teams?.home?.id;
         const awayId = game.teams?.visitors?.id;
@@ -570,7 +568,6 @@ export default function NBAPanel({ onClose, inline = false }) {
         // Solo actualizar si el partido no cambió mientras cargaba
         if (gameId === game.id) {
           setInjuriesMap(prev => ({ ...prev, [game.id]: allInjuries }));
-          setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
         }
       } catch(e) { console.warn("Injuries error:", e.message); }
       finally { setLoadingInjuries(false); }
@@ -772,8 +769,8 @@ H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
 ════ BAJAS Y LESIONES ════
-${(injuriesMap[selectedGame?.id] || []).length > 0
-  ? (injuriesMap[selectedGame?.id] || []).map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
+${injuries?.length > 0
+  ? injuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
   : "Sin bajas reportadas para este partido"}
 IMPORTANTE: Las bajas de jugadores clave (estrellas, titulares) deben reducir la confianza del equipo afectado.
 
@@ -1107,12 +1104,12 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
                     {/* Bajas y lesiones */}
                     {selectedGame && (
-                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: (injuriesMap[selectedGame?.id] || []).length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${(injuriesMap[selectedGame?.id] || []).length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: (injuriesMap[selectedGame?.id] || []).length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: (injuriesMap[selectedGame?.id] || []).length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
                             🚑 BAJAS / LESIONES
                             {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
-                            {!loadingInjuries && (injuriesMap[selectedGame?.id] || []).length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                            {!loadingInjuries && injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
                           </div>
                           {/* Botón actualizar bajas */}
                           {!loadingInjuries && selectedGame && (
@@ -1128,7 +1125,6 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                 const ai2 = await fetchInj(selectedGame.teams?.visitors?.id, selectedGame.teams?.visitors?.name);
                                 const all = [...hi, ...ai2];
                                 setInjuriesMap(prev => ({ ...prev, [selectedGame.id]: all }));
-                                setPreview(prev => prev ? { ...prev, injuries: all } : prev);
                               } catch(e) { console.warn(e); }
                               finally { setLoadingInjuries(false); }
                             }} style={{background:"none",border:"none",color:"rgba(239,68,68,0.5)",cursor:"pointer",fontSize:11,padding:"0 2px",lineHeight:1}}>
@@ -1136,9 +1132,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                             </button>
                           )}
                         </div>
-                        {(injuriesMap[selectedGame?.id] || []).length > 0 && (
+                        {injuries?.length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {(injuriesMap[selectedGame?.id] || []).map((p, i) => (
+                            {injuries.map((p, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
                                 <div>
                                   <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>
