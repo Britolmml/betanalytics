@@ -443,9 +443,13 @@ export default function App() {
       const res = await fetch("/api/predict", { method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({prompt:'Eres un periodista deportivo. Dame 6 noticias deportivas REALES y ACTUALES de HOY sobre NBA y fútbol internacional. Incluye resultados recientes, fichajes, lesiones de estrellas, standings o records. SOLO JSON sin markdown: {"noticias":[{"titulo":"","deporte":"NBA o FUTBOL","dato":""}]}'}) });
       const data = await res.json();
-      const text = data.content?.[0]?.text||"";
+      // Soportar ambos formatos de respuesta
+      const text = data.result || data.content?.[0]?.text || "";
       const clean = text.replace(/```json|```/g,"").trim();
-      const parsed = JSON.parse(clean);
+      const start = clean.indexOf("{");
+      const end = clean.lastIndexOf("}");
+      const jsonStr = start >= 0 && end > start ? clean.slice(start, end+1) : clean;
+      const parsed = JSON.parse(jsonStr);
       if (parsed.noticias?.length > 0) { setNews(parsed.noticias); setLoadingNews(false); return; }
     } catch(e){ console.warn("loadNews error", e.message); }
     setNews([
