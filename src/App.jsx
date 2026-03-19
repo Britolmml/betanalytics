@@ -904,18 +904,34 @@ export default function App() {
 
       const extractPlayers = (data) => {
         const list = data?.response || [];
-        // Ordenar por goles + asistencias
         return list
-          .map(p => ({
-            name: p.player?.name,
-            pos: p.statistics?.[0]?.games?.position,
-            goals: p.statistics?.[0]?.goals?.total || 0,
-            assists: p.statistics?.[0]?.goals?.assists || 0,
-            rating: p.statistics?.[0]?.games?.rating ? parseFloat(p.statistics[0].games.rating).toFixed(1) : null,
-            injured: p.player?.injured,
-          }))
-          .filter(p => p.name && (p.goals > 0 || p.assists > 0))
-          .sort((a, b) => (b.goals + b.assists) - (a.goals + a.assists))
+          .map(p => {
+            const allStats = p.statistics || [];
+
+            // Primero intentar encontrar stats de la liga actual
+            const leagueStat = allStats.find(s => s.league?.id === league?.id)
+                            || allStats.find(s => s.league?.name?.toLowerCase().includes("liga mx"))
+                            || allStats.find(s => s.league?.name?.toLowerCase().includes("clausura"))
+                            || allStats.find(s => s.league?.name?.toLowerCase().includes("apertura"))
+                            || allStats[0];
+
+            if (!leagueStat) return null;
+
+            const games   = leagueStat?.games?.appearences || 0;
+            const goals   = leagueStat?.goals?.total || 0;
+            const assists = leagueStat?.goals?.assists || 0;
+            const rating  = leagueStat?.games?.rating
+              ? parseFloat(leagueStat.games.rating).toFixed(1) : null;
+
+            const fullName = p.player?.firstname && p.player?.lastname
+              ? `${p.player.firstname} ${p.player.lastname}`
+              : p.player?.name || "Jugador";
+
+            return { name: fullName, pos: leagueStat?.games?.position, goals, assists, rating, injured: p.player?.injured, games };
+          })
+          .filter(p => p && p.name && p.games >= 1 && (p.goals > 0 || p.assists > 0))
+          .filter(p => p.assists <= 25 && p.goals <= 35)
+          .sort((a, b) => (b.goals * 2 + b.assists) - (a.goals * 2 + a.assists))
           .slice(0, 6);
       };
 
@@ -2207,12 +2223,15 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                               <div style={{fontSize:11,color:p.injured?"#ef4444":"#ccc",fontWeight:600}}>
                                 {p.injured?"⚠️ ":""}{p.name}
                               </div>
-                              <div style={{fontSize:9,color:"#444"}}>{p.pos||"Jugador"}</div>
+                              <div style={{fontSize:9,color:"#444",display:"flex",gap:6}}>
+                                <span>{p.pos||"Jugador"}</span>
+                                {p.games>0 && <span style={{color:"#333"}}>· {p.games} partidos</span>}
+                              </div>
                             </div>
-                            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                            <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
                               {p.goals>0 && <span style={{background:"rgba(0,212,255,0.12)",border:"1px solid rgba(0,212,255,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#00d4ff",fontWeight:700}}>⚽ {p.goals}</span>}
                               {p.assists>0 && <span style={{background:"rgba(59,130,246,0.12)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:5,padding:"2px 6px",fontSize:10,color:"#67a6ff",fontWeight:700}}>🅰️ {p.assists}</span>}
-                              {p.rating && <span style={{fontSize:10,color:"#555"}}>★{p.rating}</span>}
+                              {p.rating && <span style={{fontSize:10,color:parseFloat(p.rating)>=7.5?"#4ade80":parseFloat(p.rating)>=7.0?"#f59e0b":"#666",fontWeight:600}}>★{p.rating}</span>}
                             </div>
                           </div>
                         ))}
