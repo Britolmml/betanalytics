@@ -395,6 +395,7 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [nbaEdges, setNbaEdges] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [loadingInjuries, setLoadingInjuries] = useState(false);
+  const [injuries, setInjuries] = useState([]);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -461,6 +462,7 @@ export default function NBAPanel({ onClose, inline = false }) {
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setSaved(false); setSaveErr("");
     setNbaOdds(null); setNbaEdges([]);
+    setInjuries([]);
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
@@ -558,6 +560,7 @@ export default function NBAPanel({ onClose, inline = false }) {
           fetchInjuries(awayId, awayName),
         ]);
         const allInjuries = [...homeInj, ...awayInj];
+        setInjuries(allInjuries);
         setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
       } catch(e) { console.warn("Injuries error:", e.message); }
       finally { setLoadingInjuries(false); }
@@ -759,8 +762,8 @@ H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
 ════ BAJAS Y LESIONES ════
-${preview?.injuries?.length > 0
-  ? preview.injuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
+${injuries?.length > 0
+  ? injuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
   : "Sin bajas reportadas para este partido"}
 IMPORTANTE: Las bajas de jugadores clave (estrellas, titulares) deben reducir la confianza del equipo afectado.
 
@@ -1093,13 +1096,13 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     </div>
 
                     {/* Bajas y lesiones */}
-                    {preview && (
-                      <div style={{ marginBottom: 14, background: preview?.injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${preview?.injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: preview?.injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: preview?.injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    {selectedGame && (
+                      <div style={{ marginBottom: 14, background: injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
                             🚑 BAJAS / LESIONES
                             {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
-                            {!loadingInjuries && preview?.injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                            {!loadingInjuries && injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
                           </div>
                           {/* Botón actualizar bajas */}
                           {!loadingInjuries && selectedGame && (
@@ -1111,11 +1114,11 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                   const d = await r.json();
                                   return d.injuries || [];
                                 };
-                                const [hi, ai] = await Promise.all([
-                                  fetchInj(selectedGame.teams?.home?.id, selectedGame.teams?.home?.name),
-                                  fetchInj(selectedGame.teams?.visitors?.id, selectedGame.teams?.visitors?.name),
-                                ]);
-                                setPreview(prev => prev ? { ...prev, injuries: [...hi, ...ai] } : prev);
+                                const hi = await fetchInj(selectedGame.teams?.home?.id, selectedGame.teams?.home?.name);
+                                const ai2 = await fetchInj(selectedGame.teams?.visitors?.id, selectedGame.teams?.visitors?.name);
+                                const all = [...hi, ...ai2];
+                                setInjuries(all);
+                                setPreview(prev => prev ? { ...prev, injuries: all } : prev);
                               } catch(e) { console.warn(e); }
                               finally { setLoadingInjuries(false); }
                             }} style={{background:"none",border:"none",color:"rgba(239,68,68,0.5)",cursor:"pointer",fontSize:11,padding:"0 2px",lineHeight:1}}>
@@ -1123,9 +1126,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                             </button>
                           )}
                         </div>
-                        {preview?.injuries?.length > 0 && (
+                        {injuries?.length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {preview.injuries.map((p, i) => (
+                            {injuries.map((p, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
                                 <div>
                                   <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>
