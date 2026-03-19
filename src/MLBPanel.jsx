@@ -464,53 +464,54 @@ Responde SOLO con JSON válido sin markdown:
                         </div>
                         {analysis.tendencias && (
                           <div style={{ fontSize:10, color:"#555", marginTop:6 }}>
-                            Carreras esperadas: {analysis.tendencias.carrerasEsperadas} | {analysis.tendencias.nivelConfianza}
+                            Carreras: {analysis.tendencias.carrerasEsperadas} | {analysis.tendencias.nivelConfianza}
                           </div>
                         )}
                       </div>
-                  {/* Spring Training Badge */}
-                  <div style={{ marginBottom:12, padding:"8px 14px", background:"rgba(239,68,68,0.08)", border:"2px solid rgba(239,68,68,0.35)", borderRadius:10, display:"flex", alignItems:"center", gap:10 }}>
-                    <span style={{ fontSize:18 }}>⚠️</span>
-                    <div>
-                      <div style={{ fontSize:11, color:"#f87171", fontWeight:800, letterSpacing:1 }}>SPRING TRAINING — CONFIANZA REDUCIDA</div>
-                      <div style={{ fontSize:10, color:"#888", marginTop:2 }}>Alineaciones experimentales · Pitchers rotan 2-4 innings · Splits squads frecuentes · Máx 62% confianza</div>
                     </div>
-                  </div>
 
-                  {/* Poisson */}
-                  {poisson && (
-                    <div style={{ marginBottom:12, padding:"10px 14px", background:"rgba(251,146,60,0.06)", border:"1px solid rgba(251,146,60,0.15)", borderRadius:10 }}>
-                      <div style={{ fontSize:10, color:"#fb923c", fontWeight:700, letterSpacing:1, marginBottom:8 }}>📊 MODELO POISSON — Spring Training</div>
-                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-                        {[
-                          {label:"xRuns Local", val:poisson.xRunsHome},
-                          {label:"xRuns Visitante", val:poisson.xRunsAway},
-                          {label:"Total proyectado", val:poisson.total},
-                          {label:"P(Local)", val:`${poisson.pHome}%`},
-                          {label:"P(Visitante)", val:`${poisson.pAway}%`},
-                        ].map(({label,val})=>(
-                          <div key={label} style={{ background:"rgba(251,146,60,0.08)", border:"1px solid rgba(251,146,60,0.2)", borderRadius:8, padding:"4px 10px", fontSize:11 }}>
-                            <span style={{ color:"#888" }}>{label}: </span>
-                            <span style={{ color:"#fb923c", fontWeight:700 }}>{val}</span>
-                          </div>
-                        ))}
+                    {/* Spring Training Badge */}
+                    <div style={{ marginBottom:12, padding:"8px 14px", background:"rgba(239,68,68,0.08)", border:"2px solid rgba(239,68,68,0.35)", borderRadius:10, display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:18 }}>⚠️</span>
+                      <div>
+                        <div style={{ fontSize:11, color:"#f87171", fontWeight:800, letterSpacing:1 }}>SPRING TRAINING — CONFIANZA REDUCIDA</div>
+                        <div style={{ fontSize:10, color:"#888", marginTop:2 }}>Alineaciones experimentales · Pitchers rotan 2-4 innings · Splits squads frecuentes · Máx 62%</div>
                       </div>
-                      {/* Top 5 marcadores probables */}
-                      {poisson.top5?.length > 0 && (
-                        <div>
-                          <div style={{ fontSize:10, color:"#888", letterSpacing:1, marginBottom:6 }}>🎯 TOP 5 MARCADORES MÁS PROBABLES</div>
-                          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                            {poisson.top5.map((s,i)=>(
-                              <div key={i} style={{ background:i===0?"rgba(251,146,60,0.15)":"rgba(255,255,255,0.04)", border:`1px solid ${i===0?"rgba(251,146,60,0.4)":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"4px 10px", fontSize:11, textAlign:"center" }}>
-                                <div style={{ color:i===0?"#fb923c":"#e2f4ff", fontWeight:700 }}>{s.h}-{s.a}</div>
-                                <div style={{ color:"#555", fontSize:9 }}>{s.p}%</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  )}
+
+                    {/* Poisson */}
+                    {poisson && (
+                      <div style={{ marginBottom:14, padding:"10px 14px", background:"rgba(251,146,60,0.06)", border:"1px solid rgba(251,146,60,0.15)", borderRadius:10 }}>
+                        <div style={{ fontSize:10, color:"#fb923c", fontWeight:700, letterSpacing:1, marginBottom:8 }}>📊 MODELO POISSON</div>
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+                          {[
+                            {label:"xRuns Local", val:poisson.xRunsHome},
+                            {label:"xRuns Visit.", val:poisson.xRunsAway},
+                            {label:"Total", val:poisson.total},
+                            {label:"P(Local)", val:`${poisson.pHome}%`},
+                            {label:"P(Visit.)", val:`${poisson.pAway}%`},
+                          ].map(({label,val})=>(
+                            <div key={label} style={{ background:"rgba(251,146,60,0.08)", border:"1px solid rgba(251,146,60,0.2)", borderRadius:8, padding:"4px 10px", fontSize:11 }}>
+                              <span style={{ color:"#888" }}>{label}: </span>
+                              <span style={{ color:"#fb923c", fontWeight:700 }}>{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {poisson.top5?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize:10, color:"#888", letterSpacing:1, marginBottom:6 }}>🎯 TOP 5 MARCADORES MÁS PROBABLES</div>
+                            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                              {poisson.top5.map((s,i)=>(
+                                <div key={i} style={{ background:i===0?"rgba(251,146,60,0.15)":"rgba(255,255,255,0.04)", border:`1px solid ${i===0?"rgba(251,146,60,0.4)":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"4px 10px", fontSize:11, textAlign:"center" }}>
+                                  <div style={{ color:i===0?"#fb923c":"#e2f4ff", fontWeight:700 }}>{s.h}-{s.a}</div>
+                                  <div style={{ color:"#555", fontSize:9 }}>{s.p}%</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Value Bet IA */}
                     {analysis.valueBet?.existe && (
