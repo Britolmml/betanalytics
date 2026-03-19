@@ -56,12 +56,24 @@ function calcBaseballPoisson(hStats, aStats, marketTotal = null) {
   const pHome = Math.min(75, Math.max(25, Math.round(normCDF(spread / stdDev) * 100)));
   const calcOver = (line) => Math.min(68, Math.max(32, Math.round(normCDF((total - line) / stdDev) * 100)));
 
+  // Top 5 marcadores probables via Poisson bivariado
+  const poissonProb = (lambda, k) => Math.exp(-lambda) * Math.pow(lambda, k) / [...Array(k+1).keys()].reduce((f,i)=>f*(i||1),1);
+  const topScores = [];
+  for (let h = 0; h <= 12; h++) {
+    for (let a = 0; a <= 12; a++) {
+      const p = poissonProb(xRunsHome, h) * poissonProb(xRunsAway, a) * 100;
+      if (p > 0.5) topScores.push({ h, a, p: Math.round(p * 10) / 10 });
+    }
+  }
+  topScores.sort((a, b) => b.p - a.p);
+  const top5 = topScores.slice(0, 5);
+
   return {
     xRunsHome: xRunsHome.toFixed(1),
     xRunsAway: xRunsAway.toFixed(1),
     total: total.toFixed(1),
     pHome, pAway: 100 - pHome,
-    calcOver,
+    calcOver, top5,
   };
 }
 
@@ -93,6 +105,14 @@ function calcEdges(poisson, odds) {
   return edges;
 }
 
+// Calcular EV dinámico dado odds del usuario
+function calcEV(ourProb, userOdds) {
+  if (!userOdds || userOdds <= 1) return null;
+  const implied = 1 / userOdds;
+  const edge = ourProb / 100 - implied;
+  return { edge: Math.round(edge * 100), isValue: edge > 0.03 };
+}
+
 function StatBar({ label, value, max, color = "#fb923c" }) {
   const pct = Math.min((parseFloat(value) / max) * 100, 100).toFixed(1);
   return (
@@ -122,6 +142,8 @@ export default function MLBPanel({ inline }) {
   const [poisson, setPoisson] = useState(null);
   const [edges, setEdges] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
+  const [customOdds, setCustomOdds] = useState("");
+  const [customMarket, setCustomMarket] = useState("");
 
   useEffect(() => { loadMLB(getToday()); }, []);
 
@@ -240,7 +262,7 @@ REGLAS:
 - Primeras 5 entradas (F5) es un mercado popular en béisbol
 
 Responde SOLO con JSON válido sin markdown:
-{"resumen":"Análisis detallado de 3-4 oraciones","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","odds_sugerido":"1.90","confianza":57,"factores":["...","..."]},{"tipo":"Total Carreras","pick":"Más/Menos X.5","odds_sugerido":"1.90","confianza":54,"factores":["..."]},{"tipo":"Run Line","pick":"... -1.5 o ... +1.5","odds_sugerido":"2.10","confianza":50,"factores":["..."]},{"tipo":"F5 (Primeras 5 entradas)","pick":"...","odds_sugerido":"1.85","confianza":52,"factores":["..."]}],"valueBet":{"existe":false,"mercado":"","explicacion":""},"alertas":["Alerta específica basada en datos"],"tendencias":{"carrerasEsperadas":"${poisson?.total || '8.5'}","favorito":"${home} o ${away}","nivelConfianza":"BAJO/MEDIO"}}`;
+{"resumen":"Análisis detallado de 3-4 oraciones","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","odds_sugerido":"1.90","confianza":57,"factores":["...","..."]},{"tipo":"Total Carreras","pick":"Más/Menos X.5","odds_sugerido":"1.90","confianza":54,"factores":["..."]},{"tipo":"Run Line","pick":"... -1.5 o ... +1.5","odds_sugerido":"2.10","confianza":50,"factores":["..."]},{"tipo":"F5 (Primeras 5 entradas)","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":52,"factores":["..."]},{"tipo":"NRFI (No Run First Inning)","pick":"Sí/No","odds_sugerido":"1.80","confianza":51,"factores":["..."]},{"tipo":"Team Total Local","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":53,"factores":["..."]}],"valueBet":{"existe":false,"mercado":"","explicacion":""},"alertas":["Alerta específica basada en datos"],"tendencias":{"carrerasEsperadas":"${poisson?.total || '8.5'}","favorito":"${home} o ${away}","nivelConfianza":"BAJO/MEDIO"}}`;
 
     try {
       const res = await fetch("/api/predict", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt}) });
@@ -353,13 +375,23 @@ Responde SOLO con JSON válido sin markdown:
                     ))}
                   </div>
 
+                  {/* Spring Training Badge */}
+                  <div style={{ marginBottom:12, padding:"8px 14px", background:"rgba(239,68,68,0.08)", border:"2px solid rgba(239,68,68,0.35)", borderRadius:10, display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:18 }}>⚠️</span>
+                    <div>
+                      <div style={{ fontSize:11, color:"#f87171", fontWeight:800, letterSpacing:1 }}>SPRING TRAINING — CONFIANZA REDUCIDA</div>
+                      <div style={{ fontSize:10, color:"#888", marginTop:2 }}>Alineaciones experimentales · Pitchers rotan 2-4 innings · Splits squads frecuentes · Máx 62% confianza</div>
+                    </div>
+                  </div>
+
                   {/* Poisson */}
                   {poisson && (
                     <div style={{ marginBottom:12, padding:"10px 14px", background:"rgba(251,146,60,0.06)", border:"1px solid rgba(251,146,60,0.15)", borderRadius:10 }}>
-                      <div style={{ fontSize:10, color:"#fb923c", fontWeight:700, letterSpacing:1, marginBottom:8 }}>📊 MODELO POISSON</div>
-                      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                      <div style={{ fontSize:10, color:"#fb923c", fontWeight:700, letterSpacing:1, marginBottom:8 }}>📊 MODELO POISSON — Spring Training</div>
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
                         {[
-                          {label:"Runs esperadas", val:`${poisson.xRunsHome} - ${poisson.xRunsAway}`},
+                          {label:"xRuns Local", val:poisson.xRunsHome},
+                          {label:"xRuns Visitante", val:poisson.xRunsAway},
                           {label:"Total proyectado", val:poisson.total},
                           {label:"P(Local)", val:`${poisson.pHome}%`},
                           {label:"P(Visitante)", val:`${poisson.pAway}%`},
@@ -370,6 +402,20 @@ Responde SOLO con JSON válido sin markdown:
                           </div>
                         ))}
                       </div>
+                      {/* Top 5 marcadores probables */}
+                      {poisson.top5?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize:10, color:"#888", letterSpacing:1, marginBottom:6 }}>🎯 TOP 5 MARCADORES MÁS PROBABLES</div>
+                          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                            {poisson.top5.map((s,i)=>(
+                              <div key={i} style={{ background:i===0?"rgba(251,146,60,0.15)":"rgba(255,255,255,0.04)", border:`1px solid ${i===0?"rgba(251,146,60,0.4)":"rgba(255,255,255,0.08)"}`, borderRadius:8, padding:"4px 10px", fontSize:11, textAlign:"center" }}>
+                                <div style={{ color:i===0?"#fb923c":"#e2f4ff", fontWeight:700 }}>{s.h}-{s.a}</div>
+                                <div style={{ color:"#555", fontSize:9 }}>{s.p}%</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -401,6 +447,35 @@ Responde SOLO con JSON válido sin markdown:
                           <span style={{ color:"#555", marginLeft:8 }}>({e.ourProb}% vs {e.implied}% implícita)</span>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* EV Calculator */}
+                  {poisson && (
+                    <div style={{ marginBottom:12, padding:"10px 14px", background:"rgba(16,185,129,0.04)", border:"1px solid rgba(16,185,129,0.15)", borderRadius:10 }}>
+                      <div style={{ fontSize:10, color:"#10b981", fontWeight:700, letterSpacing:1, marginBottom:8 }}>💡 CALCULADORA EV — Ingresa tus odds</div>
+                      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                        <select value={customMarket} onChange={e=>setCustomMarket(e.target.value)}
+                          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 8px", color:"#e2f4ff", fontSize:11, flex:1 }}>
+                          <option value="">Selecciona mercado...</option>
+                          <option value={poisson.pHome}>Local gana ({poisson.pHome}%)</option>
+                          <option value={poisson.pAway}>Visitante gana ({poisson.pAway}%)</option>
+                          <option value={poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}>Over total ({poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}%)</option>
+                          <option value={100-poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}>Under total ({100-poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}%)</option>
+                        </select>
+                        <input type="number" step="0.01" min="1.01" placeholder="Odds (ej: 1.95)" value={customOdds}
+                          onChange={e=>setCustomOdds(e.target.value)}
+                          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 8px", color:"#e2f4ff", fontSize:11, width:110 }}/>
+                        {customMarket && customOdds && (() => {
+                          const ev = calcEV(parseFloat(customMarket), parseFloat(customOdds));
+                          if (!ev) return null;
+                          return (
+                            <div style={{ background:ev.isValue?"rgba(16,185,129,0.12)":"rgba(239,68,68,0.08)", border:`1px solid ${ev.isValue?"rgba(16,185,129,0.3)":"rgba(239,68,68,0.2)"}`, borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, color:ev.isValue?"#10b981":"#ef4444" }}>
+                              {ev.isValue ? "✅" : "❌"} EV: {ev.edge > 0 ? "+" : ""}{ev.edge}%
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                   )}
 
