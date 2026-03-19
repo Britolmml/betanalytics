@@ -395,7 +395,7 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [nbaEdges, setNbaEdges] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [loadingInjuries, setLoadingInjuries] = useState(false);
-
+  const [injuries, setInjuries] = useState([]);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -407,6 +407,11 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [loadingMega, setLoadingMega] = useState(false);
   const [megaProgress, setMegaProgress] = useState("");
   const [selectedDate, setSelectedDate] = useState(getESTDate(0));
+
+  // Reset injuries inmediatamente cuando cambia el partido — antes del render
+  useLayoutEffect(() => {
+    setInjuries([]);
+  }, [selectedGame?.id]);
 
   useEffect(() => { loadNBA(getESTDate(0)); }, []);
 
@@ -462,7 +467,7 @@ export default function NBAPanel({ onClose, inline = false }) {
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setSaved(false); setSaveErr("");
     setNbaOdds(null); setNbaEdges([]);
-
+    setInjuries([]);
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
@@ -541,19 +546,16 @@ export default function NBAPanel({ onClose, inline = false }) {
 
       // ── Cargar bajas/lesiones via ESPN proxy ──────────────
       setLoadingInjuries(true);
-   // reset explícito antes del fetch
+      setInjuries([]); // reset explícito antes del fetch
       try {
         const homeId = game.teams?.home?.id;
         const awayId = game.teams?.visitors?.id;
         const homeName = game.teams?.home?.name;
         const awayName = game.teams?.visitors?.name;
-        const gameId = game.id; // capturar el ID del partido actual
 
         const fetchInjuries = async (teamId, teamName) => {
           try {
-            // Cache-busting con timestamp para evitar respuestas cacheadas
-            const ts = Date.now();
-            const res = await fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}&_t=${ts}`);
+            const res = await fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}&_t=${Date.now()}`);
             const data = await res.json();
             return data.injuries || [];
           } catch { return []; }
@@ -564,11 +566,9 @@ export default function NBAPanel({ onClose, inline = false }) {
           fetchInjuries(awayId, awayName),
         ]);
         const allInjuries = [...homeInj, ...awayInj];
-
-        // Solo actualizar si el partido no cambió mientras cargaba
-        if (gameId === game.id) {
-          setInjuriesMap(prev => ({ ...prev, [game.id]: allInjuries }));
-        }
+        // Actualizar siempre con los datos del partido actual
+        setInjuries(allInjuries);
+        setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
       } catch(e) { console.warn("Injuries error:", e.message); }
       finally { setLoadingInjuries(false); }
 
@@ -1124,7 +1124,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                 const hi = await fetchInj(selectedGame.teams?.home?.id, selectedGame.teams?.home?.name);
                                 const ai2 = await fetchInj(selectedGame.teams?.visitors?.id, selectedGame.teams?.visitors?.name);
                                 const all = [...hi, ...ai2];
-                                setInjuriesMap(prev => ({ ...prev, [selectedGame.id]: all }));
+                                setInjuries(all);
+                                setPreview(prev => prev ? { ...prev, injuries: all } : prev);
                               } catch(e) { console.warn(e); }
                               finally { setLoadingInjuries(false); }
                             }} style={{background:"none",border:"none",color:"rgba(239,68,68,0.5)",cursor:"pointer",fontSize:11,padding:"0 2px",lineHeight:1}}>
