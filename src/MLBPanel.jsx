@@ -300,34 +300,56 @@ Responde SOLO con JSON válido sin markdown:
         <div style={{ display:"flex", gap:16 }}>
 
           {/* ── Lista partidos (más ancha) ── */}
-          <div style={{ width:380, flexShrink:0 }}>
+          <div style={{ width:420, flexShrink:0 }}>
             {loading && <div style={{ color:"#4a7a8a", fontSize:13, textAlign:"center", padding:20 }}>⏳ Cargando partidos...</div>}
             {err && <div style={{ color:"#f59e0b", fontSize:12, padding:12, background:"rgba(245,158,11,0.08)", borderRadius:8 }}>{err}</div>}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {games.map(game => {
                 const isSelected = selectedGame?.id === game.id;
                 const isDone = game.status?.short === "FT";
                 const hScore = game.scores?.home?.total;
                 const aScore = game.scores?.away?.total;
+                const hWin = isDone && hScore > aScore;
+                const aWin = isDone && aScore > hScore;
                 return (
                   <div key={game.id} onClick={()=>selectGame(game)}
-                    style={{ background:isSelected?"rgba(251,146,60,0.15)":"rgba(13,17,23,0.5)", border:`1px solid ${isSelected?"rgba(251,146,60,0.5)":"rgba(255,255,255,0.06)"}`, borderRadius:12, padding:"10px 12px", cursor:"pointer", transition:"all 0.2s" }}>
-                    <div style={{ fontSize:9, color:isDone?"#555":"#f59e0b", fontWeight:700, letterSpacing:1, marginBottom:6 }}>
+                    style={{ background:isSelected?"rgba(251,146,60,0.12)":"rgba(13,17,23,0.5)", border:`1px solid ${isSelected?"rgba(251,146,60,0.5)":"rgba(255,255,255,0.07)"}`, borderRadius:12, padding:"12px 14px", cursor:"pointer", transition:"all 0.2s" }}
+                    onMouseEnter={e=>{ if(!isSelected) e.currentTarget.style.borderColor="rgba(251,146,60,0.25)"; }}
+                    onMouseLeave={e=>{ if(!isSelected) e.currentTarget.style.borderColor="rgba(255,255,255,0.07)"; }}>
+                    {/* Status */}
+                    <div style={{ fontSize:9, color:isDone?"#555":"#f59e0b", fontWeight:700, letterSpacing:1, marginBottom:8 }}>
                       {isDone ? "✅ FINAL" : "⏰ "+new Date(game.date).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",timeZone:"America/Mexico_City"})+" CST"}
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <img src={game.teams?.home?.logo} alt="" style={{ height:18 }} onError={e=>e.target.style.display="none"}/>
-                        <span style={{ fontSize:11, fontWeight:700, color:"#e2f4ff" }}>{game.teams?.home?.name?.split(" ").pop()}</span>
+                    {/* Teams row */}
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {/* Home team */}
+                      <div style={{ flex:1, display:"flex", alignItems:"center", gap:8 }}>
+                        <img src={game.teams?.home?.logo} alt="" style={{ height:28, width:28, objectFit:"contain" }} onError={e=>e.target.style.display="none"}/>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:800, color:hWin?"#fb923c":"#e2f4ff" }}>{game.teams?.home?.name}</div>
+                          <div style={{ fontSize:10, color:"#444", marginTop:1 }}>Local</div>
+                        </div>
                       </div>
-                      {hScore!=null && <span style={{ fontSize:14, fontWeight:900, color:hScore>aScore?"#10b981":"#e2f4ff" }}>{hScore}</span>}
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <img src={game.teams?.away?.logo} alt="" style={{ height:18 }} onError={e=>e.target.style.display="none"}/>
-                        <span style={{ fontSize:11, color:"#888" }}>{game.teams?.away?.name?.split(" ").pop()}</span>
+                      {/* Score */}
+                      <div style={{ textAlign:"center", minWidth:60 }}>
+                        {hScore != null ? (
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                            <span style={{ fontSize:20, fontWeight:900, color:hWin?"#10b981":"#e2f4ff" }}>{hScore}</span>
+                            <span style={{ fontSize:13, color:"#333" }}>-</span>
+                            <span style={{ fontSize:20, fontWeight:900, color:aWin?"#10b981":"#888" }}>{aScore}</span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize:11, color:"#333", fontWeight:700 }}>VS</span>
+                        )}
                       </div>
-                      {aScore!=null && <span style={{ fontSize:13, fontWeight:700, color:aScore>hScore?"#10b981":"#888" }}>{aScore}</span>}
+                      {/* Away team */}
+                      <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, justifyContent:"flex-end" }}>
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:aWin?"#fb923c":"#888" }}>{game.teams?.away?.name}</div>
+                          <div style={{ fontSize:10, color:"#444", marginTop:1 }}>Visitante</div>
+                        </div>
+                        <img src={game.teams?.away?.logo} alt="" style={{ height:28, width:28, objectFit:"contain" }} onError={e=>e.target.style.display="none"}/>
+                      </div>
                     </div>
                   </div>
                 );
