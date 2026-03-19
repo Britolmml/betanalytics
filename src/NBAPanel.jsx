@@ -17,9 +17,6 @@ function getESTDate(offsetDays = 0) {
 }
 
 function getRecentGames(res, teamId) {
-  // Solo mostrar bajas del partido actual
-  const safeInjuries = injuriesGameId === selectedGame?.id ? injuries : [];
-
   return (res?.response || [])
     .filter(g => g.status?.short === 3)
     .sort((a, b) => new Date(b.date?.start) - new Date(a.date?.start))
@@ -1722,6 +1719,9 @@ function ParlayBox({ allAnalyses }) {
   const combinedOdds = picks.reduce((acc, p) => acc * (1 / (p.confianza / 100)), 1).toFixed(2);
   const combinedProb = (picks.reduce((acc, p) => acc * (p.confianza / 100), 1) * 100).toFixed(0);
   const confColor = combinedProb > 35 ? "#10b981" : combinedProb > 20 ? "#f59e0b" : "#ef4444";
+
+  // Solo mostrar bajas del partido actual
+  const safeInjuries = injuriesGameId === selectedGame?.id ? injuries : [];
 
   return (
     <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.03)" }}>
