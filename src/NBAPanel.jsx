@@ -534,19 +534,33 @@ export default function NBAPanel({ onClose, inline = false }) {
 
         const fetchInjuries = async (teamId, teamName) => {
           try {
-            // v2.nba.api-sports.io requiere league=12 (NBA) y season en formato YYYY-YYYY
-            const res = await nbFetch(`/injuries?league=12&season=2024-2025&team=${teamId}`);
+            // Intentar con season=2024 (formato numérico, sin league)
+            const res = await nbFetch(`/injuries?season=2024&team=${teamId}`);
+            console.log("[Injuries]", teamName, "response:", JSON.stringify(res).slice(0, 300));
             const list = res?.response || [];
-            if (!list.length) return [];
-            return list
-              .map(p => ({
-                name: p.player?.name || "Jugador",
-                reason: p.comment || p.type || "Lesión",
+            if (!list.length) {
+              // Intentar con season=2025
+              const res2 = await nbFetch(`/injuries?season=2025&team=${teamId}`);
+              console.log("[Injuries2]", teamName, "response:", JSON.stringify(res2).slice(0, 300));
+              const list2 = res2?.response || [];
+              if (!list2.length) return [];
+              return list2.map(p => ({
+                name: p.player?.name || p.name || "Jugador",
+                reason: p.comment || p.type || p.reason || "Lesión",
                 status: p.status || "Out",
                 team: teamName,
-              }))
-              .slice(0, 5);
-          } catch { return []; }
+              })).slice(0, 5);
+            }
+            return list.map(p => ({
+              name: p.player?.name || p.name || "Jugador",
+              reason: p.comment || p.type || p.reason || "Lesión",
+              status: p.status || "Out",
+              team: teamName,
+            })).slice(0, 5);
+          } catch(e) {
+            console.warn("[Injuries error]", teamName, e.message);
+            return [];
+          }
         };
 
         const [homeInj, awayInj] = await Promise.all([
@@ -554,6 +568,7 @@ export default function NBAPanel({ onClose, inline = false }) {
           fetchInjuries(awayId, awayName),
         ]);
         const allInjuries = [...homeInj, ...awayInj];
+        console.log("[Injuries total]", allInjuries.length, "players");
         setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
       } catch(e) { console.warn("Injuries error:", e.message); }
 
