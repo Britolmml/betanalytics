@@ -1148,7 +1148,6 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-
       // Parser robusto — maneja respuestas malformadas de la IA
       let parsed;
       try {
@@ -1166,37 +1165,23 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         try {
           parsed = JSON.parse(clean);
         } catch {
-          // 4. Limpiezas adicionales para JSON malformado
+          // 4. Limpiezas para JSON malformado — sin template literals anidados
           let fixed = clean
-            // Saltos de línea dentro de strings → espacio
-            .replace(/("(?:[^"\\]|\\.)*")|[\r\n]+/g, (m, str) => str ? str.replace(/[\r\n]+/g, " ") : " ")
-            // Comas dobles
+            .replace(/[\r\n]+/g, " ")
             .replace(/,\s*,/g, ",")
-            // Comas antes de cierre
             .replace(/,\s*([}\]])/g, "$1")
-            // Comillas simples → dobles (solo en claves/valores simples)
-            .replace(/:\s*'([^']*?)'/g, ':"$1"')
-            // Caracteres de control
             .replace(/[\x00-\x1F\x7F]/g, " ");
           try {
             parsed = JSON.parse(fixed);
           } catch {
-            // 5. Último recurso: extraer campos clave con regex
-            const get = (key) => {
-              const m = fixed.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*?)"`));
-              return m ? m[1] : "";
-            };
-            const getNum = (key) => {
-              const m = fixed.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
-              return m ? parseInt(m[1]) : 0;
-            };
+            // 5. Fallback mínimo
             parsed = {
-              resumen: get("resumen") || "Análisis completado",
-              prediccionMarcador: get("prediccionMarcador") || "1-1",
-              probabilidades: { local: getNum("local") || 40, empate: getNum("empate") || 30, visitante: getNum("visitante") || 30 },
+              resumen: "Análisis completado — hubo un problema al procesar la respuesta. Intenta de nuevo.",
+              prediccionMarcador: "1-1",
+              probabilidades: { local: 40, empate: 30, visitante: 30 },
               apuestasDestacadas: [],
-              alertas: ["Respuesta parcial — regenera el análisis para más detalles"],
-              nivelConfianza: "MEDIO",
+              alertas: ["Regenera el análisis para ver las apuestas recomendadas"],
+              nivelConfianza: "BAJO",
             };
           }
         }
