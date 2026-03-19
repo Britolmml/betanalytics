@@ -493,61 +493,55 @@ export default function NBAPanel({ onClose, inline = false }) {
         setLoadingOdds(true);
         const home = game.teams?.home?.name;
         const away = game.teams?.visitors?.name;
+        // NBA solo tiene cobertura en regions=us
         const resOdds = await fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`);
         const dataOdds = await resOdds.json();
-        if (Array.isArray(dataOdds)) {
-          const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+        if (Array.isArray(dataOdds) && dataOdds.length > 0) {
+          const norm = s => s?.toLowerCase()
+            .replace(/\b(golden state|los angeles|new york|oklahoma city|san antonio|new orleans|portland trail|memphis|indiana|milwaukee|cleveland|minnesota|orlando|charlotte|detroit|washington|philadelphia|phoenix|sacramento|utah|denver|dallas|houston|atlanta|brooklyn|boston|toronto|miami)\b/g, m => m.split(" ").pop())
+            .replace(/[^a-z]/g,"") ?? "";
           const nh = norm(home), na = norm(away);
           const matchedGame = dataOdds.find(g => {
             const gh = norm(g.home_team), ga = norm(g.away_team);
-            return (gh.includes(nh.slice(-6)) || nh.includes(gh.slice(-6))) &&
-                   (ga.includes(na.slice(-6)) || na.includes(ga.slice(-6)));
+            return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
+                   (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
           });
           if (matchedGame) {
-            const bk = matchedGame.bookmakers?.find(b=>b.key==="pinnacle") ||
-                       matchedGame.bookmakers?.find(b=>b.key==="draftkings") ||
+            const bk = matchedGame.bookmakers?.find(b=>b.key==="draftkings") ||
+                       matchedGame.bookmakers?.find(b=>b.key==="fanduel") ||
+                       matchedGame.bookmakers?.find(b=>b.key==="pinnacle") ||
                        matchedGame.bookmakers?.[0];
             const h2hM = bk?.markets?.find(m=>m.key==="h2h");
             const totalsM = bk?.markets?.find(m=>m.key==="totals");
             const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
             setNbaOdds(newOdds);
             if (poisson) setNbaEdges(calcNBAEdges(poisson, newOdds));
+          } else {
+            console.warn("[Odds] No match found for", home, "vs", away, "— available:", dataOdds.map(g=>g.home_team+"v"+g.away_team).join(", "));
           }
+        } else {
+          console.warn("[Odds] Empty response or error:", dataOdds);
         }
       } catch(e) { console.warn("Auto-load odds error:", e.message); }
       finally { setLoadingOdds(false); }
 
-      // ── Cargar bajas/lesiones via ESPN (API pública, no requiere key) ──
+      // ── Cargar bajas/lesiones via v2.nba.api-sports.io ──────
       try {
         const homeId = game.teams?.home?.id;
         const awayId = game.teams?.visitors?.id;
         const homeName = game.teams?.home?.name;
         const awayName = game.teams?.visitors?.name;
 
-        // Mapeo de IDs de api-basketball a abreviaturas ESPN
-        const teamAbbrMap = {
-          1: "ATL", 2: "BOS", 3: "BKN", 4: "CHA", 5: "CHI",
-          6: "CLE", 7: "DAL", 8: "DEN", 9: "DET", 10: "GSW",
-          11: "HOU", 12: "IND", 13: "LAC", 14: "LAL", 15: "MEM",
-          16: "MIA", 17: "MIL", 18: "MIN", 19: "NOP", 20: "NYK",
-          21: "OKC", 22: "ORL", 23: "PHI", 24: "PHX", 25: "POR",
-          26: "SAC", 27: "SAS", 28: "TOR", 29: "UTA", 30: "WAS",
-          38: "BKN", 41: "CHA",
-        };
-
-        const fetchESPNInjuries = async (teamId, teamName) => {
-          const abbr = teamAbbrMap[teamId];
-          if (!abbr) return [];
+        const fetchInjuries = async (teamId, teamName) => {
           try {
-            const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${abbr}/injuries`);
-            if (!res.ok) return [];
-            const data = await res.json();
-            return (data.injuries || [])
+            // v2.nba.api-sports.io requiere league=12 (NBA) y season en formato YYYY-YYYY
+            const res = await nbFetch(`/injuries?league=12&season=2024-2025&team=${teamId}`);
+            const list = res?.response || [];
+            if (!list.length) return [];
+            return list
               .map(p => ({
-                name: p.athlete?.displayName || p.athlete?.fullName || "Jugador",
-                reason: p.details?.returnDate
-                  ? `${p.details?.type || "Lesión"} — Regreso: ${p.details.returnDate}`
-                  : (p.details?.type || p.details?.detail || "Lesión"),
+                name: p.player?.name || "Jugador",
+                reason: p.comment || p.type || "Lesión",
                 status: p.status || "Out",
                 team: teamName,
               }))
@@ -556,12 +550,12 @@ export default function NBAPanel({ onClose, inline = false }) {
         };
 
         const [homeInj, awayInj] = await Promise.all([
-          fetchESPNInjuries(homeId, homeName),
-          fetchESPNInjuries(awayId, awayName),
+          fetchInjuries(homeId, homeName),
+          fetchInjuries(awayId, awayName),
         ]);
         const allInjuries = [...homeInj, ...awayInj];
         setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
-      } catch(e) { console.warn("Injuries ESPN error:", e.message); }
+      } catch(e) { console.warn("Injuries error:", e.message); }
 
       // Cargar top jugadores
       setLoadingPlayers(true);
@@ -635,24 +629,28 @@ export default function NBAPanel({ onClose, inline = false }) {
       const away = selectedGame.teams?.visitors?.name;
       const res = await fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`);
       const data = await res.json();
-      if (Array.isArray(data)) {
-        const norm = s => s?.toLowerCase().replace(/[^a-z0-9]/g,"") ?? "";
+      if (Array.isArray(data) && data.length > 0) {
+        const norm = s => s?.toLowerCase()
+          .replace(/\b(golden state|los angeles|new york|oklahoma city|san antonio|new orleans|portland trail|memphis|indiana|milwaukee|cleveland|minnesota|orlando|charlotte|detroit|washington|philadelphia|phoenix|sacramento|utah|denver|dallas|houston|atlanta|brooklyn|boston|toronto|miami)\b/g, m => m.split(" ").pop())
+          .replace(/[^a-z]/g,"") ?? "";
         const nh = norm(home), na = norm(away);
         const game = data.find(g => {
           const gh = norm(g.home_team), ga = norm(g.away_team);
-          return (gh.includes(nh.slice(-6)) || nh.includes(gh.slice(-6))) &&
-                 (ga.includes(na.slice(-6)) || na.includes(ga.slice(-6)));
+          return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
+                 (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
         });
         if (game) {
-          // Usar el mejor bookmaker disponible (Pinnacle > DraftKings > primero)
-          const bk = game.bookmakers?.find(b=>b.key==="pinnacle") ||
-                     game.bookmakers?.find(b=>b.key==="draftkings") ||
+          const bk = game.bookmakers?.find(b=>b.key==="draftkings") ||
+                     game.bookmakers?.find(b=>b.key==="fanduel") ||
+                     game.bookmakers?.find(b=>b.key==="pinnacle") ||
                      game.bookmakers?.[0];
           const h2hM = bk?.markets?.find(m=>m.key==="h2h");
           const totalsM = bk?.markets?.find(m=>m.key==="totals");
           const newOdds = { h2h: h2hM, totals: totalsM, raw: game, bookmaker: bk?.title };
           setNbaOdds(newOdds);
           if (nbaPoisson) setNbaEdges(calcNBAEdges(nbaPoisson, newOdds));
+        } else {
+          console.warn("[Odds manual] No match for", home, "vs", away);
         }
       }
     } catch(e) { console.warn("NBA odds error:", e.message); }
