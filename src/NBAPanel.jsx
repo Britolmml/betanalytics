@@ -54,7 +54,7 @@ function calcStats(recent, teamId) {
 }
 
 // ── Modelo Poisson NBA ──────────────────────────────────────
-function calcNBAPoisson(hStats, aStats) {
+function calcNBAPoisson(hStats, aStats, marketTotal = null) {
   if (!hStats || !aStats) return null;
   const leagueAvg = 113.5; // promedio real NBA 2024-25 por equipo
 
@@ -67,35 +67,43 @@ function calcNBAPoisson(hStats, aStats) {
   // Factor localía NBA ~2 puntos extra en casa
   const homeAdv = 1.018;
 
-  // xPts = promedio ponderado entre modelo Poisson y promedio real
   const xPtsHomePure = leagueAvg * hOff * aDef * homeAdv;
   const xPtsAwayPure = leagueAvg * aOff * hDef;
 
-  // Regresión a la media más agresiva: 50% modelo, 50% promedio real
-  // Evita proyecciones extremas cuando el modelo diverge mucho
-  let xPtsHome = 0.5 * xPtsHomePure + 0.5 * parseFloat(hStats.avgPts);
-  let xPtsAway = 0.5 * xPtsAwayPure + 0.5 * parseFloat(aStats.avgPts);
+  // Regresión a la media agresiva: 40% modelo, 60% promedio real
+  // El promedio real de los últimos 5 partidos es más relevante
+  let xPtsHome = 0.4 * xPtsHomePure + 0.6 * parseFloat(hStats.avgPts);
+  let xPtsAway = 0.4 * xPtsAwayPure + 0.6 * parseFloat(aStats.avgPts);
 
-  // Ajuste por forma reciente (muy pequeño, ±3% máximo)
+  // Ajuste por forma reciente (mínimo, ±2%)
   const hWinRate = hStats.wins / (hStats.games || 5);
   const aWinRate = aStats.wins / (aStats.games || 5);
-  xPtsHome = xPtsHome * (0.985 + 0.03 * hWinRate);
-  xPtsAway = xPtsAway * (0.985 + 0.03 * aWinRate);
+  xPtsHome = xPtsHome * (0.99 + 0.02 * hWinRate);
+  xPtsAway = xPtsAway * (0.99 + 0.02 * aWinRate);
 
-  // Caps muy conservadores — NBA raramente sale de 105-125 por equipo
-  // Un total de 250 es imposible (record NBA es ~265 en un partido anómalo)
-  // Rango normal: 210-240 total, es decir 105-120 por equipo
-  xPtsHome = Math.max(103, Math.min(122, xPtsHome));
-  xPtsAway = Math.max(103, Math.min(122, xPtsAway));
+  // Caps conservadores — reducidos para evitar totales inflados
+  xPtsHome = Math.max(103, Math.min(119, xPtsHome));
+  xPtsAway = Math.max(103, Math.min(119, xPtsAway));
 
-  const total = xPtsHome + xPtsAway;
+  let total = xPtsHome + xPtsAway;
+
+  // Si hay línea del mercado, anclar el total hacia ella (mercado es más eficiente)
+  // El mercado tiene mucha más información que nuestro modelo simple
+  if (marketTotal && marketTotal > 200) {
+    // Promedio ponderado: 35% nuestro modelo, 65% mercado
+    total = 0.35 * total + 0.65 * marketTotal;
+    // Redistribuir proporcionalmente entre home y away
+    const ratio = xPtsHome / (xPtsHome + xPtsAway);
+    xPtsHome = total * ratio;
+    xPtsAway = total * (1 - ratio);
+  }
+
   const spread = xPtsHome - xPtsAway;
 
-  // Desviación estándar NBA calibrada:
-  // spread: ~11.5 pts (no 12) — totales: ~11 pts (no 16, ese era el error principal)
-  // stdDevTotal de 16 sobreestimaba mucho la probabilidad Over cuando total > línea
+  // stdDev calibrado — aumentado a 13 para totales (más incertidumbre real)
+  // Con stdDev=13, una diferencia de 8.8 pts da z=0.68 → 75% → capado a 65%
   const stdDevSpread = 11.5;
-  const stdDevTotal  = 11.0;
+  const stdDevTotal  = 13.0;
 
   const erf = (x) => {
     const t = 1 / (1 + 0.3275911 * Math.abs(x));
@@ -106,14 +114,13 @@ function calcNBAPoisson(hStats, aStats) {
   const normCDF = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
 
   const zSpread = spread / stdDevSpread;
-  // Cap más conservador: 85% máximo (antes 92%)
   const pHome = Math.min(85, Math.max(15, Math.round(normCDF(zSpread) * 100)));
   const pAway = 100 - pHome;
 
   const calcOverProb = (line) => {
     const z = (total - line) / stdDevTotal;
-    // Cap 75% máximo para totales — mercado de totales es muy eficiente
-    return Math.min(75, Math.max(25, Math.round(normCDF(z) * 100)));
+    // Cap 68% máximo — mercado de totales NBA es muy eficiente
+    return Math.min(68, Math.max(32, Math.round(normCDF(z) * 100)));
   };
 
   return {
@@ -387,6 +394,7 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [nbaH2H, setNbaH2H] = useState([]);
   const [nbaEdges, setNbaEdges] = useState([]);
   const [loadingOdds, setLoadingOdds] = useState(false);
+  const [loadingInjuries, setLoadingInjuries] = useState(false);
   const [players, setPlayers] = useState({ home: [], away: [] });
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [playerTab, setPlayerTab] = useState("home");
@@ -515,7 +523,11 @@ export default function NBAPanel({ onClose, inline = false }) {
             const totalsM = bk?.markets?.find(m=>m.key==="totals");
             const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
             setNbaOdds(newOdds);
-            if (poisson) setNbaEdges(calcNBAEdges(poisson, newOdds));
+            // Recalcular Poisson anclado a la línea del mercado
+            const marketTotal = parseFloat(totalsM?.outcomes?.find(o=>o.name==="Over")?.point);
+            const betterPoisson = calcNBAPoisson(hStats, aStats, marketTotal || null);
+            if (betterPoisson) setNbaPoisson(betterPoisson);
+            if (betterPoisson) setNbaEdges(calcNBAEdges(betterPoisson, newOdds));
           } else {
             console.warn("[Odds] No match found for", home, "vs", away, "— available:", dataOdds.map(g=>g.home_team+"v"+g.away_team).join(", "));
           }
@@ -526,6 +538,7 @@ export default function NBAPanel({ onClose, inline = false }) {
       finally { setLoadingOdds(false); }
 
       // ── Cargar bajas/lesiones via ESPN proxy ──────────────
+      setLoadingInjuries(true);
       try {
         const homeId = game.teams?.home?.id;
         const awayId = game.teams?.visitors?.id;
@@ -547,6 +560,7 @@ export default function NBAPanel({ onClose, inline = false }) {
         const allInjuries = [...homeInj, ...awayInj];
         setPreview(prev => prev ? { ...prev, injuries: allInjuries } : prev);
       } catch(e) { console.warn("Injuries error:", e.message); }
+      finally { setLoadingInjuries(false); }
 
       // Cargar top jugadores
       setLoadingPlayers(true);
@@ -1081,8 +1095,10 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     {/* Bajas y lesiones */}
                     {preview && (
                       <div style={{ marginBottom: 14, background: preview?.injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${preview?.injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: preview?.injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: preview?.injuries?.length > 0 ? 8 : 0 }}>
-                          🚑 BAJAS / LESIONES {preview?.injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                        <div style={{ fontSize: 10, color: preview?.injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: preview?.injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", gap:6 }}>
+                          🚑 BAJAS / LESIONES
+                          {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
+                          {!loadingInjuries && preview?.injuries?.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
                         </div>
                         {preview?.injuries?.length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -1152,10 +1168,10 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       )}
                     </div>
                     <div style={{display:"flex",gap:8}}>
-                      <button onClick={runAI} disabled={loadingAI||loadingMulti} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingMulti)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer"}}>
-                        {loadingAI?"⏳ ANALIZANDO...":"🤖 PREDICCIÓN IA"}
+                      <button onClick={runAI} disabled={loadingAI||loadingMulti||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingMulti||loadingInjuries)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti||loadingInjuries)?"not-allowed":"pointer"}}>
+                        {loadingInjuries?"⏳ Cargando bajas...":loadingAI?"⏳ ANALIZANDO...":"🤖 PREDICCIÓN IA"}
                       </button>
-                      <button onClick={runAIMulti} disabled={loadingAI||loadingMulti} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:loadingMulti?"rgba(139,92,246,0.3)":"linear-gradient(90deg,#8b5cf6,#6d28d9)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer"}}>
+                      <button onClick={runAIMulti} disabled={loadingAI||loadingMulti||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingMulti||loadingInjuries)?"rgba(139,92,246,0.3)":"linear-gradient(90deg,#8b5cf6,#6d28d9)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti||loadingInjuries)?"not-allowed":"pointer"}}>
                         {loadingMulti?"⏳ CONSULTANDO...":"🤖 MULTI-IA"}
                       </button>
                     </div>
