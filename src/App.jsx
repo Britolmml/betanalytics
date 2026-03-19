@@ -897,9 +897,26 @@ export default function App() {
     // ── Jugadores clave ────────────────────────────────────────
     let homePlayers = [], awayPlayers = [];
     try {
-      const [playersH, playersA] = await Promise.allSettled([
-        apiFetch(`/players?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
-        apiFetch(`/players?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
+      // Intentar temporadas en orden — quedarse con la que tenga más partidos en la liga actual
+      const fetchBestPlayers = async (teamId) => {
+        for (const season of [2025, 2026, 2024]) {
+          try {
+            const data = await apiFetch(`/players?team=${teamId}&season=${season}&league=${league?.id}`);
+            const list = data?.response || [];
+            // Verificar que haya jugadores con partidos en la liga actual esta temporada
+            const hasCurrentData = list.some(p => {
+              const stat = (p.statistics || []).find(s => s.league?.id === league?.id);
+              return stat && (stat.games?.appearences || 0) >= 1;
+            });
+            if (hasCurrentData) return data;
+          } catch(e) { continue; }
+        }
+        return { response: [] };
+      };
+
+      const [dataH, dataA] = await Promise.all([
+        fetchBestPlayers(homeTeam.id),
+        fetchBestPlayers(awayTeam.id),
       ]);
 
       const extractPlayers = (data) => {
@@ -907,14 +924,8 @@ export default function App() {
         return list
           .map(p => {
             const allStats = p.statistics || [];
-
-            // Primero intentar encontrar stats de la liga actual
-            const leagueStat = allStats.find(s => s.league?.id === league?.id)
-                            || allStats.find(s => s.league?.name?.toLowerCase().includes("liga mx"))
-                            || allStats.find(s => s.league?.name?.toLowerCase().includes("clausura"))
-                            || allStats.find(s => s.league?.name?.toLowerCase().includes("apertura"))
-                            || allStats[0];
-
+            // Buscar SOLO stats de la liga actual — ignorar otras competencias
+            const leagueStat = allStats.find(s => s.league?.id === league?.id);
             if (!leagueStat) return null;
 
             const games   = leagueStat?.games?.appearences || 0;
@@ -935,8 +946,8 @@ export default function App() {
           .slice(0, 6);
       };
 
-      if (playersH.status === "fulfilled") homePlayers = extractPlayers(playersH.value);
-      if (playersA.status === "fulfilled") awayPlayers = extractPlayers(playersA.value);
+      homePlayers = extractPlayers(dataH);
+      awayPlayers = extractPlayers(dataA);
     } catch(e) { console.warn("Error cargando jugadores:", e.message); }
 
     // ── Construir prompt enriquecido ───────────────────────────
