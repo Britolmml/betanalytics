@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect } from "react";
+import { flushSync } from "react-dom";
 import { saveNBAPrediction, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -546,7 +547,8 @@ export default function NBAPanel({ onClose, inline = false }) {
 
       // ── Cargar bajas/lesiones via ESPN proxy ──────────────
       setLoadingInjuries(true);
-      setInjuries([]); // reset explícito antes del fetch
+      // flushSync fuerza React a renderizar el [] ANTES de continuar
+      flushSync(() => { setInjuries([]); });
       try {
         const homeId = game.teams?.home?.id;
         const awayId = game.teams?.visitors?.id;
