@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { saveNBAPrediction, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -407,6 +407,11 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [loadingMega, setLoadingMega] = useState(false);
   const [megaProgress, setMegaProgress] = useState("");
   const [selectedDate, setSelectedDate] = useState(getESTDate(0));
+
+  // Reset injuries inmediatamente cuando cambia el partido — antes del render
+  useLayoutEffect(() => {
+    setInjuries([]);
+  }, [selectedGame?.id]);
 
   useEffect(() => { loadNBA(getESTDate(0)); }, []);
 
@@ -1097,7 +1102,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
                     {/* Bajas y lesiones */}
                     {selectedGame && (
-                      <div style={{ marginBottom: 14, background: injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
+                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: injuries?.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${injuries?.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
                         <div style={{ fontSize: 10, color: injuries?.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: injuries?.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
                             🚑 BAJAS / LESIONES
