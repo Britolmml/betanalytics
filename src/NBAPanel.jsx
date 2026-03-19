@@ -18,7 +18,7 @@ function getESTDate(offsetDays = 0) {
 
 function getRecentGames(res, teamId) {
   // Solo mostrar bajas del partido actual
-  const safeInjuries = injuriesGameId === selectedGame?.id ? injuries : [];
+
 
   return (res?.response || [])
     .filter(g => g.status?.short === 3)
