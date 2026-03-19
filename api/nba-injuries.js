@@ -50,18 +50,44 @@ export default async function handler(req, res) {
         return res.status(200).json({ injuries, source: url });
       }
 
-      // Formato sports.core.api.espn.com
+      // Formato sports.core.api.espn.com — devuelve $ref que hay que resolver
       if (data.items && data.items.length > 0) {
-        // Log raw para debug
-        const rawFirst = JSON.stringify(data.items[0]).slice(0, 500);
-        const injuries = data.items.map(p => ({
-          name: p.athlete?.displayName || p.athlete?.fullName || p.athlete?.shortName || p.description || "Jugador",
-          reason: p.type?.text || p.status?.type?.description || p.shortDescription || "Lesión",
-          status: p.status?.type?.name || p.status?.type?.shortDetail || "Out",
-          team: teamName || "",
-          _raw: JSON.stringify(p).slice(0, 200),
-        }));
-        return res.status(200).json({ injuries, source: url, rawFirst });
+        const resolved = await Promise.all(
+          data.items.slice(0, 8).map(async (item) => {
+            try {
+              const refUrl = item["$ref"] || item.ref;
+              if (!refUrl) return null;
+              const r = await fetch(refUrl, { headers });
+              if (!r.ok) return null;
+              const d = await r.json();
+              // Resolver también el atleta si es otro $ref
+              let athleteName = "Jugador";
+              if (d.athlete) {
+                if (d.athlete.displayName) {
+                  athleteName = d.athlete.displayName;
+                } else if (d.athlete["$ref"]) {
+                  try {
+                    const ar = await fetch(d.athlete["$ref"], { headers });
+                    const ad = await ar.json();
+                    athleteName = ad.displayName || ad.fullName || ad.shortName || "Jugador";
+                  } catch { }
+                }
+              }
+              return {
+                name: athleteName,
+                reason: d.details?.returnDate
+                  ? `${d.details?.type || d.type?.text || "Lesión"} — Regreso: ${d.details.returnDate}`
+                  : (d.details?.type || d.type?.text || d.longComment || d.shortComment || "Lesión"),
+                status: d.status || d.type?.name || "Out",
+                team: teamName || "",
+              };
+            } catch { return null; }
+          })
+        );
+        const injuries = resolved.filter(Boolean);
+        if (injuries.length > 0) {
+          return res.status(200).json({ injuries, source: "espn-core-resolved" });
+        }
       }
     } catch(e) { continue; }
   }
