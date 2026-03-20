@@ -14,35 +14,6 @@ function StatBox({ label, value, color, sub }) {
       <div style={{ fontSize:9, color:"#555", marginTop:3, textTransform:"uppercase", letterSpacing:1 }}>{label}</div>
       {sub && <div style={{ fontSize:10, color:"#444", marginTop:2 }}>{sub}</div>}
     </div>
-
-      {/* Modal confirmación borrar historial */}
-      {clearConfirm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:600 }}
-          onClick={()=>!clearing && setClearConfirm(false)}>
-          <div style={{ background:"#0d1117", border:"1px solid rgba(239,68,68,0.4)", borderRadius:16, padding:"28px 32px", maxWidth:380, width:"90%", textAlign:"center" }}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{ fontSize:40, marginBottom:12 }}>🗑️</div>
-            <div style={{ fontSize:16, fontWeight:800, color:"#e2f4ff", marginBottom:8 }}>
-              ¿Borrar todo el historial?
-            </div>
-            <div style={{ fontSize:12, color:"#888", lineHeight:1.7, marginBottom:24 }}>
-              Se eliminarán <span style={{ color:"#ef4444", fontWeight:700 }}>{preds.length} predicciones</span> permanentemente.<br/>
-              Esta acción no se puede deshacer.
-            </div>
-            <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
-              <button onClick={()=>setClearConfirm(false)} disabled={clearing}
-                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.05)", color:"#888", cursor:"pointer", fontWeight:700, fontSize:12 }}>
-                Cancelar
-              </button>
-              <button onClick={handleClearHistory} disabled={clearing}
-                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:clearing?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#dc2626)", color:"#fff", cursor:clearing?"not-allowed":"pointer", fontWeight:800, fontSize:12 }}>
-                {clearing ? "⏳ Borrando..." : "🗑️ Sí, borrar todo"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -57,35 +28,6 @@ function MiniBar({ label, won, total, color }) {
       <div style={{ height:3, background:"rgba(255,255,255,0.05)", borderRadius:2, overflow:"hidden" }}>
         <div style={{ width:`${pct}%`, height:"100%", background:color, borderRadius:2 }} />
       </div>
-    </div>
-
-      {/* Modal confirmación borrar historial */}
-      {clearConfirm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:600 }}
-          onClick={()=>!clearing && setClearConfirm(false)}>
-          <div style={{ background:"#0d1117", border:"1px solid rgba(239,68,68,0.4)", borderRadius:16, padding:"28px 32px", maxWidth:380, width:"90%", textAlign:"center" }}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{ fontSize:40, marginBottom:12 }}>🗑️</div>
-            <div style={{ fontSize:16, fontWeight:800, color:"#e2f4ff", marginBottom:8 }}>
-              ¿Borrar todo el historial?
-            </div>
-            <div style={{ fontSize:12, color:"#888", lineHeight:1.7, marginBottom:24 }}>
-              Se eliminarán <span style={{ color:"#ef4444", fontWeight:700 }}>{preds.length} predicciones</span> permanentemente.<br/>
-              Esta acción no se puede deshacer.
-            </div>
-            <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
-              <button onClick={()=>setClearConfirm(false)} disabled={clearing}
-                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.05)", color:"#888", cursor:"pointer", fontWeight:700, fontSize:12 }}>
-                Cancelar
-              </button>
-              <button onClick={handleClearHistory} disabled={clearing}
-                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:clearing?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#dc2626)", color:"#fff", cursor:clearing?"not-allowed":"pointer", fontWeight:800, fontSize:12 }}>
-                {clearing ? "⏳ Borrando..." : "🗑️ Sí, borrar todo"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -486,7 +428,6 @@ export default function HistorialPanel({ onClose }) {
           </>
         )}
       </div>
-    </div>
 
       {/* Modal confirmación borrar historial */}
       {clearConfirm && (
