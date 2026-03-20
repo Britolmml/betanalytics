@@ -1451,35 +1451,36 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         {/* Tab: Parlay */}
         {tab === "parlay" && !loading && (
           <div>
-            {/* Mega Parlay button */}
-            <div style={{textAlign:"center",marginBottom:16}}>
+            {/* Parlay de Jornada button */}
+            <div style={{marginBottom:20}}>
               <button onClick={generateMegaParlay} disabled={loadingMega}
-                style={{background:loadingMega?"rgba(239,68,68,0.2)":"linear-gradient(135deg,#f59e0b,#ef4444)",border:"none",borderRadius:14,padding:"14px 32px",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:20,letterSpacing:3,cursor:loadingMega?"not-allowed":"pointer",boxShadow:"0 0 30px rgba(245,158,11,0.3)",width:"100%"}}>
-                {loadingMega ? "⏳ ANALIZANDO TODOS LOS PARTIDOS..." : "🚀 GENERAR MEGA PARLAY"}
+                style={{width:"100%",background:loadingMega?"rgba(139,92,246,0.15)":"linear-gradient(135deg,rgba(139,92,246,0.2),rgba(139,92,246,0.1))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:12,padding:"12px 24px",color:"#a78bfa",fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:3,cursor:loadingMega?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                <span style={{fontSize:20}}>🎰</span>
+                {loadingMega ? "⏳ GENERANDO PARLAY..." : "PARLAY DE JORNADA"}
               </button>
               {megaProgress && (
-                <div style={{marginTop:8,fontSize:11,color:megaProgress.startsWith("✅")?"#10b981":megaProgress.startsWith("⚠️")?"#f59e0b":"#888"}}>
+                <div style={{marginTop:8,fontSize:11,color:megaProgress.startsWith("✅")?"#10b981":megaProgress.startsWith("⚠️")?"#f59e0b":"#888",textAlign:"center"}}>
                   {megaProgress}
                 </div>
               )}
             </div>
 
-            {/* Mega Parlay Results */}
+            {/* Parlay de Jornada Results */}
             {megaParlay.length > 0 && (() => {
               const combinedOdds = megaParlay.reduce((acc,p) => acc * (p.decimal||1.9), 1);
               const combinedProb = megaParlay.reduce((acc,p) => acc * (p.ourProb/100), 1) * 100;
               return (
-                <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.03)",marginBottom:16}}>
-                  <div style={{padding:"12px 16px",background:"rgba(239,68,68,0.1)",borderBottom:"1px solid rgba(239,68,68,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(139,92,246,0.3)",background:"rgba(139,92,246,0.03)",marginBottom:16}}>
+                  <div style={{padding:"12px 16px",background:"rgba(139,92,246,0.1)",borderBottom:"1px solid rgba(139,92,246,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <span style={{fontSize:22}}>🚀</span>
+                      <span style={{fontSize:22}}>🎰</span>
                       <div>
-                        <div style={{fontSize:14,fontWeight:800,color:"#f87171",letterSpacing:1}}>MEGA PARLAY — TOP {megaParlay.length} EDGES</div>
-                        <div style={{fontSize:10,color:"#666"}}>Solo apuestas con edge real vs mercado</div>
+                        <div style={{fontSize:14,fontWeight:800,color:"#a78bfa",letterSpacing:1}}>PARLAY DE JORNADA — {megaParlay.length} PICKS</div>
+                        <div style={{fontSize:10,color:"#666"}}>Mejores edges del día vs mercado</div>
                       </div>
                     </div>
                     <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:24,fontWeight:900,color:"#f87171",lineHeight:1}}>{combinedOdds.toFixed(0)}x</div>
+                      <div style={{fontSize:24,fontWeight:900,color:"#a78bfa",lineHeight:1}}>{combinedOdds.toFixed(1)}x</div>
                       <div style={{fontSize:10,color:"#555"}}>retorno estimado</div>
                     </div>
                   </div>
@@ -1487,7 +1488,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
                       {megaParlay.map((p,i) => (
                         <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10,borderLeft:`3px solid ${p.edge>=10?"#10b981":p.edge>=5?"#f59e0b":"#888"}`}}>
-                          <span style={{fontSize:13,fontWeight:900,color:"#f87171",minWidth:22}}>{i+1}.</span>
+                          <span style={{fontSize:13,fontWeight:900,color:"#a78bfa",minWidth:22}}>{i+1}.</span>
                           <div style={{flex:1}}>
                             <div style={{fontSize:10,color:"#555",marginBottom:1}}>{p.home} vs {p.away}</div>
                             <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0"}}>{p.pick}</div>
@@ -1505,7 +1506,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       {[
                         {l:"picks",v:megaParlay.length,c:"#e8eaf0"},
                         {l:"prob. combinada",v:combinedProb.toFixed(1)+"%",c:combinedProb>5?"#f59e0b":"#ef4444"},
-                        {l:"retorno",v:combinedOdds.toFixed(0)+"x",c:"#f87171"},
+                        {l:"retorno",v:combinedOdds.toFixed(1)+"x",c:"#a78bfa"},
                       ].map(({l,v,c})=>(
                         <div key={l} style={{textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 4px"}}>
                           <div style={{fontSize:18,fontWeight:900,color:c}}>{v}</div>
@@ -1513,9 +1514,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                         </div>
                       ))}
                     </div>
-                    <div style={{fontSize:10,color:"#333",textAlign:"center",lineHeight:1.6}}>
-                      ⚠️ El Mega Parlay es de alto riesgo. Usa Kelly para el monto individual de cada pick.<br/>
-                      Las picks están ordenadas por edge real (Poisson vs mercado).
+                    <div style={{fontSize:10,color:"#444",textAlign:"center",lineHeight:1.6}}>
+                      ⚠️ Las picks están ordenadas por edge real (Poisson vs mercado). Apuesta con responsabilidad.
                     </div>
                     <div style={{marginTop:8,textAlign:"right"}}>
                       <button onClick={()=>setMegaParlay([])} style={{fontSize:10,color:"#333",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>
