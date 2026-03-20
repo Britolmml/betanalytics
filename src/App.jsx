@@ -3219,12 +3219,15 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         </div>
       )}
       </div>
-      <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",padding:"12px 20px",background:"rgba(0,0,0,0.25)"}}>
-        <div style={{maxWidth:1060,margin:"0 auto",fontSize:10,color:"#3a3a3a",lineHeight:1.7}}>
-          <span style={{color:"#ef4444",fontWeight:700}}>⚠️ AVISO: </span>
-          BetAnalytics es una herramienta informativa. Las predicciones NO garantizan resultados.{" "}
-          <strong style={{color:"#4a4a4a"}}>No nos responsabilizamos por pérdidas.</strong>{" "}
-          Apuesta solo lo que puedas perder. +18. Juego responsable.
+      <div style={{borderTop:"1px solid rgba(239,68,68,0.2)",padding:"14px 24px",background:"rgba(239,68,68,0.06)"}}>
+        <div style={{maxWidth:1060,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+          <div style={{fontSize:11,color:"#aaa",lineHeight:1.6}}>
+            <span style={{color:"#f87171",fontWeight:700}}>AVISO LEGAL: </span>
+            BetAnalytics es una herramienta de análisis informativo. Las predicciones de IA <strong style={{color:"#ccc"}}>NO garantizan resultados ni ganancias.</strong>{" "}
+            No nos hacemos responsables por pérdidas económicas derivadas del uso de esta información.{" "}
+            Apuesta solo lo que puedas permitirte perder. Solo para mayores de 18 años. Verifica la legalidad en tu país.
+          </div>
         </div>
       </div>
     </div>
