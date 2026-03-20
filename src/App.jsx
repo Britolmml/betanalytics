@@ -3040,11 +3040,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Fútbol */}
               <button onClick={()=>setActiveSport("football")}
                 style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(34,197,94,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,16,10,0.98),rgba(6,22,13,0.96))"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(34,197,94,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(34,197,94,0.14)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(34,197,94,0.22)";e.currentTarget.style.boxShadow="none";}}>
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(0,212,255,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(0,212,255,0.14)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(0,212,255,0.22)";e.currentTarget.style.boxShadow="none";}}>
                 <img src="https://images.unsplash.com/photo-1551958219-acbc595d6c14?w=600&q=70&fit=crop" alt=""
                   style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(34,197,94,0.11),transparent 70%)"}}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(0,212,255,0.11),transparent 70%)"}}/>
                 <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(34,197,94,0.8),rgba(0,212,255,0.4),transparent)"}}/>
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
                   <span style={{fontSize:40}}>⚽</span>
@@ -3090,18 +3090,18 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* NFL Card */}
               <button onClick={()=>setActiveSport("nfl")}
-                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(34,197,94,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,16,8,0.98),rgba(6,22,10,0.96))"}}
+                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(0,212,255,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,12,16,0.98),rgba(6,16,22,0.96))"}}
                 onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(34,197,94,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(34,197,94,0.14)";}}
                 onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(34,197,94,0.22)";e.currentTarget.style.boxShadow="none";}}>
                 <img src="https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=600&q=70&fit=crop" alt=""
                   style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
                 <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(34,197,94,0.11),transparent 70%)"}}/>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(34,197,94,0.4),rgba(34,197,94,0.8),rgba(34,197,94,0.4),transparent)"}}/>
+                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(0,212,255,0.8),rgba(0,212,255,0.4),transparent)"}}/>
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
                   <span style={{fontSize:40}}>🏈</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#4ade80",letterSpacing:4}}>NFL</div>
-                  <div style={{fontSize:11,color:"rgba(34,197,94,0.45)",letterSpacing:1}}>Próximamente · Sep 2026</div>
-                  <div style={{marginTop:7,background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#4ade80",fontWeight:700,letterSpacing:1}}>¿QUÉ HAY? →</div>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#00d4ff",letterSpacing:4}}>NFL</div>
+                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>Próximamente · Sep 2026</div>
+                  <div style={{marginTop:7,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#00d4ff",fontWeight:700,letterSpacing:1}}>¿QUÉ HAY? →</div>
                 </div>
               </button>
             </div>
