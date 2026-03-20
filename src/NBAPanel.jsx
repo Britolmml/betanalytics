@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect } from "react";
-import { saveNBAPrediction, supabase } from "./supabase";
+import { saveBestPick, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const NBA_PROXY = "https://nba-proxy-snowy.vercel.app/api/basketball";
@@ -623,15 +623,15 @@ export default function NBAPanel({ onClose, inline = false }) {
         ...p,
         pick_type: p.tipo || p.categoria || "general",
       }));
-      await saveNBAPrediction(session.user.id, {
+      await saveBestPick(session.user.id, {
+        league: "NBA",
         homeTeam: selectedGame.teams?.home?.name,
         awayTeam: selectedGame.teams?.visitors?.name,
-        predictedScore: parsed.marcadorEstimado || null,
-        allPicks,
+        score: parsed.marcadorEstimado || parsed.prediccionMarcador || null,
         analysis: parsed,
         gameDate: selectedGame.date?.start ? selectedGame.date.start.split("T")[0] : null,
         gameId: String(selectedGame.id || ""),
-      });
+      }, allPicks, "nba");
       setSaved(true);
     } catch (e) { /* silencioso */ }
   };
@@ -769,8 +769,8 @@ H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
 ════ BAJAS Y LESIONES ════
-${(injuries||[]).length > 0
-  ? (injuries||[]).map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
+${safeInjuries.length > 0
+  ? safeInjuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
   : "Sin bajas reportadas para este partido"}
 IMPORTANTE: Las bajas de jugadores clave (estrellas, titulares) deben reducir la confianza del equipo afectado.
 
@@ -1104,12 +1104,12 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
                     {/* Bajas y lesiones - oculto visualmente, la IA las recibe en el prompt */}
                     {false && selectedGame && (
-                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: (injuries||[]).length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${(injuries||[]).length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: (injuries||[]).length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: (injuries||[]).length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: safeInjuries.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${safeInjuries.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: safeInjuries.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: safeInjuries.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
                             🚑 BAJAS / LESIONES
                             {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
-                            {!loadingInjuries && (injuries||[]).length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                            {!loadingInjuries && safeInjuries.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
                           </div>
                           {/* Botón actualizar bajas */}
                           {!loadingInjuries && selectedGame && (
@@ -1133,9 +1133,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                             </button>
                           )}
                         </div>
-                        {(injuries||[]).length > 0 && (
+                        {safeInjuries.length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                            {(injuries||[]).map((p, i) => (
+                            {safeInjuries.map((p, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
                                 <div>
                                   <span style={{ color: "#f87171", fontWeight: 700 }}>❌ {p.name}</span>

@@ -211,12 +211,28 @@ export default function HistorialPanel({ onClose }) {
             {tab === "resumen" && (
               <div>
                 {/* Main stats */}
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8, marginBottom:16 }}>
+                {/* Racha actual destacada */}
+                {streak > 1 && (
+                  <div style={{ marginBottom:14, padding:"10px 16px", borderRadius:12,
+                    background: streakType==="won" ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+                    border: `1px solid ${streakType==="won" ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
+                    display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:28 }}>{streakType==="won" ? "🔥" : "❄️"}</span>
+                    <div>
+                      <div style={{ fontSize:16, fontWeight:900, color: streakType==="won" ? "#10b981" : "#ef4444" }}>
+                        {streak} {streakType==="won" ? "CORRECTAS SEGUIDAS" : "INCORRECTAS SEGUIDAS"}
+                      </div>
+                      <div style={{ fontSize:10, color:"#555" }}>Racha actual</div>
+                    </div>
+                  </div>
+                )}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:8, marginBottom:16 }}>
                   <StatBox label="Total" value={preds.length} color="#e8eaf0" />
                   <StatBox label="Ganadas" value={won} color="#10b981" />
                   <StatBox label="Perdidas" value={lost} color="#ef4444" />
                   <StatBox label="Pendientes" value={pending} color="#f59e0b" />
                   <StatBox label="Acierto" value={`${winRate}%`} color={winRate>=60?"#10b981":winRate>=45?"#f59e0b":"#ef4444"} />
+                  <StatBox label="ROI" value={`${roi}%`} color={parseFloat(roi)>0?"#10b981":parseFloat(roi)<0?"#ef4444":"#888"} />
                 </div>
 
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>

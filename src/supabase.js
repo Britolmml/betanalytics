@@ -124,8 +124,8 @@ export async function getAllPredictions(userId) {
 // ─── AUTO-RESOLVER RESULTADOS ──────────────────────────────
 // Verifica resultados de partidos terminados via API-Football
 
-export async function autoResolveFootball(userId, apiKey) {
-  if (!supabase || !apiKey) return { resolved: 0 };
+export async function autoResolveFootball(userId) {
+  if (!supabase) return { resolved: 0 };
 
   // Get pending football predictions with fixture_id
   const { data: pending } = await supabase
@@ -301,3 +301,34 @@ export function calcUserStats(predictions) {
 
 // Keep old name for compatibility
 export const calcStats = calcUserStats;
+
+// ─── GUARDAR MEJOR PICK (1 por partido) ───────────────────
+// Selecciona la pick con mayor confianza que tenga value, o la de mayor confianza
+
+export async function saveBestPick(userId, matchData, picks, sport = "football") {
+  if (!supabase || !picks?.length) return;
+
+  // Seleccionar la mejor pick
+  const withValue = picks.filter(p => p.hasValue || (p.confianza >= 60 && p.odds_sugerido));
+  const pool = withValue.length > 0 ? withValue : picks;
+  const best = pool.reduce((a, b) => (b.confianza || 0) > (a.confianza || 0) ? b : a);
+
+  return supabase.from("predictions").insert({
+    user_id: userId,
+    sport,
+    league: matchData.league,
+    home_team: matchData.homeTeam,
+    away_team: matchData.awayTeam,
+    fixture_id: matchData.fixtureId || null,
+    game_date: matchData.gameDate || null,
+    game_id: matchData.gameId || null,
+    predicted_score: matchData.score || null,
+    pick: best.pick,
+    pick_type: best.tipo || best.type || "general",
+    odds: best.odds_sugerido || best.odds || null,
+    confidence: best.confianza || best.confidence || null,
+    result: "pending",
+    analysis: matchData.analysis || null,
+    parlay: false,
+  });
+}

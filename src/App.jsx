@@ -2,7 +2,7 @@ import NBAPanel from "./NBAPanel";
 import MLBPanel from "./MLBPanel";
 import HistorialPanel from "./HistorialPanel";
 import { useState, useCallback, useEffect } from "react";
-import { supabase, savePrediction, saveAllPicks, getPredictions, updateResult, autoResolveFootball } from "./supabase";
+import { supabase, savePrediction, saveAllPicks, saveBestPick, getPredictions, updateResult, autoResolveFootball } from "./supabase";
 
 // API-Football logo CDN
 const LG = id => `https://media.api-sports.io/football/leagues/${id}.png`;
@@ -1215,12 +1215,12 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       setAnalysis(fullAnalysis);
       setView("analysis");
       loadOdds();
-      // Auto-save ALL picks to Supabase if user is logged in
+      // Auto-save BEST pick to Supabase if user is logged in
       try {
         const { data: { session } } = await supabase?.auth.getSession() || {};
         if (session?.user) {
           const picks = parsed.apuestasDestacadas || [];
-          await saveAllPicks(session.user.id, {
+          await saveBestPick(session.user.id, {
             league: league?.name,
             homeTeam: homeTeam?.name,
             awayTeam: awayTeam?.name,
