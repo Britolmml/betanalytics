@@ -453,12 +453,14 @@ Responde SOLO con JSON válido sin markdown:
                       <div style={{ fontSize:10, color:"#10b981", fontWeight:700, letterSpacing:1, marginBottom:8 }}>💡 CALCULADORA EV — Ingresa tus odds</div>
                       <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
                         <select value={customMarket} onChange={e=>setCustomMarket(e.target.value)}
-                          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 8px", color:"#e2f4ff", fontSize:11, flex:1 }}>
+                          style={{ background:"#1a2332", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 8px", color:"#e2f4ff", fontSize:11, flex:1 }}>
                           <option value="">Selecciona mercado...</option>
-                          <option value={poisson.pHome}>Local gana ({poisson.pHome}%)</option>
-                          <option value={poisson.pAway}>Visitante gana ({poisson.pAway}%)</option>
-                          <option value={poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}>Over total ({poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}%)</option>
-                          <option value={100-poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}>Under total ({100-poisson.calcOver(parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5))}%)</option>
+                          <option value={poisson.pHome}>🏠 Local gana — {selectedGame?.teams?.home?.name?.split(" ").pop()} ({poisson.pHome}%)</option>
+                          <option value={poisson.pAway}>✈️ Visitante gana — {selectedGame?.teams?.away?.name?.split(" ").pop()} ({poisson.pAway}%)</option>
+                          {(() => { const line = parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5); const pO = poisson.calcOver(line); return (<>
+                            <option value={pO}>📈 Over {line} carreras ({pO}%)</option>
+                            <option value={100-pO}>📉 Under {line} carreras ({100-pO}%)</option>
+                          </>); })()}
                         </select>
                         <input type="number" step="0.01" min="1.01" placeholder="Odds (ej: 1.95)" value={customOdds}
                           onChange={e=>setCustomOdds(e.target.value)}
