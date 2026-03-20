@@ -3238,5 +3238,24 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           </div>
         </div>
       </div>
+
+      {/* Disclaimer legal */}
+      <div style={{borderTop:"1px solid rgba(255,255,255,0.04)",marginTop:0,padding:"16px 24px",background:"rgba(0,0,0,0.3)"}}>
+        <div style={{maxWidth:1060,margin:"0 auto"}}>
+          <div style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+            <span style={{fontSize:14,flexShrink:0}}>⚠️</span>
+            <div style={{fontSize:10,color:"#ef4444",fontWeight:700,letterSpacing:1}}>AVISO IMPORTANTE — LEE ANTES DE APOSTAR</div>
+          </div>
+          <div style={{fontSize:10,color:"#444",lineHeight:1.8}}>
+            <strong style={{color:"#555"}}>BetAnalytics IA es una herramienta de análisis estadístico con fines informativos y de entretenimiento exclusivamente.</strong>{" "}
+            Las predicciones y análisis generados por inteligencia artificial NO garantizan resultados ni ganancias. Los modelos estadísticos tienen limitaciones inherentes y pueden estar equivocados.{" "}
+            <strong style={{color:"#555"}}>No nos hacemos responsables por pérdidas económicas derivadas del uso de esta información.</strong>{" "}
+            Las apuestas deportivas conllevan riesgo real de pérdida. Apuesta únicamente lo que puedas permitirte perder.{" "}
+            Si crees que tienes un problema con el juego, busca ayuda profesional.{" "}
+            <span style={{color:"#333"}}>Este servicio no está dirigido a menores de 18 años. Verifica la legalidad de las apuestas deportivas en tu país.</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
