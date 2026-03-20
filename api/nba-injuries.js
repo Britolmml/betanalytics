@@ -25,10 +25,10 @@ export default async function handler(req, res) {
   if (!teamId) return res.status(400).json({ error: "Falta teamId" });
 
   const espnId = NBA_ID_TO_ESPN[parseInt(teamId)];
-  if (!espnId) return res.status(200).json({ injuries: [] });
+  if (!espnId) return res.status(200).json({ injuries: [], note: "No ESPN mapping" });
 
   const teamKeyword = ESPN_TEAM_KEYWORDS[espnId] || "";
-  const expectedLastWord = (teamName || "").split(" ").pop().toLowerCase();
+  const teamWords = (teamName || "").toLowerCase().split(" ").filter(w => w.length > 3);
 
   const headers = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
 
   try {
     const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 6000);
+    setTimeout(() => ctrl.abort(), 7000);
     const r = await fetch(
       `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/teams/${espnId}/injuries?limit=50`,
       { headers, signal: ctrl.signal }
@@ -47,10 +47,10 @@ export default async function handler(req, res) {
 
     const data = await r.json();
     const items = data.items || [];
-    if (!items.length) return res.status(200).json({ injuries: [] });
+    if (!items.length) return res.status(200).json({ injuries: [], note: "No injuries listed" });
 
     const resolved = await Promise.allSettled(
-      items.map(async (item) => {
+      items.slice(0, 20).map(async (item) => {
         try {
           const refUrl = item["$ref"];
           if (!refUrl) return null;
@@ -61,46 +61,29 @@ export default async function handler(req, res) {
           if (!rr.ok) return null;
           const d = await rr.json();
 
-          // Resolver atleta
+          // Resolver nombre del atleta
           let athleteName = null;
-          let athleteTeamName = "";
-
           if (d.athlete?.displayName) {
             athleteName = d.athlete.displayName;
-            athleteTeamName = d.athlete?.team?.displayName || d.athlete?.team?.name || "";
           } else if (d.athlete?.["$ref"]) {
-            const ctrl3 = new AbortController();
-            setTimeout(() => ctrl3.abort(), 4000);
-            const ar = await fetch(d.athlete["$ref"], { headers, signal: ctrl3.signal });
-            const ad = await ar.json();
-            athleteName = ad.displayName || ad.fullName || ad.shortName;
-            // Team info from athlete profile
-            if (ad.team?.["$ref"]) {
-              try {
-                const tr = await fetch(ad.team["$ref"], { headers });
-                const td = await tr.json();
-                athleteTeamName = td.displayName || td.name || "";
-              } catch { }
-            }
+            try {
+              const ctrl3 = new AbortController();
+              setTimeout(() => ctrl3.abort(), 4000);
+              const ar = await fetch(d.athlete["$ref"], { headers, signal: ctrl3.signal });
+              const ad = await ar.json();
+              athleteName = ad.displayName || ad.fullName || ad.shortName;
+            } catch { return null; }
           }
 
           if (!athleteName) return null;
 
-          // Filtro estricto por equipo
-          const athleteTeamLower = athleteTeamName.toLowerCase();
-          const isCorrectTeam = 
-            athleteTeamLower.includes(teamKeyword) ||
-            athleteTeamLower.includes(expectedLastWord) ||
-            (teamKeyword && athleteTeamLower.endsWith(teamKeyword));
-
-          // Si tenemos info del equipo y NO coincide — descartar
-          if (athleteTeamName && !isCorrectTeam) return null;
+          const reason = d.details?.returnDate
+            ? `${d.details?.type || "Lesión"} — Regreso: ${d.details.returnDate}`
+            : (d.details?.type || d.type?.text || d.longComment || "Lesión/Baja");
 
           return {
             name: athleteName,
-            reason: d.details?.returnDate
-              ? `${d.details?.type || "Lesión"} — Regreso: ${d.details.returnDate}`
-              : (d.details?.type || d.type?.text || d.longComment || "Lesión"),
+            reason,
             status: d.status || "Out",
             team: teamName || "",
           };
