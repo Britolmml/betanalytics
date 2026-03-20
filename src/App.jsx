@@ -3218,15 +3218,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           </div>
         </div>
       )}
-      {/* Disclaimer */}
-      <div style={{borderTop:"1px solid rgba(255,255,255,0.04)",padding:"14px 24px",background:"rgba(0,0,0,0.3)"}}>
-        <div style={{maxWidth:1060,margin:"0 auto",fontSize:10,color:"#444",lineHeight:1.7}}>
+      </div>
+      <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",padding:"12px 20px",background:"rgba(0,0,0,0.25)"}}>
+        <div style={{maxWidth:1060,margin:"0 auto",fontSize:10,color:"#3a3a3a",lineHeight:1.7}}>
           <span style={{color:"#ef4444",fontWeight:700}}>⚠️ AVISO: </span>
-          <strong style={{color:"#555"}}>BetAnalytics es una herramienta informativa.</strong>{" "}
-          Las predicciones NO garantizan resultados ni ganancias.{" "}
-          <strong style={{color:"#555"}}>No nos hacemos responsables por pérdidas económicas.</strong>{" "}
-          Apuesta solo lo que puedas perder. Si tienes problemas con el juego busca ayuda profesional.{" "}
-          <span style={{color:"#333"}}>+18. Verifica la legalidad en tu país.</span>
+          BetAnalytics es una herramienta informativa. Las predicciones NO garantizan resultados.{" "}
+          <strong style={{color:"#4a4a4a"}}>No nos responsabilizamos por pérdidas.</strong>{" "}
+          Apuesta solo lo que puedas perder. +18. Juego responsable.
         </div>
       </div>
     </div>
