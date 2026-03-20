@@ -12,8 +12,7 @@ async function nbFetch(path) {
 
 function getESTDate(offsetDays = 0) {
   const d = new Date(Date.now() + offsetDays * 86400000);
-  const est = new Date(d.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  return est.toISOString().split("T")[0];
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
 }
 
 function getRecentGames(res, teamId) {
@@ -440,33 +439,35 @@ export default function NBAPanel({ onClose, inline = false }) {
     setLoading(true); setErr("");
     try {
       const date0 = dateStr || selectedDate;
-      // Also load next day to catch late-night games that appear as tomorrow in UTC
+      // Cargar fecha anterior y siguiente en UTC para cubrir partidos nocturnos CST (UTC-6)
       const d = new Date(date0 + "T12:00:00");
-      d.setDate(d.getDate() + 1);
-      const date1 = d.toISOString().split("T")[0];
+      const prevDate = new Date(d.getTime() - 86400000).toISOString().split("T")[0];
+      const nextDate = new Date(d.getTime() + 86400000).toISOString().split("T")[0];
 
-      const [res0, res1] = await Promise.allSettled([
+      const [res0, res1, res2] = await Promise.allSettled([
+        nbFetch("/games?season=2025&date=" + prevDate),
         nbFetch("/games?season=2025&date=" + date0),
-        nbFetch("/games?season=2025&date=" + date1),
+        nbFetch("/games?season=2025&date=" + nextDate),
       ]);
       const all0 = res0.status === "fulfilled" ? (res0.value?.response || []) : [];
       const all1 = res1.status === "fulfilled" ? (res1.value?.response || []) : [];
-      // From tomorrow UTC: only include if the game is actually TODAY in EST/CST
-      // Convert each game's start time to EST date and compare with selected date
-      // Filter ALL games by EST date matching selected date — handles UTC day boundary
-      const toESTDate = g => g.date?.start
-        ? new Date(g.date.start).toLocaleDateString("en-CA", { timeZone: "America/New_York" })
+      const all2 = res2.status === "fulfilled" ? (res2.value?.response || []) : [];
+
+      // Filtrar por fecha CST (Mexico City) y deduplicar
+      const toCSTDate = g => g.date?.start
+        ? new Date(g.date.start).toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" })
         : null;
       const seen = new Set();
-      const all = [...all0, ...all1].filter(g => {
+      const all = [...all0, ...all1, ...all2].filter(g => {
         if (seen.has(g.id)) return false;
         seen.add(g.id);
-        return toESTDate(g) === date0;
-      });
+        return toCSTDate(g) === date0;
+      }).sort((a, b) => new Date(a.date?.start) - new Date(b.date?.start));
+
       const live = all.filter(g => g.status?.short !== 1 && g.status?.short !== 3);
       const ns   = all.filter(g => g.status?.short === 1);
       const done = all.filter(g => g.status?.short === 3);
-      setGames([...live, ...ns, ...done].slice(0, 20));
+      setGames([...live, ...ns, ...done]);
 
       const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
