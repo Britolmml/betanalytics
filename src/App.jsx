@@ -1534,6 +1534,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(34,197,94,0.15)":"rgba(34,197,94,0.06)",border:activeSport==="football"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
           <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.18)":"rgba(239,68,68,0.06)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.18)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
           <button onClick={()=>setActiveSport("mlb")} style={{background:activeSport==="mlb"?"rgba(251,146,60,0.18)":"rgba(251,146,60,0.06)",border:activeSport==="mlb"?"1px solid rgba(251,146,60,0.5)":"1px solid rgba(251,146,60,0.18)",borderRadius:8,padding:"6px 12px",color:"#fb923c",cursor:"pointer",fontSize:11,fontWeight:700}}>⚾ MLB</button>
+          <button onClick={()=>setActiveSport("nfl")} style={{background:activeSport==="nfl"?"rgba(34,197,94,0.18)":"rgba(34,197,94,0.06)",border:activeSport==="nfl"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>🏈 NFL</button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 12px",color:"#67c8e0",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
           </button>
@@ -2972,6 +2973,33 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {activeSport === "mlb" && (
         <MLBPanel onClose={()=>setActiveSport(null)} inline={true} />
       )}
+      {activeSport === "nfl" && (
+        <div style={{maxWidth:700,margin:"60px auto",padding:"40px 24px",textAlign:"center"}}>
+          <div style={{fontSize:80,marginBottom:24}}>🏈</div>
+          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:48,color:"#4ade80",letterSpacing:4,marginBottom:8}}>NFL</div>
+          <div style={{fontSize:13,color:"#4a7a8a",letterSpacing:2,marginBottom:32}}>PRÓXIMAMENTE</div>
+          <div style={{background:"rgba(34,197,94,0.06)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:16,padding:"28px 32px",marginBottom:24}}>
+            <div style={{fontSize:20,marginBottom:16}}>😴</div>
+            <div style={{fontSize:16,color:"#e2f4ff",fontWeight:700,marginBottom:12}}>
+              La NFL está en modo "off-season"...
+            </div>
+            <div style={{fontSize:13,color:"#888",lineHeight:1.8}}>
+              Los quarterbacks están en la playa, los coaches mirando film de 2025 y los fans inventando trades imaginarios.<br/>
+              <span style={{color:"#4ade80",fontWeight:600}}>Vuelve en septiembre</span> cuando el fútbol americano despierte de su siesta de 7 meses. 🛌
+            </div>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+            {["Draft 🎓","Free Agency 💸","Training Camp ⛺","Preseason 😅","Regular Season 🏆"].map((fase,i)=>(
+              <div key={i} style={{background:i===0?"rgba(34,197,94,0.12)":"rgba(255,255,255,0.03)",border:`1px solid ${i===0?"rgba(34,197,94,0.3)":"rgba(255,255,255,0.06)"}`,borderRadius:20,padding:"6px 14px",fontSize:11,color:i===0?"#4ade80":"#555",fontWeight:i===0?700:400}}>
+                {i===0?"✅ ":i===1?"⏳ ":""}{fase}
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:28,fontSize:11,color:"#333"}}>
+            Mientras tanto puedes analizar <span style={{color:"#f87171",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setActiveSport("nba")}>NBA 🏀</span> o <span style={{color:"#fb923c",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setActiveSport("mlb")}>MLB ⚾</span>
+          </div>
+        </div>
+      )}
 
       {activeSport === null && (
         <div style={{minHeight:"calc(100vh - 62px)",background:"#060d18",position:"relative",overflow:"hidden"}}>
@@ -3057,6 +3085,23 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#fb923c",letterSpacing:4}}>MLB</div>
                   <div style={{fontSize:11,color:"rgba(251,146,60,0.45)",letterSpacing:1}}>Partidos · Stats · Picks</div>
                   <div style={{marginTop:7,background:"rgba(251,146,60,0.07)",border:"1px solid rgba(251,146,60,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#fb923c",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
+                </div>
+              </button>
+
+              {/* NFL Card */}
+              <button onClick={()=>setActiveSport("nfl")}
+                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(34,197,94,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,16,8,0.98),rgba(6,22,10,0.96))"}}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(34,197,94,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(34,197,94,0.14)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(34,197,94,0.22)";e.currentTarget.style.boxShadow="none";}}>
+                <img src="https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=600&q=70&fit=crop" alt=""
+                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(34,197,94,0.11),transparent 70%)"}}/>
+                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(34,197,94,0.4),rgba(34,197,94,0.8),rgba(34,197,94,0.4),transparent)"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
+                  <span style={{fontSize:40}}>🏈</span>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#4ade80",letterSpacing:4}}>NFL</div>
+                  <div style={{fontSize:11,color:"rgba(34,197,94,0.45)",letterSpacing:1}}>Próximamente · Sep 2026</div>
+                  <div style={{marginTop:7,background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#4ade80",fontWeight:700,letterSpacing:1}}>¿QUÉ HAY? →</div>
                 </div>
               </button>
             </div>
