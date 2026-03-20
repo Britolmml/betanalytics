@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect } from "react";
 import { saveBestPick, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -411,11 +411,6 @@ export default function NBAPanel({ onClose, inline = false }) {
   const [loadingMega, setLoadingMega] = useState(false);
   const [megaProgress, setMegaProgress] = useState("");
   const [selectedDate, setSelectedDate] = useState(getESTDate(0));
-
-  // Reset injuries inmediatamente cuando cambia el partido — antes del render
-  useLayoutEffect(() => {
-    setInjuries([]);
-  }, [selectedGame?.id]);
 
   useEffect(() => { loadNBA(getESTDate(0)); }, []);
 
