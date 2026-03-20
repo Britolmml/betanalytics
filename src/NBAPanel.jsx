@@ -774,7 +774,13 @@ IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay 
 ${safeInjuries.length > 0
   ? safeInjuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
   : "Sin bajas reportadas para este partido"}
-IMPORTANTE: Las bajas de jugadores clave (estrellas, titulares) deben reducir la confianza del equipo afectado.
+
+REGLAS OBLIGATORIAS SOBRE BAJAS:
+1. NUNCA recomiendes props de un jugador marcado como ❌ Out o Day-To-Day — es un error grave
+2. Si una estrella está Out (ej: Wiggins, Rozier), AJUSTA las probabilidades del equipo a la baja
+3. Revisa CADA jugador en tus picks contra la lista de bajas — si aparece ❌, ELIMINA esa pick
+4. Menciona explícitamente las bajas más importantes en el resumen
+5. Un equipo con 2+ jugadores clave Out pierde entre 3-8 puntos de ventaja esperada
 
 ════ CANDIDATOS A TRIPLE DOBLE ════
 ${tdNote}
@@ -796,6 +802,8 @@ Los porcentajes de confianza DEBEN ser realistas. En apuestas deportivas profesi
 - Rango bueno: 69%-74% solo si hay edge real y datos sólidos
 - Rango excepcional: 75%-80% solo para situaciones extremas (lesión estrella clave, diferencia abismal de forma)
 - Props de jugadores: MÁXIMO 68% — hay demasiada varianza
+- CRÍTICO: Antes de recomendar cualquier prop de jugador, verifica que NO esté en la lista de bajas ❌
+- Si el jugador está en bajas, reemplaza su pick por otro jugador disponible
 - Doble Oportunidad: aunque tenga alta probabilidad, el valor es bajo — confianza máxima 70%
 - Si un equipo es favorito pero el mercado ya lo refleja, la confianza baja (el mercado es eficiente)
 - Sé honesto: si los datos son escasos o el partido es parejo, usa 52%-60%
