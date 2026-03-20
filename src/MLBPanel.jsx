@@ -150,8 +150,23 @@ export default function MLBPanel({ inline }) {
   const loadMLB = async (date) => {
     setLoading(true); setErr(""); setGames([]);
     try {
-      const data = await mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&date=${date}`);
-      const list = data?.response || [];
+      // API guarda fechas en UTC — cargar día anterior y actual para cubrir CST (UTC-6)
+      const d = new Date(date + "T12:00:00");
+      const prevDate = new Date(d.getTime() - 86400000).toISOString().split("T")[0];
+      const [res0, res1] = await Promise.allSettled([
+        mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&date=${prevDate}`),
+        mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&date=${date}`),
+      ]);
+      const all0 = res0.status === "fulfilled" ? res0.value?.response || [] : [];
+      const all1 = res1.status === "fulfilled" ? res1.value?.response || [] : [];
+      // Filtrar por fecha CST y deduplicar
+      const toCST = g => new Date(g.date).toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+      const seen = new Set();
+      const list = [...all0, ...all1].filter(g => {
+        if (seen.has(g.id)) return false;
+        seen.add(g.id);
+        return toCST(g) === date;
+      }).sort((a, b) => new Date(a.date) - new Date(b.date));
       setGames(list);
       if (!list.length) setErr("No hay partidos para esta fecha.");
     } catch(e) { setErr("Error: " + e.message); }
