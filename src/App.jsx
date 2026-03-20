@@ -1647,9 +1647,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                                 ? `linear-gradient(135deg, rgba(0,212,255,0.22), rgba(0,212,255,0.15))`
                                 : "rgba(255,255,255,0.04)",
                               border: `1px solid ${active ? "rgba(0,212,255,0.55)" : "rgba(255,255,255,0.08)"}`,
-                              borderRadius:10, padding:"8px 12px",
+                              borderRadius:12, padding:"10px 16px",
                               cursor:"pointer", fontWeight:600,
-                              display:"flex", alignItems:"center", gap:8,
+                              display:"flex", alignItems:"center", gap:10,
                               transition:"all 0.15s",
                               boxShadow: active ? "0 0 16px rgba(0,212,255,0.15)" : "none",
                               position:"relative", overflow:"hidden",
@@ -1657,14 +1657,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             {/* League logo */}
                             {l.logo
                               ? <img src={l.logo} alt={l.name}
-                                  style={{width:22,height:22,objectFit:"contain",flexShrink:0}}
+                                  style={{width:28,height:28,objectFit:"contain",flexShrink:0}}
                                   onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="inline";}}
                                 />
                               : null}
-                            <span style={{fontSize:14,lineHeight:1,display:"none"}}>{l.flag}</span>
+                            <span style={{fontSize:18,lineHeight:1,display:"none"}}>{l.flag}</span>
                             <div style={{textAlign:"left"}}>
-                              <div style={{fontSize:11, color: active ? "#00d4ff" : "#ccc", fontWeight:700}}>{l.name}</div>
-                              <div style={{fontSize:9, color: active ? "rgba(0,212,255,0.7)" : "#555", marginTop:1}}>{l.country}</div>
+                              <div style={{fontSize:13, color: active ? "#00d4ff" : "#ccc", fontWeight:700}}>{l.name}</div>
+                              <div style={{fontSize:10, color: active ? "rgba(0,212,255,0.7)" : "#555", marginTop:2}}>{l.country}</div>
                             </div>
                           </button>
                         );
