@@ -1,5 +1,5 @@
-// api/nba-injuries.js — NBA injuries via ClearSports API
-// Mapa directo: api-sports teamId → ClearSports team_id string
+// api/nba-injuries.js — ClearSports con fallback a ESPN
+
 const API_SPORTS_TO_CLEARSPORTS = {
   1:"nba_atl", 2:"nba_bos", 3:"nba_no", 4:"nba_chi", 5:"nba_cle",
   6:"nba_dal", 7:"nba_den", 8:"nba_det", 9:"nba_gs", 10:"nba_hou",
@@ -10,6 +10,87 @@ const API_SPORTS_TO_CLEARSPORTS = {
   38:"nba_bkn", 41:"nba_cha",
 };
 
+const NBA_ID_TO_ESPN = {
+  1:"1",2:"2",3:"17",4:"30",5:"4",6:"5",7:"6",8:"7",9:"8",10:"9",
+  11:"10",12:"11",13:"12",14:"13",15:"29",16:"14",17:"15",18:"16",
+  19:"3",20:"18",21:"25",22:"19",23:"20",24:"21",25:"22",26:"23",
+  27:"24",28:"28",29:"26",30:"27",38:"17",41:"30",
+};
+
+const headers = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+  "Accept": "application/json",
+  "Referer": "https://www.espn.com/",
+};
+
+async function fromClearSports(teamId, teamName, apiKey) {
+  const csTeamId = API_SPORTS_TO_CLEARSPORTS[parseInt(teamId)];
+  if (!csTeamId || !apiKey) return [];
+  const r = await fetch("https://api.clearsportsapi.com/api/v1/nba/injury-stats", {
+    headers: { "Authorization": `Bearer ${apiKey}` }
+  });
+  const data = await r.json();
+  const all = Array.isArray(data) ? data : (data.injury_game_stats || []);
+  return all
+    .filter(p => p.team_id === csTeamId)
+    .map(p => ({
+      name: p.player_name || "Jugador",
+      reason: p.injury_type || p.status_description || "Lesión",
+      status: p.status || "Out",
+      team: teamName || "",
+    }))
+    .filter(p => p.name !== "Jugador");
+}
+
+async function fromESPN(teamId, teamName) {
+  const espnId = NBA_ID_TO_ESPN[parseInt(teamId)];
+  if (!espnId) return [];
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), 7000);
+  const r = await fetch(
+    `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/teams/${espnId}/injuries?limit=50`,
+    { headers, signal: ctrl.signal }
+  );
+  if (!r.ok) return [];
+  const data = await r.json();
+  const items = data.items || [];
+  if (!items.length) return [];
+
+  const resolved = await Promise.allSettled(
+    items.slice(0, 20).map(async (item) => {
+      try {
+        const refUrl = item["$ref"];
+        if (!refUrl) return null;
+        const ctrl2 = new AbortController();
+        setTimeout(() => ctrl2.abort(), 5000);
+        const rr = await fetch(refUrl, { headers, signal: ctrl2.signal });
+        if (!rr.ok) return null;
+        const d = await rr.json();
+        let athleteName = null;
+        if (d.athlete?.displayName) {
+          athleteName = d.athlete.displayName;
+        } else if (d.athlete?.["$ref"]) {
+          const ctrl3 = new AbortController();
+          setTimeout(() => ctrl3.abort(), 4000);
+          const ar = await fetch(d.athlete["$ref"], { headers, signal: ctrl3.signal });
+          const ad = await ar.json();
+          athleteName = ad.displayName || ad.fullName || ad.shortName;
+        }
+        if (!athleteName) return null;
+        return {
+          name: athleteName,
+          reason: d.details?.returnDate
+            ? `${d.details?.type || "Lesión"} — Regreso: ${d.details.returnDate}`
+            : (d.details?.type || d.type?.text || "Lesión"),
+          status: d.status || "Out",
+          team: teamName || "",
+        };
+      } catch { return null; }
+    })
+  );
+  return resolved.filter(r => r.status === "fulfilled" && r.value).map(r => r.value);
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -19,32 +100,26 @@ export default async function handler(req, res) {
   if (!teamId) return res.status(400).json({ error: "Falta teamId" });
 
   const apiKey = process.env.CLEARSPORTS_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API key no configurada" });
-
-  const csTeamId = API_SPORTS_TO_CLEARSPORTS[parseInt(teamId)];
-  if (!csTeamId) return res.status(200).json({ injuries: [], note: "No mapping" });
 
   try {
-    // Traer todas las injuries y filtrar por team_id
-    const r = await fetch(
-      `https://api.clearsportsapi.com/api/v1/nba/injury-stats`,
-      { headers: { "Authorization": `Bearer ${apiKey}` } }
-    );
-    const data = await r.json();
-    const all = Array.isArray(data) ? data : (data.injury_game_stats || []);
+    // 1. Intentar ClearSports primero
+    let injuries = await fromClearSports(teamId, teamName, apiKey);
+    let source = "clearsports";
 
-    const injuries = all
-      .filter(p => p.team_id === csTeamId)
-      .map(p => ({
-        name: p.player_name || p.name || "Jugador",
-        reason: p.injury_type || p.injury || p.status_description || "Lesión",
-        status: p.status || p.injury_status || "Out",
-        team: teamName || "",
-      }))
-      .filter(p => p.name !== "Jugador");
+    // 2. Si no hay datos, usar ESPN como fallback
+    if (!injuries.length) {
+      injuries = await fromESPN(teamId, teamName);
+      source = "espn";
+    }
 
-    return res.status(200).json({ injuries, source: "clearsports", total: injuries.length });
+    return res.status(200).json({ injuries, source, total: injuries.length });
   } catch(e) {
-    return res.status(200).json({ injuries: [], error: e.message });
+    // Si todo falla, intentar ESPN
+    try {
+      const injuries = await fromESPN(teamId, teamName);
+      return res.status(200).json({ injuries, source: "espn_fallback", total: injuries.length });
+    } catch {
+      return res.status(200).json({ injuries: [], error: e.message });
+    }
   }
 }
