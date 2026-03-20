@@ -451,8 +451,8 @@ export default function NBAPanel({ onClose, inline = false }) {
       const date1 = d.toISOString().split("T")[0];
 
       const [res0, res1] = await Promise.allSettled([
-        nbFetch("/games?season=2026&date=" + date0),
-        nbFetch("/games?season=2026&date=" + date1),
+        nbFetch("/games?season=2025&date=" + date0),
+        nbFetch("/games?season=2025&date=" + date1),
       ]);
       const all0 = res0.status === "fulfilled" ? (res0.value?.response || []) : [];
       const all1 = res1.status === "fulfilled" ? (res1.value?.response || []) : [];
@@ -473,7 +473,7 @@ export default function NBAPanel({ onClose, inline = false }) {
       const done = all.filter(g => g.status?.short === 3);
       setGames([...live, ...ns, ...done].slice(0, 20));
 
-      const standRes = await nbFetch("/standings?season=2026&league=standard");
+      const standRes = await nbFetch("/standings?season=2025&league=standard");
       const rows = standRes?.response || [];
       setStandings({
         east: rows.filter(r => r.conference?.name === "east").sort((a, b) => a.position - b.position),
@@ -497,8 +497,8 @@ export default function NBAPanel({ onClose, inline = false }) {
     setLoadingAI(true);
     try {
       const [hRes, aRes] = await Promise.allSettled([
-        nbFetch("/games?season=2026&team=" + game.teams?.home?.id),
-        nbFetch("/games?season=2026&team=" + game.teams?.visitors?.id),
+        nbFetch("/games?season=2025&team=" + game.teams?.home?.id),
+        nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id),
       ]);
       const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
       const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
@@ -509,8 +509,8 @@ export default function NBAPanel({ onClose, inline = false }) {
       // H2H simulado: cruzar fixtures de ambos equipos
       try {
         const [hAll, aAll] = await Promise.allSettled([
-          nbFetch("/games?season=2026&team=" + game.teams?.home?.id),
-          nbFetch("/games?season=2026&team=" + game.teams?.visitors?.id),
+          nbFetch("/games?season=2025&team=" + game.teams?.home?.id),
+          nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id),
         ]);
         const hGames = hRes.status === "fulfilled" ? (hRes.value?.response || []) : [];
         const aGames = aRes.status === "fulfilled" ? (aRes.value?.response || []) : [];
@@ -576,8 +576,8 @@ export default function NBAPanel({ onClose, inline = false }) {
       setLoadingPlayers(true);
       try {
         const [hPlayers, aPlayers] = await Promise.allSettled([
-          nbFetch("/players/statistics?team=" + game.teams?.home?.id + "&season=2026"),
-          nbFetch("/players/statistics?team=" + game.teams?.visitors?.id + "&season=2026"),
+          nbFetch("/players/statistics?team=" + game.teams?.home?.id + "&season=2025"),
+          nbFetch("/players/statistics?team=" + game.teams?.visitors?.id + "&season=2025"),
         ]);
         const parseTopPlayers = (res) => {
           if (res.status !== "fulfilled") return [];
@@ -855,8 +855,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
       date1.setDate(date1.getDate() + 1);
       const nextDate = date1.toISOString().split("T")[0];
       const [gamesRes0, gamesRes1] = await Promise.allSettled([
-        nbFetch("/games?season=2026&date=" + selectedDate),
-        nbFetch("/games?season=2026&date=" + nextDate),
+        nbFetch("/games?season=2025&date=" + selectedDate),
+        nbFetch("/games?season=2025&date=" + nextDate),
       ]);
       const allGamesRaw = [
         ...(gamesRes0.status === "fulfilled" ? gamesRes0.value?.response || [] : []),
@@ -898,8 +898,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         try {
           // Load team stats
           const [hRes, aRes] = await Promise.allSettled([
-            nbFetch("/games?season=2026&team=" + game.teams?.home?.id),
-            nbFetch("/games?season=2026&team=" + game.teams?.visitors?.id),
+            nbFetch("/games?season=2025&team=" + game.teams?.home?.id),
+            nbFetch("/games?season=2025&team=" + game.teams?.visitors?.id),
           ]);
           const hStats = calcStats(hRes.status === "fulfilled" ? getRecentGames(hRes.value, game.teams?.home?.id) : [], game.teams?.home?.id);
           const aStats = calcStats(aRes.status === "fulfilled" ? getRecentGames(aRes.value, game.teams?.visitors?.id) : [], game.teams?.visitors?.id);
