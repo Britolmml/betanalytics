@@ -441,10 +441,21 @@ export default function App() {
   const loadNews = async () => {
     setLoadingNews(true);
     try {
+      // Primero intentar ESPN news proxy (noticias reales)
+      const res = await fetch("/api/news");
+      const data = await res.json();
+      if (data.noticias?.length > 0) {
+        setNews(data.noticias);
+        setLoadingNews(false);
+        return;
+      }
+    } catch { /* fallback a Claude */ }
+
+    // Fallback: Claude genera noticias si ESPN falla
+    try {
       const res = await fetch("/api/predict", { method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({prompt:'Eres un periodista deportivo. Dame 6 noticias deportivas REALES y ACTUALES de HOY sobre NBA y fútbol internacional. Incluye resultados recientes, fichajes, lesiones de estrellas, standings o records. SOLO JSON sin markdown: {"noticias":[{"titulo":"","deporte":"NBA o FUTBOL","dato":""}]}'}) });
       const data = await res.json();
-      // Soportar ambos formatos de respuesta
       const text = data.result || data.content?.[0]?.text || "";
       const clean = text.replace(/```json|```/g,"").trim();
       const start = clean.indexOf("{");
