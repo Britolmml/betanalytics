@@ -1,4 +1,4 @@
-// api/nba-injuries.js — ClearSports con fallback a ESPN
+// api/nba-injuries.js — ClearSports + ESPN fallback (forzando https)
 
 const API_SPORTS_TO_CLEARSPORTS = {
   1:"nba_atl", 2:"nba_bos", 3:"nba_no", 4:"nba_chi", 5:"nba_cle",
@@ -17,10 +17,11 @@ const NBA_ID_TO_ESPN = {
   27:"24",28:"28",29:"26",30:"27",38:"17",41:"30",
 };
 
-const headers = {
+const toHttps = url => url ? url.replace(/^http:\/\//, "https://") : url;
+
+const espnHeaders = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
   "Accept": "application/json",
-  "Referer": "https://www.espn.com/",
 };
 
 async function fromClearSports(teamId, teamName, apiKey) {
@@ -45,38 +46,44 @@ async function fromClearSports(teamId, teamName, apiKey) {
 async function fromESPN(teamId, teamName) {
   const espnId = NBA_ID_TO_ESPN[parseInt(teamId)];
   if (!espnId) return [];
+
   const ctrl = new AbortController();
-  setTimeout(() => ctrl.abort(), 7000);
+  setTimeout(() => ctrl.abort(), 8000);
+
   const r = await fetch(
     `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/teams/${espnId}/injuries?limit=50`,
-    { headers, signal: ctrl.signal }
+    { headers: espnHeaders, signal: ctrl.signal }
   );
   if (!r.ok) return [];
   const data = await r.json();
-  const items = data.items || [];
+  const items = (data.items || []).slice(0, 15);
   if (!items.length) return [];
 
   const resolved = await Promise.allSettled(
-    items.slice(0, 20).map(async (item) => {
+    items.map(async (item) => {
       try {
-        const refUrl = item["$ref"];
+        const refUrl = toHttps(item["$ref"]);
         if (!refUrl) return null;
+
         const ctrl2 = new AbortController();
         setTimeout(() => ctrl2.abort(), 5000);
-        const rr = await fetch(refUrl, { headers, signal: ctrl2.signal });
+        const rr = await fetch(refUrl, { headers: espnHeaders, signal: ctrl2.signal });
         if (!rr.ok) return null;
         const d = await rr.json();
+
         let athleteName = null;
         if (d.athlete?.displayName) {
           athleteName = d.athlete.displayName;
         } else if (d.athlete?.["$ref"]) {
           const ctrl3 = new AbortController();
           setTimeout(() => ctrl3.abort(), 4000);
-          const ar = await fetch(d.athlete["$ref"], { headers, signal: ctrl3.signal });
+          const ar = await fetch(toHttps(d.athlete["$ref"]), { headers: espnHeaders, signal: ctrl3.signal });
+          if (!ar.ok) return null;
           const ad = await ar.json();
           athleteName = ad.displayName || ad.fullName || ad.shortName;
         }
         if (!athleteName) return null;
+
         return {
           name: athleteName,
           reason: d.details?.returnDate
@@ -88,7 +95,10 @@ async function fromESPN(teamId, teamName) {
       } catch { return null; }
     })
   );
-  return resolved.filter(r => r.status === "fulfilled" && r.value).map(r => r.value);
+
+  return resolved
+    .filter(r => r.status === "fulfilled" && r.value)
+    .map(r => r.value);
 }
 
 export default async function handler(req, res) {
@@ -102,11 +112,11 @@ export default async function handler(req, res) {
   const apiKey = process.env.CLEARSPORTS_API_KEY;
 
   try {
-    // 1. Intentar ClearSports primero
+    // 1. ClearSports primero
     let injuries = await fromClearSports(teamId, teamName, apiKey);
     let source = "clearsports";
 
-    // 2. Si no hay datos, usar ESPN como fallback
+    // 2. ESPN fallback si no hay datos
     if (!injuries.length) {
       injuries = await fromESPN(teamId, teamName);
       source = "espn";
@@ -114,10 +124,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ injuries, source, total: injuries.length });
   } catch(e) {
-    // Si todo falla, intentar ESPN
     try {
       const injuries = await fromESPN(teamId, teamName);
-      return res.status(200).json({ injuries, source: "espn_fallback", total: injuries.length });
+      return res.status(200).json({ injuries, source: "espn", total: injuries.length });
     } catch {
       return res.status(200).json({ injuries: [], error: e.message });
     }
