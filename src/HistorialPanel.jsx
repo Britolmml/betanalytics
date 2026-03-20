@@ -43,6 +43,8 @@ export default function HistorialPanel({ onClose }) {
   const [editingBankroll, setEditingBankroll] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [resolveMsg, setResolveMsg] = useState("");
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -79,6 +81,18 @@ export default function HistorialPanel({ onClose }) {
   const handleUpdateResult = async (id, result) => {
     await updateResult(id, result);
     setPreds(prev => prev.map(p => p.id === id ? {...p, result} : p));
+  };
+
+  const handleClearHistory = async () => {
+    setClearing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      await supabase.from("predictions").delete().eq("user_id", session.user.id);
+      setPreds([]);
+      setClearConfirm(false);
+    } catch(e) { console.error(e); }
+    finally { setClearing(false); }
   };
 
   const saveBankroll = () => {
@@ -171,6 +185,12 @@ export default function HistorialPanel({ onClose }) {
               style={{ background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", borderRadius:8, padding:"6px 12px", color:"#10b981", cursor:resolving?"not-allowed":"pointer", fontSize:11, fontWeight:700 }}>
               {resolving ? "⏳ Verificando..." : "🔄 Verificar resultados"}
             </button>
+            {preds.length > 0 && (
+              <button onClick={()=>setClearConfirm(true)}
+                style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:8, padding:"6px 12px", color:"#ef4444", cursor:"pointer", fontSize:11, fontWeight:700 }}>
+                🗑️ Borrar historial
+              </button>
+            )}
             <button onClick={onClose} style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:24 }}>✕</button>
           </div>
         </div>
@@ -424,6 +444,34 @@ export default function HistorialPanel({ onClose }) {
           </>
         )}
       </div>
+
+      {/* Modal de confirmación para borrar historial */}
+      {clearConfirm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:600 }}
+          onClick={()=>!clearing && setClearConfirm(false)}>
+          <div style={{ background:"#0d1117", border:"1px solid rgba(239,68,68,0.4)", borderRadius:16, padding:"28px 32px", maxWidth:380, width:"90%", textAlign:"center" }}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{ fontSize:40, marginBottom:12 }}>🗑️</div>
+            <div style={{ fontSize:16, fontWeight:800, color:"#e2f4ff", marginBottom:8 }}>
+              ¿Borrar todo el historial?
+            </div>
+            <div style={{ fontSize:12, color:"#888", lineHeight:1.7, marginBottom:24 }}>
+              Se eliminarán <span style={{ color:"#ef4444", fontWeight:700 }}>{preds.length} predicciones</span> de forma permanente.<br/>
+              Esta acción no se puede deshacer.
+            </div>
+            <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+              <button onClick={()=>setClearConfirm(false)} disabled={clearing}
+                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.05)", color:"#888", cursor:"pointer", fontWeight:700, fontSize:12 }}>
+                Cancelar
+              </button>
+              <button onClick={handleClearHistory} disabled={clearing}
+                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:clearing?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#dc2626)", color:"#fff", cursor:clearing?"not-allowed":"pointer", fontWeight:800, fontSize:12 }}>
+                {clearing ? "⏳ Borrando..." : "🗑️ Sí, borrar todo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
