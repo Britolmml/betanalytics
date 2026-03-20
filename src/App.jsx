@@ -289,15 +289,17 @@ function calcEdges(poissonResult, gameOdds) {
     const impliedProb = 1 / decimal;
     const edge = ourProb - impliedProb;
     const kelly = edge > 0 ? (edge / (decimal - 1)) * 100 : 0;
+    // Cap edge a ±12% — si es mayor el modelo Poisson probablemente está mal
+    const cappedEdge = Math.max(-20, Math.min(12, Math.round(edge * 100)));
     edges.push({
       market, pick, label,
       ourProb: Math.round(ourProb * 100),
       impliedProb: Math.round(impliedProb * 100),
-      edge: Math.round(edge * 100),
+      edge: cappedEdge,
       decimal,
       american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
-      kelly: Math.min(25, Math.round(kelly * 10) / 10), // cap at 25%
-      hasValue: edge > 0.03, // at least 3% edge to be meaningful
+      kelly: Math.min(10, Math.round(kelly * 10) / 10),
+      hasValue: edge > 0.03 && edge <= 0.12, // value real: entre 3% y 12%
     });
   };
 
@@ -1520,12 +1522,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               ← Nuevo análisis
             </button>
           )}
-          {league && (
-            <button onClick={()=>{setShowJornada(true); analyzeJornada();}}
-              style={{background:"rgba(59,130,246,0.12)",border:"1px solid rgba(59,130,246,0.35)",borderRadius:8,padding:"6px 12px",color:"#93c5fd",cursor:"pointer",fontSize:11,fontWeight:700}}>
-              📋 JORNADA
-            </button>
-          )}
+
           <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(0,212,255,0.12)":"rgba(0,212,255,0.04)",border:activeSport===null?"1px solid rgba(0,212,255,0.4)":"1px solid rgba(0,212,255,0.1)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#00d4ff":"#4a7a8a",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
           <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(34,197,94,0.15)":"rgba(34,197,94,0.06)",border:activeSport==="football"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
           <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.18)":"rgba(239,68,68,0.06)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.18)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
@@ -1651,8 +1648,16 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* Partidos de hoy */}
             {league && (
               <div style={{marginBottom:20}}>
-                <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>
-                  📅 Partidos de {todayLabel} — {league.name}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>
+                    📅 Partidos de {todayLabel} — {league.name}
+                  </div>
+                  {todayGames.length > 1 && (
+                    <button onClick={()=>{setShowJornada(true); analyzeJornada();}}
+                      style={{background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.35)",borderRadius:8,padding:"5px 12px",color:"#a78bfa",cursor:"pointer",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                      🎰 Parlay de Jornada
+                    </button>
+                  )}
                 </div>
                 {loadingToday && (
                   <div style={{color:"#555",fontSize:12,padding:"8px 0"}}>⏳ Cargando partidos...</div>
@@ -2557,18 +2562,18 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       
       
 
-      {/* Modal: Análisis de Jornada */}
+      {/* Modal: Parlay de Jornada */}
       {showJornada && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,overflowY:"auto",padding:"24px 16px"}} onClick={()=>setShowJornada(false)}>
           <div style={{...C.card,width:"100%",maxWidth:780,padding:24}} onClick={e=>e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#67a6ff"}}>📋 Análisis de Jornada · {league?.name}</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#67a6ff"}}>📋 Parlay de Jornada · {league?.name}</div>
               <button onClick={()=>setShowJornada(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
             </div>
 
             {loadingJornada && (
               <div style={{textAlign:"center",padding:"40px 0"}}>
-                <div style={{fontSize:14,color:"#67a6ff",marginBottom:8}}>⏳ Analizando jornada completa con IA...</div>
+                <div style={{fontSize:14,color:"#67a6ff",marginBottom:8}}>⏳ Generando parlay completa con IA...</div>
                 <div style={{fontSize:11,color:"#444"}}>Esto puede tomar 15-30 segundos</div>
               </div>
             )}
