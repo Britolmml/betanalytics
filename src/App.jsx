@@ -48,20 +48,28 @@ const SEASONS_TO_TRY = [2026, 2025, 2024, 2023];
 
 // Intenta obtener fixtures con el plan gratuito (sin parámetro "last")
 async function fetchFixturesFree(apiFetch, teamId) {
+  const allPlayed = [];
   for (const season of [2026, 2025, 2024, 2023]) {
     try {
       const d = await apiFetch(`/fixtures?team=${teamId}&season=${season}`);
       const items = d.response || [];
-      if (items.length > 0) {
-        const played = items
-          .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
-          .sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date))
-          .slice(0, 5);
-        if (played.length > 0) return played;
-      }
+      const played = items
+        .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+        .sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+      allPlayed.push(...played);
+      // Deduplicar por fixture id
+      const seen = new Set();
+      const unique = allPlayed.filter(f => {
+        if (seen.has(f.fixture.id)) return false;
+        seen.add(f.fixture.id);
+        return true;
+      });
+      allPlayed.length = 0;
+      allPlayed.push(...unique.sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date)));
+      if (allPlayed.length >= 5) break; // tenemos suficientes
     } catch(e) { console.warn("Error season", season, e.message); }
   }
-  return [];
+  return allPlayed.slice(0, 10); // últimos 10 partidos máximo
 }
 // Proxy Vercel — en local y en producción usa la misma ruta relativa
 const API_BASE = "/api/football";
@@ -877,10 +885,21 @@ export default function App() {
 
       // Racha solo como local (home) y solo como visitante (away)
       if (fixturesH.status === "fulfilled") {
-        const played = (fixturesH.value?.response || [])
+        let played = (fixturesH.value?.response || [])
           .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
-          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
-          .slice(0, 5);
+          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+        // Si hay menos de 3 partidos, completar con temporada anterior
+        if (played.length < 3) {
+          try {
+            const prev = activeSeason === 2026 ? 2025 : activeSeason - 1;
+            const dPrev = await apiFetch(`/fixtures?team=${homeTeam.id}&season=${prev}&venue=home`);
+            const prevPlayed = (dPrev?.response || [])
+              .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+              .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+            played = [...played, ...prevPlayed];
+          } catch(e) {}
+        }
+        played = played.slice(0, 5);
         const results = played.map(f => {
           const hg = f.goals?.home ?? 0, ag = f.goals?.away ?? 0;
           return hg > ag ? "W" : hg === ag ? "D" : "L";
@@ -893,10 +912,21 @@ export default function App() {
         };
       }
       if (fixturesA.status === "fulfilled") {
-        const played = (fixturesA.value?.response || [])
+        let played = (fixturesA.value?.response || [])
           .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
-          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
-          .slice(0, 5);
+          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+        // Si hay menos de 3 partidos, completar con temporada anterior
+        if (played.length < 3) {
+          try {
+            const prev = activeSeason === 2026 ? 2025 : activeSeason - 1;
+            const dPrev = await apiFetch(`/fixtures?team=${awayTeam.id}&season=${prev}&venue=away`);
+            const prevPlayed = (dPrev?.response || [])
+              .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+              .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+            played = [...played, ...prevPlayed];
+          } catch(e) {}
+        }
+        played = played.slice(0, 5);
         const results = played.map(f => {
           const hg = f.goals?.home ?? 0, ag = f.goals?.away ?? 0;
           return ag > hg ? "W" : ag === hg ? "D" : "L";
