@@ -150,23 +150,27 @@ export default function MLBPanel({ inline }) {
   const loadMLB = async (date) => {
     setLoading(true); setErr(""); setGames([]);
     try {
-      // API guarda fechas en UTC — cargar día anterior y actual para cubrir CST (UTC-6)
+      // CST = UTC-6. Para ver partidos del día X en CST necesitamos:
+      // - Fecha X en UTC (partidos de 06:00-23:59 UTC = 00:00-17:59 CST)
+      // - Fecha X+1 en UTC (partidos de 00:00-05:59 UTC = 18:00-23:59 CST del día X)
       const d = new Date(date + "T12:00:00");
-      const prevDate = new Date(d.getTime() - 86400000).toISOString().split("T")[0];
+      const nextDate = new Date(d.getTime() + 86400000).toISOString().split("T")[0];
       const [res0, res1] = await Promise.allSettled([
-        mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&date=${prevDate}`),
         mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&date=${date}`),
+        mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&date=${nextDate}`),
       ]);
       const all0 = res0.status === "fulfilled" ? res0.value?.response || [] : [];
       const all1 = res1.status === "fulfilled" ? res1.value?.response || [] : [];
-      // Filtrar por fecha CST y deduplicar
-      const toCST = g => new Date(g.date).toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+
+      // Filtrar: incluir solo partidos cuya hora CST cae en la fecha seleccionada
       const seen = new Set();
       const list = [...all0, ...all1].filter(g => {
         if (seen.has(g.id)) return false;
         seen.add(g.id);
-        return toCST(g) === date;
+        const cstDate = new Date(g.date).toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+        return cstDate === date;
       }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
       setGames(list);
       if (!list.length) setErr("No hay partidos para esta fecha.");
     } catch(e) { setErr("Error: " + e.message); }
