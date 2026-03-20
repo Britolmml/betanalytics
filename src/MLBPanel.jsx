@@ -11,7 +11,7 @@ const mlbFetch = async (path) => {
   return d;
 };
 
-const getToday = () => new Date().toISOString().split("T")[0];
+const getToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
 
 // ── Modelo Poisson para béisbol ──────────────────────────────
 function calcBaseballPoisson(hStats, aStats, marketTotal = null) {
