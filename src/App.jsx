@@ -409,8 +409,6 @@ export default function App() {
   const [authErr,       setAuthErr]       = useState("");
   const [authLoading,   setAuthLoading]   = useState(false);
   const [showAuth,      setShowAuth]      = useState(false);
-  const [savedPreds,    setSavedPreds]    = useState([]);
-  const [showSaved,     setShowSaved]     = useState(false);
   const [showJornada,   setShowJornada]   = useState(false);
   const [jornadaMatches,setJornadaMatches]= useState([]);
   const [jornadaResult, setJornadaResult] = useState(null);
@@ -1276,14 +1274,12 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
   const handleLogout = async () => {
     await supabase?.auth.signOut();
-    setUser(null); setSavedPreds([]); setShowSaved(false);
+    setUser(null); setSavedPreds([]);
   };
 
   const loadSaved = async () => {
     if (!user) { setShowAuth(true); return; }
     const { data } = await getPredictions(user.id);
-    setSavedPreds(data || []);
-    setShowSaved(true);
   };
 
   const handleSavePrediction = async () => {
@@ -1538,10 +1534,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 12px",color:"#67c8e0",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
           </button>
-          <button onClick={loadSaved}
-            style={{background:"rgba(59,130,246,0.08)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:8,padding:"6px 12px",color:"#93c5fd",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            📁 GUARDADAS
-          </button>
+          
           {user ? (
             <button onClick={handleLogout} style={{background:"rgba(0,212,255,0.04)",border:"1px solid rgba(0,212,255,0.12)",borderRadius:8,padding:"6px 12px",color:"#4a7a8a",cursor:"pointer",fontSize:11}}>
               👤 {user.email?.split("@")[0]} · Salir
@@ -2561,89 +2554,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         </div>
       )}
 
-      {/* Modal: Predicciones guardadas */}
-      {showSaved && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowSaved(false)}>
-          <div style={{...C.card,width:680,maxHeight:"85vh",overflow:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#60a5fa"}}>📁 Mis predicciones</div>
-              <div style={{display:"flex",gap:8}}>
-                {savedPreds.length>0 && (
-                  <button onClick={()=>setShowCharts(true)}
-                    style={{background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.3)",borderRadius:8,padding:"5px 12px",color:"#60a5fa",cursor:"pointer",fontSize:11,fontWeight:700}}>
-                    📈 Gráficas
-                  </button>
-                )}
-                <button onClick={()=>setShowSaved(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:20}}>✕</button>
-              </div>
-            </div>
-
-            {/* Estadísticas de rendimiento */}
-            {savedPreds.length>0 && (()=>{
-              const resolved = savedPreds.filter(p=>p.result!=="pending");
-              const won = savedPreds.filter(p=>p.result==="won").length;
-              const lost = savedPreds.filter(p=>p.result==="lost").length;
-              const pending = savedPreds.filter(p=>p.result==="pending").length;
-              const winRate = resolved.length ? Math.round((won/resolved.length)*100) : 0;
-              const avgOdds = savedPreds.filter(p=>p.odds).reduce((s,p)=>s+parseFloat(p.odds||0),0) / (savedPreds.filter(p=>p.odds).length||1);
-              const roi = resolved.length ? (((won * avgOdds) - resolved.length) / resolved.length * 100).toFixed(1) : 0;
-              return (
-                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:18,padding:16,background:"rgba(255,255,255,0.03)",borderRadius:12}}>
-                  {[
-                    {l:"Total",v:savedPreds.length,c:"#e8eaf0"},
-                    {l:"Ganadas ✅",v:won,c:"#00d4ff"},
-                    {l:"Perdidas ❌",v:lost,c:"#ef4444"},
-                    {l:"Pendientes ⏳",v:pending,c:"#f59e0b"},
-                    {l:"Acierto",v:`${winRate}%`,c:winRate>=60?"#00d4ff":winRate>=45?"#f59e0b":"#ef4444"},
-                  ].map(({l,v,c})=>(
-                    <div key={l} style={{textAlign:"center"}}>
-                      <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:c,lineHeight:1}}>{v}</div>
-                      <div style={{fontSize:9,color:"#555",marginTop:3}}>{l}</div>
-                    </div>
-                  ))}
-                  {resolved.length>0 && (
-                    <div style={{gridColumn:"1/-1",marginTop:8,paddingTop:8,borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",gap:16,justifyContent:"center"}}>
-                      <span style={{fontSize:11,color:"#666"}}>Cuota prom: <b style={{color:"#f59e0b"}}>{avgOdds.toFixed(2)}</b></span>
-                      <span style={{fontSize:11,color:"#666"}}>ROI estimado: <b style={{color:roi>0?"#00d4ff":"#ef4444"}}>{roi>0?"+":""}{roi}%</b></span>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Lista de predicciones */}
-            {savedPreds.length===0 ? (
-              <div style={{color:"#555",textAlign:"center",padding:"30px 0"}}>No tienes predicciones guardadas aún</div>
-            ) : savedPreds.map(p=>(
-              <div key={p.id} style={{...C.card,marginBottom:8,padding:12,borderColor:p.result==="won"?"rgba(0,212,255,0.2)":p.result==="lost"?"rgba(239,68,68,0.2)":"rgba(255,255,255,0.06)"}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                  <div>
-                    <span style={{fontWeight:700,fontSize:13}}>{p.home_team} vs {p.away_team}</span>
-                    <span style={{fontSize:10,color:"#555",marginLeft:8}}>{p.league}</span>
-                  </div>
-                  <span style={{fontSize:10,color:"#444"}}>{p.created_at?.split("T")[0]}</span>
-                </div>
-                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  <span style={{fontSize:11,color:"#bbb"}}>🎯 <b style={{color:"#60a5fa"}}>{p.pick}</b></span>
-                  <span style={{fontSize:11,color:"#bbb"}}>Cuota: <b style={{color:"#f59e0b"}}>{p.odds}</b></span>
-                  <span style={{fontSize:11,color:"#bbb"}}>Conf: <b style={{color:"#00d4ff"}}>{p.confidence}%</b></span>
-                  <span style={{fontSize:11,color:"#bbb"}}>Marcador: <b style={{color:"#888"}}>{p.predicted_score}</b></span>
-                  <div style={{marginLeft:"auto",display:"flex",gap:5}}>
-                    {[{r:"won",label:"✅ Ganó"},{r:"lost",label:"❌ Perdió"},{r:"pending",label:"⏳"}].map(({r,label})=>(
-                      <button key={r} onClick={()=>handleUpdateResult(p.id,r)}
-                        style={{background:p.result===r?(r==="won"?"rgba(0,212,255,0.25)":r==="lost"?"rgba(239,68,68,0.25)":"rgba(245,158,11,0.2)"):"rgba(255,255,255,0.04)",
-                                border:`1px solid ${p.result===r?(r==="won"?"#00d4ff":r==="lost"?"#ef4444":"#f59e0b"):"rgba(255,255,255,0.08)"}`,
-                                borderRadius:6,padding:"3px 9px",color:p.result===r?(r==="won"?"#00d4ff":r==="lost"?"#ef4444":"#f59e0b"):"#555",cursor:"pointer",fontSize:10,fontWeight:700}}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      
+      
 
       {/* Modal: Análisis de Jornada */}
       {showJornada && (
