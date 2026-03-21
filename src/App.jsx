@@ -1999,21 +1999,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   </div>
                 )}
                 <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
-                  <button onClick={predict} disabled={loadingAI||loadingMulti}
+                  <button onClick={predict} disabled={loadingAI}
                     style={{background:loadingAI?"rgba(0,212,255,0.28)":"linear-gradient(135deg,#00d4ff,#0ea5e9)",
                             border:"none",borderRadius:14,padding:"16px 36px",color:"#fff",
                             fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:3,
-                            cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer",
+                            cursor:loadingAI?"not-allowed":"pointer",
                             boxShadow:"0 0 36px rgba(0,212,255,0.22)"}}>
                     {loadingAI?"⏳ ANALIZANDO...":"⚡ PREDICCIÓN IA"}
-                  </button>
-                  <button onClick={predictMulti} disabled={loadingAI||loadingMulti}
-                    style={{background:loadingMulti?"rgba(59,130,246,0.28)":"linear-gradient(135deg,#3b82f6,#2563eb)",
-                            border:"none",borderRadius:14,padding:"16px 36px",color:"#fff",
-                            fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:3,
-                            cursor:(loadingAI||loadingMulti)?"not-allowed":"pointer",
-                            boxShadow:"0 0 36px rgba(59,130,246,0.22)"}}>
-                    {loadingMulti?"⏳ CONSULTANDO 7 IAs...":"🤖 ANÁLISIS MULTI-IA"}
                   </button>
                 </div>
                 {aiErr && <div style={{color:"#ef4444",fontSize:12,marginTop:8,maxWidth:480,margin:"8px auto 0"}}>{aiErr}</div>}

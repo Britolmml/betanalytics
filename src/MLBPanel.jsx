@@ -447,37 +447,6 @@ Responde SOLO con JSON válido sin markdown:
                     </div>
                   )}
 
-                  {/* EV Calculator */}
-                  {poisson && (
-                    <div style={{ marginBottom:12, padding:"10px 14px", background:"rgba(16,185,129,0.04)", border:"1px solid rgba(16,185,129,0.15)", borderRadius:10 }}>
-                      <div style={{ fontSize:10, color:"#10b981", fontWeight:700, letterSpacing:1, marginBottom:8 }}>💡 CALCULADORA EV — Ingresa tus odds</div>
-                      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                        <select value={customMarket} onChange={e=>setCustomMarket(e.target.value)}
-                          style={{ background:"#1a2332", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 8px", color:"#e2f4ff", fontSize:11, flex:1 }}>
-                          <option value="">Selecciona mercado...</option>
-                          <option value={poisson.pHome}>🏠 Local gana — {selectedGame?.teams?.home?.name?.split(" ").pop()} ({poisson.pHome}%)</option>
-                          <option value={poisson.pAway}>✈️ Visitante gana — {selectedGame?.teams?.away?.name?.split(" ").pop()} ({poisson.pAway}%)</option>
-                          {(() => { const line = parseFloat(odds?.totals?.outcomes?.find(o=>o.name==="Over")?.point||8.5); const pO = poisson.calcOver(line); return (<>
-                            <option value={pO}>📈 Over {line} carreras ({pO}%)</option>
-                            <option value={100-pO}>📉 Under {line} carreras ({100-pO}%)</option>
-                          </>); })()}
-                        </select>
-                        <input type="number" step="0.01" min="1.01" placeholder="Odds (ej: 1.95)" value={customOdds}
-                          onChange={e=>setCustomOdds(e.target.value)}
-                          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, padding:"5px 8px", color:"#e2f4ff", fontSize:11, width:110 }}/>
-                        {customMarket && customOdds && (() => {
-                          const ev = calcEV(parseFloat(customMarket), parseFloat(customOdds));
-                          if (!ev) return null;
-                          return (
-                            <div style={{ background:ev.isValue?"rgba(16,185,129,0.12)":"rgba(239,68,68,0.08)", border:`1px solid ${ev.isValue?"rgba(16,185,129,0.3)":"rgba(239,68,68,0.2)"}`, borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, color:ev.isValue?"#10b981":"#ef4444" }}>
-                              {ev.isValue ? "✅" : "❌"} EV: {ev.edge > 0 ? "+" : ""}{ev.edge}%
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
                   <button onClick={runAI} disabled={loadingAI}
                     style={{ width:"100%", padding:"11px", borderRadius:10, border:"none", background:loadingAI?"rgba(251,146,60,0.3)":"linear-gradient(90deg,#f97316,#ea580c)", color:"#fff", fontWeight:800, fontSize:13, cursor:loadingAI?"not-allowed":"pointer" }}>
                     {loadingAI ? "⏳ ANALIZANDO..." : "🤖 PREDICCIÓN IA — MLB"}
