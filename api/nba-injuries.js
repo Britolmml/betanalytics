@@ -1,10 +1,36 @@
-// api/nba-injuries.js — BallDontLie filtrando por team_ids en la API
+// api/nba-injuries.js — BallDontLie con mapa correcto api-sports → BDL
 
+// Mapa CORRECTO basado en IDs reales de api-sports basketball API
+// api-sports_id: bdl_id
 const API_SPORTS_TO_BDL = {
-  1:1, 2:2, 3:19, 4:5, 5:6, 6:7, 7:8, 8:9, 9:10, 10:11,
-  11:12, 12:13, 13:14, 14:15, 15:16, 16:18, 17:17, 18:20,
-  19:22, 20:23, 21:24, 22:25, 23:26, 24:27, 25:21, 26:29,
-  27:30, 28:28, 30:3, 38:3, 41:4,
+  1:1,   // Atlanta Hawks
+  2:2,   // Boston Celtics
+  4:3,   // Brooklyn Nets
+  5:4,   // Charlotte Hornets
+  6:5,   // Chicago Bulls
+  7:6,   // Cleveland Cavaliers
+  9:8,   // Denver Nuggets
+  10:9,  // Detroit Pistons
+  11:10, // Golden State Warriors
+  14:11, // Houston Rockets
+  16:13, // LA Clippers
+  17:14, // Los Angeles Lakers
+  19:15, // Memphis Grizzlies
+  20:16, // Miami Heat
+  21:17, // Milwaukee Bucks
+  22:18, // Minnesota Timberwolves
+  23:19, // New Orleans Pelicans
+  24:20, // New York Knicks
+  25:21, // Oklahoma City Thunder
+  26:22, // Orlando Magic
+  27:23, // Philadelphia 76ers
+  28:24, // Phoenix Suns
+  29:25, // Portland Trail Blazers
+  30:26, // Sacramento Kings
+  31:27, // San Antonio Spurs
+  38:28, // Toronto Raptors
+  40:29, // Utah Jazz
+  41:30, // Washington Wizards
 };
 
 const BDL_TEAM_NAMES = {
@@ -31,20 +57,15 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(200).json({ injuries: [], note: "No API key" });
 
   const bdlTeamId = API_SPORTS_TO_BDL[parseInt(teamId)];
-  if (!bdlTeamId) return res.status(200).json({ injuries: [] });
+  if (!bdlTeamId) return res.status(200).json({ injuries: [], note: `No mapping for teamId ${teamId}` });
 
   try {
-    // Filtrar directamente en la API por team_ids[]
     const url = `https://api.balldontlie.io/v1/player_injuries?team_ids[]=${bdlTeamId}`;
-    const r = await fetch(url, {
-      headers: { "Authorization": apiKey }
-    });
+    const r = await fetch(url, { headers: { "Authorization": apiKey } });
     if (!r.ok) return res.status(200).json({ injuries: [], error: `HTTP ${r.status}` });
 
     const data = await r.json();
-    const all = data.data || [];
-
-    const injuries = all.map(p => ({
+    const injuries = (data.data || []).map(p => ({
       name: `${p.player?.first_name || ""} ${p.player?.last_name || ""}`.trim(),
       reason: p.description ? p.description.split(".")[0].slice(0, 100) : "Lesión",
       status: p.status || "Out",
