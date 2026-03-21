@@ -1,4 +1,4 @@
-// api/odds.js — Proxy momios: The Odds API + api-sports fallback por fixture
+// api/odds.js — The Odds API + api-sports fallback
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -8,53 +8,55 @@ export default async function handler(req, res) {
   const { sport, markets = "h2h", regions = "eu", dateFormat = "iso", fixture_id } = req.query;
   if (!sport) return res.status(400).json({ error: "Falta parámetro sport" });
 
-  // 1. Intentar The Odds API primero
+  // 1. The Odds API primero
   const ODDS_API_KEY = process.env.ODDS_API_KEY;
   if (ODDS_API_KEY) {
     try {
       const url = `https://api.the-odds-api.com/v4/sports/${sport}/odds?apiKey=${ODDS_API_KEY}&regions=${regions}&markets=${markets}&dateFormat=${dateFormat}&oddsFormat=decimal`;
       const r = await fetch(url);
       const data = await r.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return res.status(200).json(data);
-      }
+      if (Array.isArray(data) && data.length > 0) return res.status(200).json(data);
     } catch(e) { console.warn("The Odds API error:", e.message); }
   }
 
-  // 2. Fallback: api-sports por fixture_id
+  // 2. api-sports fallback — requiere fixture_id
+  if (!fixture_id) return res.status(200).json([]);
+
   const API_KEY = process.env.API_FOOTBALL_KEY;
-  if (!API_KEY || !fixture_id) return res.status(200).json([]);
+  if (!API_KEY) return res.status(200).json([]);
 
   try {
-    // Determinar el tipo de deporte y URL base
     const isBasketball = sport.includes("basketball");
     const isBaseball = sport.includes("baseball");
-    const baseUrl = isBasketball
-      ? "https://v2.basketball.api-sports.io"
-      : isBaseball
-      ? "https://v1.baseball.api-sports.io"
+    const baseUrl = isBasketball ? "https://v2.basketball.api-sports.io"
+      : isBaseball ? "https://v1.baseball.api-sports.io"
       : "https://v3.football.api-sports.io";
+    const headers = { "x-apisports-key": API_KEY };
 
-    const endpoint = isBasketball || isBaseball ? "odds" : "odds";
-    const fixtureParam = isBasketball ? "game" : isBaseball ? "game" : "fixture";
+    // Fetch fixture info y odds en paralelo
+    const fixtureParam = (isBasketball || isBaseball) ? "game" : "fixture";
+    const [fixtureRes, oddsRes] = await Promise.all([
+      fetch(`${baseUrl}/fixtures?id=${fixture_id}`, { headers }),
+      fetch(`${baseUrl}/odds?${fixtureParam}=${fixture_id}&bookmaker=8`, { headers }),
+    ]);
 
-    const r = await fetch(
-      `${baseUrl}/${endpoint}?${fixtureParam}=${fixture_id}&bookmaker=8`,
-      { headers: { "x-apisports-key": API_KEY } }
-    );
-    const data = await r.json();
-    const item = data.response?.[0];
-    if (!item) return res.status(200).json([]);
+    const fixtureData = await fixtureRes.json();
+    const oddsData = await oddsRes.json();
 
-    const bm = item.bookmakers?.[0];
+    const fixture = fixtureData.response?.[0];
+    const oddsItem = oddsData.response?.[0];
+
+    if (!oddsItem) return res.status(200).json([]);
+
+    const homeTeam = fixture?.teams?.home?.name || "";
+    const awayTeam = fixture?.teams?.away?.name || "";
+    const bm = oddsItem.bookmakers?.[0];
     if (!bm) return res.status(200).json([]);
 
     const h2hBet = bm.bets?.find(b => b.name === "Match Winner" || b.name === "Home/Away");
-    const totalsBet = bm.bets?.find(b => b.name === "Goals Over/Under" || b.name === "Over/Under" || b.name === "Total");
-
-    // Obtener nombres de equipos del fixture
-    const homeTeam = item.teams?.home?.name || item.fixture?.home || "";
-    const awayTeam = item.teams?.away?.name || item.fixture?.away || "";
+    const totalsBet = bm.bets?.find(b =>
+      b.name === "Goals Over/Under" || b.name === "Over/Under" || b.name === "Total"
+    );
 
     const bookmaker = { key: "api-sports", title: bm.name || "Bet365", markets: [] };
 
@@ -83,6 +85,8 @@ export default async function handler(req, res) {
       }
     }
 
+    if (!bookmaker.markets.length) return res.status(200).json([]);
+
     return res.status(200).json([{
       id: String(fixture_id),
       home_team: homeTeam,
@@ -91,6 +95,7 @@ export default async function handler(req, res) {
       source: "api-sports"
     }]);
   } catch(e) {
+    console.warn("api-sports odds error:", e.message);
     return res.status(200).json([]);
   }
 }
