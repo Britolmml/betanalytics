@@ -416,12 +416,13 @@ export default function NBAPanel({ onClose, inline = false }) {
   // Cargar injuries cuando cambia el partido seleccionado
   useEffect(() => {
     if (!selectedGame) { setInjuries([]); return; }
-    setInjuries([]);
-    setLoadingInjuries(true);
     const homeId = selectedGame.teams?.home?.id;
     const awayId = selectedGame.teams?.visitors?.id;
     const homeName = selectedGame.teams?.home?.name;
     const awayName = selectedGame.teams?.visitors?.name;
+    if (!homeId || !awayId) return;
+    setInjuries([]);
+    setLoadingInjuries(true);
     const fetchInj = async (teamId, teamName) => {
       try {
         const r = await fetch(`/api/nba-injuries?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}&_t=${Date.now()}`);
@@ -433,7 +434,7 @@ export default function NBAPanel({ onClose, inline = false }) {
       .then(([hi, ai]) => setInjuries([...hi, ...ai]))
       .catch(() => setInjuries([]))
       .finally(() => setLoadingInjuries(false));
-  }, [selectedGame?.id]);
+  }, [selectedGame?.id, selectedGame?.teams?.home?.id, selectedGame?.teams?.visitors?.id]);
 
   const loadNBA = async (dateStr) => {
     setLoading(true); setErr("");
