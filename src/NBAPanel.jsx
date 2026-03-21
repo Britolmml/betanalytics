@@ -982,6 +982,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
     }
   };
 
+  const safeInjuries = Array.isArray(injuries) ? injuries : [];
+
   return (
     <div style={ inline
       ? {
@@ -1108,8 +1110,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       ))}
                     </div>
 
-                    {/* Bajas y lesiones - oculto visualmente, la IA las recibe en el prompt */}
-                    {false && selectedGame && (
+                    {/* Bajas y lesiones */}
+                    {selectedGame && (
                       <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: safeInjuries.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${safeInjuries.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
                         <div style={{ fontSize: 10, color: safeInjuries.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: safeInjuries.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
