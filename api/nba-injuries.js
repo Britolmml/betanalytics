@@ -1,4 +1,4 @@
-// api/nba-injuries.js — ClearSports + ESPN fallback (forzando https)
+// api/nba-injuries.js — ClearSports con fallback ESPN corregido
 
 const API_SPORTS_TO_CLEARSPORTS = {
   1:"nba_atl", 2:"nba_bos", 3:"nba_no", 4:"nba_chi", 5:"nba_cle",
@@ -17,14 +17,14 @@ const NBA_ID_TO_ESPN = {
   27:"24",28:"28",29:"26",30:"27",38:"17",41:"30",
 };
 
-const toHttps = url => url ? url.replace(/^http:\/\//, "https://") : url;
+const toHttps = url => url?.replace(/^http:\/\//, "https://");
 
 const espnHeaders = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
   "Accept": "application/json",
 };
 
-async function fromClearSports(teamId, teamName, apiKey) {
+async function fromClearSports(teamId, apiKey) {
   const csTeamId = API_SPORTS_TO_CLEARSPORTS[parseInt(teamId)];
   if (!csTeamId || !apiKey) return [];
   const r = await fetch("https://api.clearsportsapi.com/api/v1/nba/injury-stats", {
@@ -32,15 +32,12 @@ async function fromClearSports(teamId, teamName, apiKey) {
   });
   const data = await r.json();
   const all = Array.isArray(data) ? data : (data.injury_game_stats || []);
-  return all
-    .filter(p => p.team_id === csTeamId)
-    .map(p => ({
-      name: p.player_name || "Jugador",
-      reason: p.injury_type || p.status_description || "Lesión",
-      status: p.status || "Out",
-      team: teamName || "",
-    }))
-    .filter(p => p.name !== "Jugador");
+  return all.filter(p => p.team_id === csTeamId).map(p => ({
+    name: p.player_name || "",
+    reason: p.injury_type || p.status_description || "Lesión",
+    status: p.status || "Out",
+    csTeam: p.team_id,
+  })).filter(p => p.name);
 }
 
 async function fromESPN(teamId, teamName) {
@@ -49,7 +46,6 @@ async function fromESPN(teamId, teamName) {
 
   const ctrl = new AbortController();
   setTimeout(() => ctrl.abort(), 8000);
-
   const r = await fetch(
     `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/teams/${espnId}/injuries?limit=50`,
     { headers: espnHeaders, signal: ctrl.signal }
@@ -59,46 +55,50 @@ async function fromESPN(teamId, teamName) {
   const items = (data.items || []).slice(0, 15);
   if (!items.length) return [];
 
-  const resolved = await Promise.allSettled(
-    items.map(async (item) => {
-      try {
-        const refUrl = toHttps(item["$ref"]);
-        if (!refUrl) return null;
+  const resolved = await Promise.allSettled(items.map(async (item) => {
+    try {
+      const refUrl = toHttps(item["$ref"]);
+      if (!refUrl) return null;
+      const ctrl2 = new AbortController();
+      setTimeout(() => ctrl2.abort(), 5000);
+      const rr = await fetch(refUrl, { headers: espnHeaders, signal: ctrl2.signal });
+      if (!rr.ok) return null;
+      const d = await rr.json();
 
-        const ctrl2 = new AbortController();
-        setTimeout(() => ctrl2.abort(), 5000);
-        const rr = await fetch(refUrl, { headers: espnHeaders, signal: ctrl2.signal });
-        if (!rr.ok) return null;
-        const d = await rr.json();
+      // Verificar que el $ref contiene el espnId del equipo correcto en la URL
+      if (!refUrl.includes(`/teams/${espnId}/`) && !refUrl.includes(`nba_${espnId}`)) {
+        // Verificar por team en el response
+        const teamInRef = d.team?.id || d.athlete?.team?.id;
+        if (teamInRef && String(teamInRef) !== String(espnId)) return null;
+      }
 
-        let athleteName = null;
-        if (d.athlete?.displayName) {
-          athleteName = d.athlete.displayName;
-        } else if (d.athlete?.["$ref"]) {
-          const ctrl3 = new AbortController();
-          setTimeout(() => ctrl3.abort(), 4000);
-          const ar = await fetch(toHttps(d.athlete["$ref"]), { headers: espnHeaders, signal: ctrl3.signal });
-          if (!ar.ok) return null;
-          const ad = await ar.json();
-          athleteName = ad.displayName || ad.fullName || ad.shortName;
-        }
-        if (!athleteName) return null;
+      let athleteName = null;
+      if (d.athlete?.displayName) {
+        athleteName = d.athlete.displayName;
+      } else if (d.athlete?.["$ref"]) {
+        const ctrl3 = new AbortController();
+        setTimeout(() => ctrl3.abort(), 4000);
+        const ar = await fetch(toHttps(d.athlete["$ref"]), { headers: espnHeaders, signal: ctrl3.signal });
+        if (!ar.ok) return null;
+        const ad = await ar.json();
+        athleteName = ad.displayName || ad.fullName;
+        // Verificar equipo del atleta
+        if (ad.team?.id && String(ad.team.id) !== String(espnId)) return null;
+      }
+      if (!athleteName) return null;
 
-        return {
-          name: athleteName,
-          reason: d.details?.returnDate
-            ? `${d.details?.type || "Lesión"} — Regreso: ${d.details.returnDate}`
-            : (d.details?.type || d.type?.text || "Lesión"),
-          status: d.status || "Out",
-          team: teamName || "",
-        };
-      } catch { return null; }
-    })
-  );
+      return {
+        name: athleteName,
+        reason: d.details?.returnDate
+          ? `${d.details?.type || "Lesión"} — Regreso: ${d.details.returnDate}`
+          : (d.details?.type || d.type?.text || "Lesión"),
+        status: d.status || "Out",
+        team: teamName || "",
+      };
+    } catch { return null; }
+  }));
 
-  return resolved
-    .filter(r => r.status === "fulfilled" && r.value)
-    .map(r => r.value);
+  return resolved.filter(r => r.status === "fulfilled" && r.value).map(r => r.value);
 }
 
 export default async function handler(req, res) {
@@ -112,23 +112,19 @@ export default async function handler(req, res) {
   const apiKey = process.env.CLEARSPORTS_API_KEY;
 
   try {
-    // 1. ClearSports primero
-    let injuries = await fromClearSports(teamId, teamName, apiKey);
+    let injuries = await fromClearSports(teamId, apiKey);
     let source = "clearsports";
 
-    // 2. ESPN fallback si no hay datos
     if (!injuries.length) {
       injuries = await fromESPN(teamId, teamName);
       source = "espn";
     }
 
+    // Asegurar que el nombre del equipo esté en todas las injuries
+    injuries = injuries.map(p => ({ ...p, team: teamName || p.team || "" }));
+
     return res.status(200).json({ injuries, source, total: injuries.length });
   } catch(e) {
-    try {
-      const injuries = await fromESPN(teamId, teamName);
-      return res.status(200).json({ injuries, source: "espn", total: injuries.length });
-    } catch {
-      return res.status(200).json({ injuries: [], error: e.message });
-    }
+    return res.status(200).json({ injuries: [], error: e.message });
   }
 }
