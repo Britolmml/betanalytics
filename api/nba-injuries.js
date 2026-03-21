@@ -1,37 +1,22 @@
-// api/nba-injuries.js — BallDontLie NBA injuries
-// Mapa api-sports teamId → BallDontLie team id
+// api/nba-injuries.js — BallDontLie NBA injuries con nombre de equipo correcto
+
 const API_SPORTS_TO_BDL = {
-  1:1,   // Atlanta Hawks
-  2:2,   // Boston Celtics
-  3:19,  // New Orleans Pelicans
-  4:5,   // Chicago Bulls
-  5:6,   // Cleveland Cavaliers
-  6:7,   // Dallas Mavericks
-  7:8,   // Denver Nuggets
-  8:9,   // Detroit Pistons
-  9:10,  // Golden State Warriors
-  10:11, // Houston Rockets
-  11:12, // Indiana Pacers
-  12:13, // LA Clippers
-  13:14, // Los Angeles Lakers
-  14:15, // Memphis Grizzlies
-  15:16, // Miami Heat
-  16:18, // Minnesota Timberwolves
-  17:17, // Milwaukee Bucks
-  18:20, // New York Knicks
-  19:22, // Orlando Magic
-  20:23, // Philadelphia 76ers
-  21:24, // Phoenix Suns
-  22:25, // Portland Trail Blazers
-  23:26, // Sacramento Kings
-  24:27, // San Antonio Spurs
-  25:21, // Oklahoma City Thunder
-  26:29, // Utah Jazz
-  27:30, // Washington Wizards
-  28:28, // Toronto Raptors
-  30:3,  // Brooklyn Nets
-  38:3,  // Brooklyn Nets
-  41:4,  // Charlotte Hornets
+  1:1, 2:2, 3:19, 4:5, 5:6, 6:7, 7:8, 8:9, 9:10, 10:11,
+  11:12, 12:13, 13:14, 14:15, 15:16, 16:18, 17:17, 18:20,
+  19:22, 20:23, 21:24, 22:25, 23:26, 24:27, 25:21, 26:29,
+  27:30, 28:28, 30:3, 38:3, 41:4,
+};
+
+const BDL_TEAM_NAMES = {
+  1:"Atlanta Hawks", 2:"Boston Celtics", 3:"Brooklyn Nets", 4:"Charlotte Hornets",
+  5:"Chicago Bulls", 6:"Cleveland Cavaliers", 7:"Dallas Mavericks", 8:"Denver Nuggets",
+  9:"Detroit Pistons", 10:"Golden State Warriors", 11:"Houston Rockets", 12:"Indiana Pacers",
+  13:"LA Clippers", 14:"Los Angeles Lakers", 15:"Memphis Grizzlies", 16:"Miami Heat",
+  17:"Milwaukee Bucks", 18:"Minnesota Timberwolves", 19:"New Orleans Pelicans",
+  20:"New York Knicks", 21:"Oklahoma City Thunder", 22:"Orlando Magic",
+  23:"Philadelphia 76ers", 24:"Phoenix Suns", 25:"Portland Trail Blazers",
+  26:"Sacramento Kings", 27:"San Antonio Spurs", 28:"Toronto Raptors",
+  29:"Utah Jazz", 30:"Washington Wizards",
 };
 
 export default async function handler(req, res) {
@@ -63,7 +48,7 @@ export default async function handler(req, res) {
         name: `${p.player?.first_name || ""} ${p.player?.last_name || ""}`.trim(),
         reason: p.description ? p.description.split(".")[0].slice(0, 100) : "Lesión",
         status: p.status || "Out",
-        team: teamName || "",
+        team: BDL_TEAM_NAMES[p.player?.team_id] || teamName || "",
         return_date: p.return_date || null,
       }))
       .filter(p => p.name);
