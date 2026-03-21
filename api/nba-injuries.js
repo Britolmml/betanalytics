@@ -1,13 +1,15 @@
-// api/nba-injuries.js — Solo ClearSports (sin ESPN para evitar datos incorrectos)
+// api/nba-injuries.js — BallDontLie NBA injuries
 
-const API_SPORTS_TO_CLEARSPORTS = {
-  1:"nba_atl", 2:"nba_bos", 3:"nba_no", 4:"nba_chi", 5:"nba_cle",
-  6:"nba_dal", 7:"nba_den", 8:"nba_det", 9:"nba_gs", 10:"nba_hou",
-  11:"nba_ind", 12:"nba_lac", 13:"nba_lal", 14:"nba_mem", 15:"nba_mia",
-  16:"nba_min", 17:"nba_mil", 18:"nba_ny", 19:"nba_orl", 20:"nba_phi",
-  21:"nba_phx", 22:"nba_por", 23:"nba_sac", 24:"nba_sa", 25:"nba_okc",
-  26:"nba_utah", 27:"nba_wsh", 28:"nba_tor", 29:"nba_mem", 30:"nba_bkn",
-  38:"nba_bkn", 41:"nba_cha",
+// Mapa api-sports teamId → BallDontLie team name keywords
+const TEAM_NAME_MAP = {
+  1:"Atlanta Hawks", 2:"Boston Celtics", 3:"New Orleans Pelicans", 4:"Chicago Bulls",
+  5:"Cleveland Cavaliers", 6:"Dallas Mavericks", 7:"Denver Nuggets", 8:"Detroit Pistons",
+  9:"Golden State Warriors", 10:"Houston Rockets", 11:"Indiana Pacers", 12:"LA Clippers",
+  13:"Los Angeles Lakers", 14:"Memphis Grizzlies", 15:"Miami Heat", 16:"Minnesota Timberwolves",
+  17:"Milwaukee Bucks", 18:"New York Knicks", 19:"Orlando Magic", 20:"Philadelphia 76ers",
+  21:"Phoenix Suns", 22:"Portland Trail Blazers", 23:"Sacramento Kings", 24:"San Antonio Spurs",
+  25:"Oklahoma City Thunder", 26:"Utah Jazz", 27:"Washington Wizards", 28:"Toronto Raptors",
+  30:"Brooklyn Nets", 38:"Brooklyn Nets", 41:"Charlotte Hornets",
 };
 
 export default async function handler(req, res) {
@@ -18,30 +20,39 @@ export default async function handler(req, res) {
   const { teamId, teamName } = req.query;
   if (!teamId) return res.status(400).json({ error: "Falta teamId" });
 
-  const apiKey = process.env.CLEARSPORTS_API_KEY;
+  const apiKey = process.env.BALLDONTLIE_API_KEY;
   if (!apiKey) return res.status(200).json({ injuries: [], note: "No API key" });
 
-  const csTeamId = API_SPORTS_TO_CLEARSPORTS[parseInt(teamId)];
-  if (!csTeamId) return res.status(200).json({ injuries: [] });
+  const expectedTeam = TEAM_NAME_MAP[parseInt(teamId)] || teamName || "";
 
   try {
-    const r = await fetch("https://api.clearsportsapi.com/api/v1/nba/injury-stats", {
-      headers: { "Authorization": `Bearer ${apiKey}` }
+    const r = await fetch("https://api.balldontlie.io/v1/player_injuries", {
+      headers: { "Authorization": apiKey }
     });
+
+    if (!r.ok) return res.status(200).json({ injuries: [], error: `HTTP ${r.status}` });
+
     const data = await r.json();
-    const all = Array.isArray(data) ? data : (data.injury_game_stats || []);
+    const all = data.data || [];
+
+    // Filtrar por equipo
+    const teamLower = expectedTeam.toLowerCase();
+    const lastWord = teamLower.split(" ").pop();
 
     const injuries = all
-      .filter(p => p.team_id === csTeamId)
+      .filter(p => {
+        const pTeam = (p.team?.full_name || p.team?.name || "").toLowerCase();
+        return pTeam.includes(lastWord) || pTeam === teamLower;
+      })
       .map(p => ({
-        name: p.player_name || "",
-        reason: p.injury_type || p.status_description || "Lesión",
+        name: p.player?.first_name + " " + p.player?.last_name || "",
+        reason: p.description || "Lesión",
         status: p.status || "Out",
-        team: teamName || "",
+        team: teamName || expectedTeam,
       }))
-      .filter(p => p.name);
+      .filter(p => p.name.trim());
 
-    return res.status(200).json({ injuries, source: "clearsports", total: injuries.length });
+    return res.status(200).json({ injuries, source: "balldontlie", total: injuries.length });
   } catch(e) {
     return res.status(200).json({ injuries: [], error: e.message });
   }
