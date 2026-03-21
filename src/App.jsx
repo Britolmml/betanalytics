@@ -1378,20 +1378,29 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
     if (!sport) return;
     setLoadingOdds(true);
     try {
-      const res = await fetch(`/api/odds?sport=${sport}&markets=h2h,totals&regions=eu`);
+      // Pasar fixture_id para usar como fallback con api-sports
+      const fixtureId = selectedFixture?.fixture?.id || "";
+      const url = fixtureId
+        ? `/api/odds?sport=${sport}&markets=h2h,totals&regions=eu&fixture_id=${fixtureId}`
+        : `/api/odds?sport=${sport}&markets=h2h,totals&regions=eu`;
+      const res = await fetch(url);
       const data = await res.json();
       if (Array.isArray(data)) {
         const map = {};
         data.forEach(g => {
           const key = `${g.home_team}|${g.away_team}`;
           map[key] = g.bookmakers?.[0]?.markets || [];
+          // Si viene de api-sports con fixture_id, indexar directamente
+          if (g.source === "api-sports" && fixtureId) {
+            map["__fixture__"] = g.bookmakers?.[0]?.markets || [];
+          }
         });
         setOdds(map);
         // Calculate edges immediately after loading odds
         if (homeTeam && awayTeam && poisson) {
           const key1 = `${homeTeam.name}|${awayTeam.name}`;
           const key2 = `${awayTeam.name}|${homeTeam.name}`;
-          let gOdds = map[key1] || map[key2];
+          let gOdds = map[key1] || map[key2] || map["__fixture__"];
           if (!gOdds) {
             const k = Object.keys(map).find(k => {
               const [h, a] = k.split("|");
