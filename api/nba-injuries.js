@@ -1,4 +1,4 @@
-// api/nba-injuries.js — BallDontLie NBA injuries con nombre de equipo correcto
+// api/nba-injuries.js — BallDontLie filtrando por team_ids en la API
 
 const API_SPORTS_TO_BDL = {
   1:1, 2:2, 3:19, 4:5, 5:6, 6:7, 7:8, 8:9, 9:10, 10:11,
@@ -34,7 +34,9 @@ export default async function handler(req, res) {
   if (!bdlTeamId) return res.status(200).json({ injuries: [] });
 
   try {
-    const r = await fetch("https://api.balldontlie.io/v1/player_injuries", {
+    // Filtrar directamente en la API por team_ids[]
+    const url = `https://api.balldontlie.io/v1/player_injuries?team_ids[]=${bdlTeamId}`;
+    const r = await fetch(url, {
       headers: { "Authorization": apiKey }
     });
     if (!r.ok) return res.status(200).json({ injuries: [], error: `HTTP ${r.status}` });
@@ -42,16 +44,13 @@ export default async function handler(req, res) {
     const data = await r.json();
     const all = data.data || [];
 
-    const injuries = all
-      .filter(p => p.player?.team_id === bdlTeamId)
-      .map(p => ({
-        name: `${p.player?.first_name || ""} ${p.player?.last_name || ""}`.trim(),
-        reason: p.description ? p.description.split(".")[0].slice(0, 100) : "Lesión",
-        status: p.status || "Out",
-        team: BDL_TEAM_NAMES[p.player?.team_id] || teamName || "",
-        return_date: p.return_date || null,
-      }))
-      .filter(p => p.name);
+    const injuries = all.map(p => ({
+      name: `${p.player?.first_name || ""} ${p.player?.last_name || ""}`.trim(),
+      reason: p.description ? p.description.split(".")[0].slice(0, 100) : "Lesión",
+      status: p.status || "Out",
+      team: BDL_TEAM_NAMES[bdlTeamId] || teamName || "",
+      return_date: p.return_date || null,
+    })).filter(p => p.name);
 
     return res.status(200).json({ injuries, source: "balldontlie", total: injuries.length });
   } catch(e) {
