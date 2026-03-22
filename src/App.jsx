@@ -874,10 +874,7 @@ export default function App() {
       ]);
 
       // Lesiones — del fixture actual, split por equipo, dedup por nombre
-      const fixtureId = selectedFixture?.fixture?.id;
-      const allInjuries = fixtureId
-        ? (injH.value?.response || [])
-        : [];
+      const allInjuries = fixtureId ? (injH.value?.response || []) : [];
       
       if (fixtureId && injH.status === "fulfilled") {
         const seen = new Set();
