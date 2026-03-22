@@ -876,11 +876,12 @@ export default function App() {
       // Lesiones — del fixture actual, split por equipo, dedup por nombre
       const allInjuries = fixtureId ? (injH.value?.response || []) : [];
       
-      if (fixtureId && injH.status === "fulfilled") {
-        const seen = new Set();
+      if (fixtureId && allInjuries.length > 0) {
+        // Usar injuries del fixture — dividir por equipo
+        const seenH = new Set();
         homeInjuries = allInjuries
           .filter(p => p.team?.id === homeTeam.id)
-          .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
+          .filter(p => { const n = p.player?.name; if (!n || seenH.has(n)) return false; seenH.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
         const seenA = new Set();
@@ -890,22 +891,23 @@ export default function App() {
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
       } else {
-        if (injH.status === "fulfilled") {
-          const seen = new Set();
-          homeInjuries = (injH.value?.response || [])
-            .filter(p => p.player?.reason)
-            .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
-            .slice(0, 5)
-            .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
-        }
-        if (injA.status === "fulfilled") {
-          const seen = new Set();
-          awayInjuries = (injA.value?.response || [])
-            .filter(p => p.player?.reason)
-            .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
-            .slice(0, 5)
-            .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
-        }
+        // Fallback: buscar por equipo y temporada
+        const [injHfb, injAfb] = await Promise.all([
+          apiFetch(`/injuries?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`).catch(()=>({response:[]})),
+          apiFetch(`/injuries?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`).catch(()=>({response:[]})),
+        ]);
+        const seenH = new Set();
+        homeInjuries = (injHfb?.response || [])
+          .filter(p => p.player?.reason)
+          .filter(p => { const n = p.player?.name; if (!n || seenH.has(n)) return false; seenH.add(n); return true; })
+          .slice(0, 5)
+          .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
+        const seenA = new Set();
+        awayInjuries = (injAfb?.response || [])
+          .filter(p => p.player?.reason)
+          .filter(p => { const n = p.player?.name; if (!n || seenA.has(n)) return false; seenA.add(n); return true; })
+          .slice(0, 5)
+          .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
       }
 
       // Posición en tabla
@@ -1758,13 +1760,19 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                           </div>
                         </div>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             const ht = {id: f.teams?.home?.id, name: f.teams?.home?.name};
                             const at = {id: f.teams?.away?.id, name: f.teams?.away?.name};
                             setHomeTeam(ht); setAwayTeam(at);
                             setSelectedFixture(f);
-                            selectTeam(ht, "home"); selectTeam(at, "away");
-                            // Auto-cargar momios al seleccionar partido
+                            setH2h([]);
+                            // Cargar partidos de ambos equipos en paralelo
+                            await Promise.all([
+                              loadMatches(ht, setHomeMatches, "home"),
+                              loadMatches(at, setAwayMatches, "away"),
+                            ]);
+                            // H2H con IDs directos del fixture
+                            loadH2H(f.teams?.home?.id, f.teams?.away?.id);
                             setTimeout(() => loadOdds(), 300);
                           }}
                           style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
