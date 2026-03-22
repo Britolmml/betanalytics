@@ -776,15 +776,18 @@ export default function App() {
     // Fallback: simular H2H buscando fixtures de cada equipo y cruzando
     try {
       for (const season of [2025, 2024]) {
+        console.log(`[H2H] Buscando season=${season} para teams ${hId} vs ${aId}`);
         const [dHome, dAway] = await Promise.all([
           apiFetch(`/fixtures?team=${hId}&season=${season}`),
           apiFetch(`/fixtures?team=${aId}&season=${season}`),
         ]);
+        console.log(`[H2H] season=${season} home=${dHome.results} away=${dAway.results}`);
         const homeFixIds = new Set((dHome.response||[]).map(f => f.fixture?.id));
         const shared = (dAway.response||[]).filter(f =>
           homeFixIds.has(f.fixture?.id) &&
           ["FT","AET","PEN"].includes(f.fixture?.status?.short)
         );
+        console.log(`[H2H] shared=${shared.length}`);
         const items = shared
           .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
           .slice(0,5);
