@@ -774,8 +774,8 @@ export default function App() {
     // Fallback: simular H2H buscando fixtures de cada equipo y cruzando
     try {
       const [dHome, dAway] = await Promise.all([
-        apiFetch(`/fixtures?team=${hId}&last=50`),
-        apiFetch(`/fixtures?team=${aId}&last=50`),
+        apiFetch(`/fixtures?team=${hId}&last=100`),
+        apiFetch(`/fixtures?team=${aId}&last=100`),
       ]);
       const homeFixIds = new Set((dHome.response||[]).map(f => f.fixture?.id));
       const shared = (dAway.response||[]).filter(f =>
@@ -1737,6 +1737,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             setHomeTeam(ht); setAwayTeam(at);
                             setSelectedFixture(f);
                             selectTeam(ht, "home"); selectTeam(at, "away");
+                            // Cargar H2H explícitamente con ambos IDs
+                            loadH2H(ht.id, at.id);
                             // Auto-cargar momios al seleccionar partido
                             setTimeout(() => loadOdds(), 300);
                           }}
