@@ -1880,11 +1880,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {activeTab==="h2h" && (
                   <div style={C.card}>
                     <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
-                      ⚔️ Enfrentamientos directos — {homeTeam?.name} vs {awayTeam?.name}
+                      ⚔️ Enfrentamientos directos — {homeTeam?.name || selectedFixture?.teams?.home?.name} vs {awayTeam?.name || selectedFixture?.teams?.away?.name}
                     </div>
                     {h2h.length===0 ? (
                       <div style={{color:"#555",fontSize:13,textAlign:"center",padding:"20px 0"}}>
-                        {homeTeam&&awayTeam ? "Sin historial de enfrentamientos disponible" : "Selecciona ambos equipos para ver el H2H"}
+                        {(homeTeam||selectedFixture) ? "Sin historial de enfrentamientos disponible" : "Selecciona ambos equipos para ver el H2H"}
                       </div>
                     ) : (
                       <>
