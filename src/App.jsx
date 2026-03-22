@@ -381,7 +381,6 @@ export default function App() {
   const [apiSource,   setApiSource]   = useState("rapidapi");
   const [apiStatus,   setApiStatus]   = useState("idle");
   const [apiMsg,      setApiMsg]      = useState("");
-  const [showPanel,   setShowPanel]   = useState(false);
 
   // App state
   const [league,        setLeague]        = useState(null);
@@ -547,7 +546,7 @@ export default function App() {
 
   const handleConnect = async () => {
     const ok = await testAPI();
-    if (ok) { setApiKey("proxy"); setTimeout(()=>setShowPanel(false), 1500); }
+    if (ok) { setApiKey("proxy");  }
   };
 
   // Fetch a través del proxy Vercel: /api/football?path=/status&league=140...
@@ -1580,49 +1579,13 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               🔐 ENTRAR
             </button>
           )}
-          <button onClick={()=>setShowPanel(p=>!p)} style={{background:"rgba(0,212,255,0.05)",border:`1px solid ${apiKey?"rgba(0,212,255,0.35)":"rgba(245,158,11,0.3)"}`,borderRadius:8,padding:"6px 12px",color:apiKey?"#00d4ff":"#f59e0b",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            {apiKey?"🔑 API":"🎮 DEMO"}
-          </button>
+
         </div>
       </div>
 
       <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px",display:activeSport==="football"?"block":"none"}}>
 
-        {/* API Panel */}
-        {showPanel && (
-          <div style={{...C.card,marginBottom:18,borderColor:"rgba(0,212,255,0.22)"}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-              <div style={{fontWeight:700,fontSize:14}}>⚙️ Conexión vía Vercel</div>
-              <button onClick={()=>setShowPanel(false)} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,lineHeight:1}}>✕</button>
-            </div>
 
-            <div style={{fontSize:12,color:"#777",marginBottom:14,lineHeight:2,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"10px 14px"}}>
-              <b style={{color:"#aaa"}}>Tu API key vive en Vercel como variable de entorno</b> — nunca se expone al navegador.<br/>
-              En el dashboard de Vercel ve a <b style={{color:"#00d4ff"}}>Settings → Environment Variables</b> y agrega:<br/>
-              <code style={{color:"#00d4ff",fontSize:11}}>API_FOOTBALL_KEY = tu_key_aqui</code>
-            </div>
-
-            <div style={{display:"flex",gap:8,marginBottom:10}}>
-              <button onClick={handleConnect}
-                style={{background:"linear-gradient(135deg,#00d4ff,#059669)",border:"none",borderRadius:8,padding:"9px 18px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>
-                🔌 Probar conexión
-              </button>
-              <button onClick={()=>setShowPanel(false)}
-                style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"9px 14px",color:"#777",cursor:"pointer",fontSize:13}}>
-                Usar demo
-              </button>
-            </div>
-
-            {apiStatus!=="idle" && (
-              <div style={{padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:600,
-                background:apiStatus==="ok"?"rgba(0,212,255,0.1)":apiStatus==="testing"?"rgba(245,158,11,0.08)":"rgba(239,68,68,0.1)",
-                color:apiStatus==="ok"?"#00d4ff":apiStatus==="testing"?"#f59e0b":"#ef4444",
-                border:`1px solid ${apiStatus==="ok"?"rgba(0,212,255,0.22)":apiStatus==="testing"?"rgba(245,158,11,0.18)":"rgba(239,68,68,0.22)"}`}}>
-                {apiMsg}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Setup */}
         {view==="setup" && (
