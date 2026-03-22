@@ -332,3 +332,66 @@ export async function saveBestPick(userId, matchData, picks, sport = "football")
     parlay: false,
   });
 }
+
+// ─── LÍMITES DE USO ────────────────────────────────────────
+
+const FREE_LIMIT = 1;   // análisis gratis por día
+const PRO_LIMIT = 9999; // ilimitado en práctica
+
+export async function getUserPlan(userId) {
+  if (!supabase) return "free";
+  try {
+    const { data } = await supabase
+      .from("user_plans")
+      .select("plan")
+      .eq("user_id", userId)
+      .single();
+    return data?.plan || "free";
+  } catch { return "free"; }
+}
+
+export async function checkUsageLimit(userId) {
+  if (!supabase) return { allowed: true, used: 0, limit: FREE_LIMIT, plan: "free" };
+  try {
+    const plan = await getUserPlan(userId);
+    const limit = plan === "pro" ? PRO_LIMIT : FREE_LIMIT;
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data } = await supabase
+      .from("user_usage")
+      .select("count")
+      .eq("user_id", userId)
+      .eq("date", today)
+      .single();
+
+    const used = data?.count || 0;
+    return { allowed: used < limit, used, limit, plan };
+  } catch {
+    return { allowed: true, used: 0, limit: FREE_LIMIT, plan: "free" };
+  }
+}
+
+export async function incrementUsage(userId) {
+  if (!supabase) return;
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    // Upsert: si ya existe sumar 1, si no crear con count=1
+    const { data: existing } = await supabase
+      .from("user_usage")
+      .select("id, count")
+      .eq("user_id", userId)
+      .eq("date", today)
+      .single();
+
+    if (existing) {
+      await supabase
+        .from("user_usage")
+        .update({ count: existing.count + 1 })
+        .eq("id", existing.id);
+    } else {
+      await supabase
+        .from("user_usage")
+        .insert({ user_id: userId, date: today, count: 1 });
+    }
+  } catch(e) { console.warn("incrementUsage error:", e.message); }
+}
