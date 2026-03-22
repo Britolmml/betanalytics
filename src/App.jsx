@@ -775,26 +775,32 @@ export default function App() {
 
     // Fallback: simular H2H buscando fixtures de cada equipo y cruzando
     try {
-      const [dHome, dAway] = await Promise.all([
-        apiFetch(`/fixtures?team=${hId}&last=50`),
-        apiFetch(`/fixtures?team=${aId}&last=50`),
-      ]);
-      const homeFixIds = new Set((dHome.response||[]).map(f => f.fixture?.id));
-      const shared = (dAway.response||[]).filter(f =>
-        homeFixIds.has(f.fixture?.id) &&
-        ["FT","AET","PEN"].includes(f.fixture?.status?.short)
-      );
-      const items = shared
-        .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
-        .slice(0,5);
-      if (items.length) {
-        setH2h(items.map(f => ({
-          date: f.fixture?.date?.split("T")[0] ?? "",
-          home: f.teams?.home?.name ?? "",
-          away: f.teams?.away?.name ?? "",
-          homeGoals: f.goals?.home ?? 0,
-          awayGoals: f.goals?.away ?? 0,
-        })));
+      for (const season of [2025, 2024]) {
+        console.log(`[H2H] Buscando season=${season} para teams ${hId} vs ${aId}`);
+        const [dHome, dAway] = await Promise.all([
+          apiFetch(`/fixtures?team=${hId}&season=${season}`),
+          apiFetch(`/fixtures?team=${aId}&season=${season}`),
+        ]);
+        console.log(`[H2H] season=${season} home=${dHome.results} away=${dAway.results}`);
+        const homeFixIds = new Set((dHome.response||[]).map(f => f.fixture?.id));
+        const shared = (dAway.response||[]).filter(f =>
+          homeFixIds.has(f.fixture?.id) &&
+          ["FT","AET","PEN"].includes(f.fixture?.status?.short)
+        );
+        console.log(`[H2H] shared=${shared.length}`);
+        const items = shared
+          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+          .slice(0,5);
+        if (items.length) {
+          setH2h(items.map(f => ({
+            date: f.fixture?.date?.split("T")[0] ?? "",
+            home: f.teams?.home?.name ?? "",
+            away: f.teams?.away?.name ?? "",
+            homeGoals: f.goals?.home ?? 0,
+            awayGoals: f.goals?.away ?? 0,
+          })));
+          return;
+        }
       }
     } catch(e) { console.warn("H2H simulado error:", e.message); }
   };
@@ -853,30 +859,55 @@ export default function App() {
     }
 
     try {
+      const fixtureId = selectedFixture?.fixture?.id;
       const [injH, injA, standingsData, fixturesH, fixturesA] = await Promise.allSettled([
-        apiFetch(`/injuries?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
-        apiFetch(`/injuries?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
+        fixtureId
+          ? apiFetch(`/injuries?fixture=${fixtureId}`)
+          : apiFetch(`/injuries?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
+        fixtureId
+          ? Promise.resolve({ response: [] }) // injuries del fixture ya incluye ambos equipos
+          : apiFetch(`/injuries?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
         apiFetch(`/standings?league=${league?.id}&season=${activeSeason}`),
         apiFetch(`/fixtures?team=${homeTeam.id}&season=${activeSeason}`),
         apiFetch(`/fixtures?team=${awayTeam.id}&season=${activeSeason}`),
       ]);
 
-      // Lesiones — dedup por nombre de jugador
-      if (injH.status === "fulfilled") {
+      // Lesiones — del fixture actual, split por equipo, dedup por nombre
+      const fixtureId = selectedFixture?.fixture?.id;
+      const allInjuries = fixtureId
+        ? (injH.value?.response || [])
+        : [];
+      
+      if (fixtureId && injH.status === "fulfilled") {
         const seen = new Set();
-        homeInjuries = (injH.value?.response || [])
-          .filter(p => p.player?.type === "Missing Fixture" || p.player?.reason)
+        homeInjuries = allInjuries
+          .filter(p => p.team?.id === homeTeam.id)
           .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
-      }
-      if (injA.status === "fulfilled") {
-        const seen = new Set();
-        awayInjuries = (injA.value?.response || [])
-          .filter(p => p.player?.type === "Missing Fixture" || p.player?.reason)
-          .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
+        const seenA = new Set();
+        awayInjuries = allInjuries
+          .filter(p => p.team?.id === awayTeam.id)
+          .filter(p => { const n = p.player?.name; if (!n || seenA.has(n)) return false; seenA.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
+      } else {
+        if (injH.status === "fulfilled") {
+          const seen = new Set();
+          homeInjuries = (injH.value?.response || [])
+            .filter(p => p.player?.reason)
+            .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
+            .slice(0, 5)
+            .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
+        }
+        if (injA.status === "fulfilled") {
+          const seen = new Set();
+          awayInjuries = (injA.value?.response || [])
+            .filter(p => p.player?.reason)
+            .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
+            .slice(0, 5)
+            .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
+        }
       }
 
       // Posición en tabla
@@ -897,7 +928,7 @@ export default function App() {
         };
       }
 
-      // Racha solo como local (home) y solo como visitante (away)
+      // Racha como local/visitante — filtrar manualmente
       if (fixturesH.status === "fulfilled") {
         let played = (fixturesH.value?.response || [])
           .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
@@ -919,11 +950,10 @@ export default function App() {
           const hg = f.goals?.home ?? 0, ag = f.goals?.away ?? 0;
           return hg > ag ? "W" : hg === ag ? "D" : "L";
         });
-        const gf = played.map(f => f.goals?.home ?? 0);
-        const gc = played.map(f => f.goals?.away ?? 0);
         homeFormLocal = {
           results, wins: results.filter(r=>r==="W").length,
-          avgScored: +avg(gf).toFixed(2), avgConceded: +avg(gc).toFixed(2),
+          avgScored: +avg(played.map(f => f.goals?.home ?? 0)).toFixed(2),
+          avgConceded: +avg(played.map(f => f.goals?.away ?? 0)).toFixed(2),
         };
       }
       if (fixturesA.status === "fulfilled") {
@@ -947,11 +977,10 @@ export default function App() {
           const hg = f.goals?.home ?? 0, ag = f.goals?.away ?? 0;
           return ag > hg ? "W" : ag === hg ? "D" : "L";
         });
-        const gf = played.map(f => f.goals?.away ?? 0);
-        const gc = played.map(f => f.goals?.home ?? 0);
         awayFormVisita = {
           results, wins: results.filter(r=>r==="W").length,
-          avgScored: +avg(gf).toFixed(2), avgConceded: +avg(gc).toFixed(2),
+          avgScored: +avg(played.map(f => f.goals?.away ?? 0)).toFixed(2),
+          avgConceded: +avg(played.map(f => f.goals?.home ?? 0)).toFixed(2),
         };
       }
     } catch(e) { console.warn("Error cargando datos extra:", e.message); }
