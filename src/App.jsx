@@ -1880,11 +1880,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 {activeTab==="h2h" && (
                   <div style={C.card}>
                     <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>
-                      ⚔️ Enfrentamientos directos — {homeTeam?.name || selectedFixture?.teams?.home?.name} vs {awayTeam?.name || selectedFixture?.teams?.away?.name}
+                      ⚔️ Enfrentamientos directos — {homeTeam?.name} vs {awayTeam?.name}
                     </div>
                     {h2h.length===0 ? (
                       <div style={{color:"#555",fontSize:13,textAlign:"center",padding:"20px 0"}}>
-                        {(homeTeam||selectedFixture) ? "Sin historial de enfrentamientos disponible" : "Selecciona ambos equipos para ver el H2H"}
+                        {homeTeam&&awayTeam ? "Sin historial de enfrentamientos disponible" : "Selecciona ambos equipos para ver el H2H"}
                       </div>
                     ) : (
                       <>
@@ -3281,32 +3281,73 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {showUpgrade && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}
           onClick={()=>setShowUpgrade(false)}>
-          <div style={{background:"linear-gradient(145deg,#0d1117,#111827)",border:"1px solid rgba(0,212,255,0.3)",borderRadius:20,padding:"32px 28px",maxWidth:400,width:"100%",textAlign:"center"}}
+          <div style={{background:"linear-gradient(145deg,#0d1117,#111827)",border:"1px solid rgba(0,212,255,0.3)",borderRadius:20,padding:"32px 28px",maxWidth:460,width:"100%",textAlign:"center"}}
             onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:48,marginBottom:12}}>🚀</div>
-            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#00d4ff",letterSpacing:3,marginBottom:8}}>
-              ACTUALIZA A PRO
+            <div style={{fontSize:48,marginBottom:8}}>🚀</div>
+            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:30,color:"#00d4ff",letterSpacing:3,marginBottom:6}}>
+              ACTUALIZA TU PLAN
             </div>
-            <div style={{fontSize:13,color:"#888",marginBottom:24,lineHeight:1.7}}>
+            <div style={{fontSize:13,color:"#666",marginBottom:24,lineHeight:1.6}}>
               Has usado tu análisis gratuito del día.<br/>
-              Actualiza a <strong style={{color:"#e2f4ff"}}>BetAnalytics Pro</strong> para análisis ilimitados.
+              Elige un plan para seguir analizando.
             </div>
-            <div style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:14,padding:"20px 24px",marginBottom:24}}>
-              <div style={{fontSize:13,color:"#555",marginBottom:4}}>Plan Pro</div>
-              <div style={{fontSize:42,fontWeight:900,color:"#00d4ff",lineHeight:1}}>$9<span style={{fontSize:18,color:"#555"}}>/mes</span></div>
-              <div style={{fontSize:11,color:"#555",marginTop:8}}>Análisis ilimitados · Todos los deportes · Historial completo</div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+            {/* Plan Pro */}
+            <div style={{background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:14,padding:"16px 20px",marginBottom:12,textAlign:"left"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontWeight:800,color:"#e2f4ff",fontSize:15}}>⚡ PRO</div>
+                <div style={{fontSize:22,fontWeight:900,color:"#00d4ff"}}>$9<span style={{fontSize:12,color:"#555"}}>/mes</span></div>
+              </div>
+              <div style={{fontSize:11,color:"#555",marginBottom:12}}>10 análisis/día · Todos los deportes · Historial completo</div>
               <button
-                style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:16,letterSpacing:2,cursor:"pointer"}}>
+                onClick={async () => {
+                  try {
+                    const r = await fetch('/api/create-checkout', {
+                      method: 'POST',
+                      headers: {'Content-Type':'application/json'},
+                      body: JSON.stringify({ plan: 'pro', userId: user?.id, email: user?.email })
+                    });
+                    const d = await r.json();
+                    if (d.url) window.location.href = d.url;
+                  } catch(e) { alert('Error al procesar pago'); }
+                }}
+                style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer"}}>
                 💳 SUSCRIBIRSE — $9/MES
               </button>
-              <button onClick={()=>setShowUpgrade(false)}
-                style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
-                Continuar con plan gratuito
+            </div>
+
+            {/* Plan Elite */}
+            <div style={{background:"rgba(168,85,247,0.05)",border:"1px solid rgba(168,85,247,0.3)",borderRadius:14,padding:"16px 20px",marginBottom:20,textAlign:"left",position:"relative"}}>
+              <div style={{position:"absolute",top:-10,right:16,background:"linear-gradient(135deg,#a855f7,#7c3aed)",borderRadius:20,padding:"2px 10px",fontSize:10,color:"#fff",fontWeight:700}}>
+                MÁS POPULAR
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontWeight:800,color:"#e2f4ff",fontSize:15}}>👑 ELITE</div>
+                <div style={{fontSize:22,fontWeight:900,color:"#a855f7"}}>$29<span style={{fontSize:12,color:"#555"}}>/mes</span></div>
+              </div>
+              <div style={{fontSize:11,color:"#555",marginBottom:12}}>Análisis ilimitados · Todos los deportes · Historial completo</div>
+              <button
+                onClick={async () => {
+                  try {
+                    const r = await fetch('/api/create-checkout', {
+                      method: 'POST',
+                      headers: {'Content-Type':'application/json'},
+                      body: JSON.stringify({ plan: 'elite', userId: user?.id, email: user?.email })
+                    });
+                    const d = await r.json();
+                    if (d.url) window.location.href = d.url;
+                  } catch(e) { alert('Error al procesar pago'); }
+                }}
+                style={{width:"100%",padding:"10px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#a855f7,#7c3aed)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer"}}>
+                💳 SUSCRIBIRSE — $29/MES
               </button>
             </div>
-            <div style={{marginTop:16,fontSize:10,color:"#333"}}>
+
+            <button onClick={()=>setShowUpgrade(false)}
+              style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
+              Continuar con plan gratuito
+            </button>
+            <div style={{marginTop:12,fontSize:10,color:"#333"}}>
               {usageInfo?.used}/{usageInfo?.limit} análisis usados hoy · Reinicia a medianoche
             </div>
           </div>
