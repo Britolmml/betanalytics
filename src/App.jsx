@@ -753,23 +753,21 @@ export default function App() {
   // Load H2H when both teams selected
   const loadH2H = async (hId, aId) => {
     try {
-      // Intentar H2H directo primero (requiere plan premium)
-      for (const season of [2026, 2025, 2024, 2023]) {
-        const d = await apiFetch(`/fixtures?h2h=${hId}-${aId}&season=${season}`);
-        const items = (d.response||[])
-          .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
-          .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
-          .slice(0,5);
-        if (items.length) {
-          setH2h(items.map(f => ({
-            date: f.fixture?.date?.split("T")[0] ?? "",
-            home: f.teams?.home?.name ?? "",
-            away: f.teams?.away?.name ?? "",
-            homeGoals: f.goals?.home ?? 0,
-            awayGoals: f.goals?.away ?? 0,
-          })));
-          return;
-        }
+      // Intentar H2H sin filtro de temporada primero
+      const d = await apiFetch(`/fixtures?h2h=${hId}-${aId}&last=10`);
+      const items = (d.response||[])
+        .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+        .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date))
+        .slice(0,5);
+      if (items.length) {
+        setH2h(items.map(f => ({
+          date: f.fixture?.date?.split("T")[0] ?? "",
+          home: f.teams?.home?.name ?? "",
+          away: f.teams?.away?.name ?? "",
+          homeGoals: f.goals?.home ?? 0,
+          awayGoals: f.goals?.away ?? 0,
+        })));
+        return;
       }
     } catch(e) { console.warn("H2H directo no disponible:", e.message); }
 
@@ -857,20 +855,24 @@ export default function App() {
         apiFetch(`/injuries?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
         apiFetch(`/injuries?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
         apiFetch(`/standings?league=${league?.id}&season=${activeSeason}`),
-        apiFetch(`/fixtures?team=${homeTeam.id}&season=${activeSeason}&venue=home`),
-        apiFetch(`/fixtures?team=${awayTeam.id}&season=${activeSeason}&venue=away`),
+        apiFetch(`/fixtures?team=${homeTeam.id}&season=${activeSeason}&last=20`),
+        apiFetch(`/fixtures?team=${awayTeam.id}&season=${activeSeason}&last=20`),
       ]);
 
-      // Lesiones
+      // Lesiones — dedup por nombre de jugador
       if (injH.status === "fulfilled") {
+        const seen = new Set();
         homeInjuries = (injH.value?.response || [])
           .filter(p => p.player?.type === "Missing Fixture" || p.player?.reason)
+          .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
       }
       if (injA.status === "fulfilled") {
+        const seen = new Set();
         awayInjuries = (injA.value?.response || [])
           .filter(p => p.player?.type === "Missing Fixture" || p.player?.reason)
+          .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
       }
@@ -897,14 +899,16 @@ export default function App() {
       if (fixturesH.status === "fulfilled") {
         let played = (fixturesH.value?.response || [])
           .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+          .filter(f => f.teams?.home?.id === homeTeam.id) // Solo como LOCAL
           .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
         // Si hay menos de 3 partidos, completar con temporada anterior
         if (played.length < 3) {
           try {
             const prev = activeSeason === 2026 ? 2025 : activeSeason - 1;
-            const dPrev = await apiFetch(`/fixtures?team=${homeTeam.id}&season=${prev}&venue=home`);
+            const dPrev = await apiFetch(`/fixtures?team=${homeTeam.id}&season=${prev}&last=20`);
             const prevPlayed = (dPrev?.response || [])
               .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+              .filter(f => f.teams?.home?.id === homeTeam.id)
               .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
             played = [...played, ...prevPlayed];
           } catch(e) {}
@@ -924,14 +928,16 @@ export default function App() {
       if (fixturesA.status === "fulfilled") {
         let played = (fixturesA.value?.response || [])
           .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+          .filter(f => f.teams?.away?.id === awayTeam.id) // Solo como VISITANTE
           .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
         // Si hay menos de 3 partidos, completar con temporada anterior
         if (played.length < 3) {
           try {
             const prev = activeSeason === 2026 ? 2025 : activeSeason - 1;
-            const dPrev = await apiFetch(`/fixtures?team=${awayTeam.id}&season=${prev}&venue=away`);
+            const dPrev = await apiFetch(`/fixtures?team=${awayTeam.id}&season=${prev}&last=20`);
             const prevPlayed = (dPrev?.response || [])
               .filter(f => ["FT","AET","PEN"].includes(f.fixture?.status?.short))
+              .filter(f => f.teams?.away?.id === awayTeam.id)
               .sort((a,b) => new Date(b.fixture.date) - new Date(a.fixture.date));
             played = [...played, ...prevPlayed];
           } catch(e) {}
