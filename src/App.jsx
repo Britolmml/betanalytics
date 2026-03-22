@@ -860,12 +860,12 @@ export default function App() {
 
     try {
       const fixtureId = selectedFixture?.fixture?.id;
-      const [injH, injA, standingsData, fixturesH, fixturesA] = await Promise.allSettled([
+      const [injAll, injUnused, standingsData, fixturesH, fixturesA] = await Promise.allSettled([
         fixtureId
           ? apiFetch(`/injuries?fixture=${fixtureId}`)
           : apiFetch(`/injuries?team=${homeTeam.id}&season=${activeSeason}&league=${league?.id}`),
         fixtureId
-          ? Promise.resolve({ response: [] }) // injuries del fixture ya incluye ambos equipos
+          ? Promise.resolve({ response: [] })
           : apiFetch(`/injuries?team=${awayTeam.id}&season=${activeSeason}&league=${league?.id}`),
         apiFetch(`/standings?league=${league?.id}&season=${activeSeason}`),
         apiFetch(`/fixtures?team=${homeTeam.id}&season=${activeSeason}`),
@@ -873,36 +873,32 @@ export default function App() {
       ]);
 
       // Lesiones — del fixture actual, split por equipo, dedup por nombre
-      const fixtureId = selectedFixture?.fixture?.id;
-      const allInjuries = fixtureId
-        ? (injH.value?.response || [])
-        : [];
-      
-      if (fixtureId && injH.status === "fulfilled") {
-        const seen = new Set();
-        homeInjuries = allInjuries
+      if (fixtureId && injAll.status === "fulfilled") {
+        const allInj = injAll.value?.response || [];
+        const seenH = new Set();
+        homeInjuries = allInj
           .filter(p => p.team?.id === homeTeam.id)
-          .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
+          .filter(p => { const n = p.player?.name; if (!n || seenH.has(n)) return false; seenH.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
         const seenA = new Set();
-        awayInjuries = allInjuries
+        awayInjuries = allInj
           .filter(p => p.team?.id === awayTeam.id)
           .filter(p => { const n = p.player?.name; if (!n || seenA.has(n)) return false; seenA.add(n); return true; })
           .slice(0, 5)
           .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
-      } else {
-        if (injH.status === "fulfilled") {
+      } else if (!fixtureId) {
+        if (injAll.status === "fulfilled") {
           const seen = new Set();
-          homeInjuries = (injH.value?.response || [])
+          homeInjuries = (injAll.value?.response || [])
             .filter(p => p.player?.reason)
             .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
             .slice(0, 5)
             .map(p => `${p.player?.name} (${p.player?.reason || "lesión"})`);
         }
-        if (injA.status === "fulfilled") {
+        if (injUnused.status === "fulfilled") {
           const seen = new Set();
-          awayInjuries = (injA.value?.response || [])
+          awayInjuries = (injUnused.value?.response || [])
             .filter(p => p.player?.reason)
             .filter(p => { const n = p.player?.name; if (!n || seen.has(n)) return false; seen.add(n); return true; })
             .slice(0, 5)
@@ -1766,7 +1762,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             setHomeTeam(ht); setAwayTeam(at);
                             setSelectedFixture(f);
                             selectTeam(ht, "home"); selectTeam(at, "away");
-                            // Auto-cargar momios al seleccionar partido
+                            loadH2H(f.teams?.home?.id, f.teams?.away?.id);
                             setTimeout(() => loadOdds(), 300);
                           }}
                           style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
