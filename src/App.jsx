@@ -413,6 +413,7 @@ export default function App() {
   // Auth
   const [user,          setUser]          = useState(null);
   const [showUpgrade,   setShowUpgrade]   = useState(false);
+  const [showPlans,     setShowPlans]     = useState(false);
   const [usageInfo,     setUsageInfo]     = useState(null); // {used, limit, plan}
   const [authView,      setAuthView]      = useState("login");
   const [authEmail,     setAuthEmail]     = useState("");
@@ -1618,6 +1619,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           <button onClick={()=>setActiveSport("nfl")} style={{background:activeSport==="nfl"?"rgba(34,197,94,0.18)":"rgba(34,197,94,0.06)",border:activeSport==="nfl"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>🏈 NFL</button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 12px",color:"#67c8e0",cursor:"pointer",fontSize:11,fontWeight:700}}>
             📊 Historial
+          </button>
+          <button onClick={()=>setShowPlans(true)} style={{background:"linear-gradient(135deg,rgba(168,85,247,0.15),rgba(0,212,255,0.08))",border:"1px solid rgba(168,85,247,0.35)",borderRadius:8,padding:"6px 12px",color:"#c084fc",cursor:"pointer",fontSize:11,fontWeight:700}}>
+            ⚡ PLANES
           </button>
           
           {user ? (
@@ -3277,6 +3281,80 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           </div>
         </div>
       </div>
+      {/* Modal Planes */}
+      {showPlans && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}
+          onClick={()=>setShowPlans(false)}>
+          <div style={{background:"linear-gradient(145deg,#0d1117,#111827)",border:"1px solid rgba(168,85,247,0.3)",borderRadius:20,padding:"32px 28px",maxWidth:520,width:"100%"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <div style={{fontSize:40,marginBottom:8}}>⚡</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#c084fc",letterSpacing:3,marginBottom:6}}>PLANES BETANALYTICS</div>
+              <div style={{fontSize:13,color:"#555"}}>Elige el plan que mejor se adapte a ti</div>
+            </div>
+
+            {/* Plan Free */}
+            <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"16px 20px",marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontWeight:800,color:"#888",fontSize:15}}>🆓 FREE</div>
+                <div style={{fontSize:22,fontWeight:900,color:"#888"}}>$0<span style={{fontSize:12,color:"#444"}}>/mes</span></div>
+              </div>
+              <div style={{fontSize:11,color:"#444"}}>1 análisis/día · Todos los deportes · Historial básico</div>
+            </div>
+
+            {/* Plan Pro */}
+            <div style={{background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:14,padding:"16px 20px",marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontWeight:800,color:"#e2f4ff",fontSize:15}}>⚡ PRO</div>
+                <div style={{fontSize:22,fontWeight:900,color:"#00d4ff"}}>$9<span style={{fontSize:12,color:"#555"}}>/mes</span></div>
+              </div>
+              <div style={{fontSize:11,color:"#555",marginBottom:12}}>10 análisis/día · Todos los deportes · Historial completo</div>
+              {usageInfo?.plan === "pro" ? (
+                <div style={{textAlign:"center",padding:"8px",borderRadius:8,background:"rgba(0,212,255,0.1)",color:"#00d4ff",fontSize:12,fontWeight:700}}>✅ Tu plan actual</div>
+              ) : (
+                <button onClick={async () => {
+                  try {
+                    const r = await fetch('/api/create-checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({plan:'pro', userId: user?.id, email: user?.email}) });
+                    const d = await r.json();
+                    if (d.url) window.location.href = d.url;
+                  } catch(e) { alert('Error al procesar pago'); }
+                }} style={{width:"100%",padding:"9px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer"}}>
+                  💳 SUSCRIBIRSE — $9/MES
+                </button>
+              )}
+            </div>
+
+            {/* Plan Elite */}
+            <div style={{background:"rgba(168,85,247,0.05)",border:"1px solid rgba(168,85,247,0.3)",borderRadius:14,padding:"16px 20px",marginBottom:20,position:"relative"}}>
+              <div style={{position:"absolute",top:-10,right:16,background:"linear-gradient(135deg,#a855f7,#7c3aed)",borderRadius:20,padding:"2px 10px",fontSize:10,color:"#fff",fontWeight:700}}>MÁS POPULAR</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontWeight:800,color:"#e2f4ff",fontSize:15}}>👑 ELITE</div>
+                <div style={{fontSize:22,fontWeight:900,color:"#a855f7"}}>$29<span style={{fontSize:12,color:"#555"}}>/mes</span></div>
+              </div>
+              <div style={{fontSize:11,color:"#555",marginBottom:12}}>Análisis ilimitados · Todos los deportes · Historial completo</div>
+              {usageInfo?.plan === "elite" ? (
+                <div style={{textAlign:"center",padding:"8px",borderRadius:8,background:"rgba(168,85,247,0.1)",color:"#a855f7",fontSize:12,fontWeight:700}}>✅ Tu plan actual</div>
+              ) : (
+                <button onClick={async () => {
+                  try {
+                    const r = await fetch('/api/create-checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({plan:'elite', userId: user?.id, email: user?.email}) });
+                    const d = await r.json();
+                    if (d.url) window.location.href = d.url;
+                  } catch(e) { alert('Error al procesar pago'); }
+                }} style={{width:"100%",padding:"9px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#a855f7,#7c3aed)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer"}}>
+                  💳 SUSCRIBIRSE — $29/MES
+                </button>
+              )}
+            </div>
+
+            <button onClick={()=>setShowPlans(false)}
+              style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modal Upgrade */}
       {showUpgrade && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}
