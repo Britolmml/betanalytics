@@ -4,6 +4,7 @@
     { "source": "/api/basketball", "destination": "/api/basketball" },
     { "source": "/api/predict", "destination": "/api/predict" },
     { "source": "/api/odds", "destination": "/api/odds" },
-    { "source": "/api/jornada", "destination": "/api/jornada" }
+    { "source": "/api/jornada", "destination": "/api/jornada" },
+    { "source": "/api/create-checkout", "destination": "/api/create-checkout" }
   ]
 }
