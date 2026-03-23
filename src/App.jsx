@@ -2,6 +2,8 @@ import NBAPanel from "./NBAPanel";
 import MLBPanel from "./MLBPanel";
 import HistorialPanel from "./HistorialPanel";
 import AuthModal from "./AuthModal";
+import LangSwitcher from "./LangSwitcher";
+import { detectLanguage, t } from "./i18n";
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, saveAllPicks, saveBestPick, getPredictions, updateResult, autoResolveFootball, checkUsageLimit, incrementUsage } from "./supabase";
 
@@ -410,6 +412,9 @@ export default function App() {
   const [edges,         setEdges]         = useState([]);
   const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
   const [activeTab,     setActiveTab]     = useState("stats");
+
+  // Language
+  const [lang, setLang] = useState(detectLanguage());
 
   // Payment result
   const [paymentStatus, setPaymentStatus] = useState(null); // "success" | "cancelled" | null
@@ -1624,27 +1629,28 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             </button>
           )}
 
-          <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(0,212,255,0.12)":"rgba(0,212,255,0.04)",border:activeSport===null?"1px solid rgba(0,212,255,0.4)":"1px solid rgba(0,212,255,0.1)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#00d4ff":"#4a7a8a",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 INICIO</button>
-          <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(34,197,94,0.15)":"rgba(34,197,94,0.06)",border:activeSport==="football"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>⚽ FÚTBOL</button>
-          <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.18)":"rgba(239,68,68,0.06)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.18)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>🏀 NBA</button>
-          <button onClick={()=>setActiveSport("mlb")} style={{background:activeSport==="mlb"?"rgba(251,146,60,0.18)":"rgba(251,146,60,0.06)",border:activeSport==="mlb"?"1px solid rgba(251,146,60,0.5)":"1px solid rgba(251,146,60,0.18)",borderRadius:8,padding:"6px 12px",color:"#fb923c",cursor:"pointer",fontSize:11,fontWeight:700}}>⚾ MLB</button>
+          <button onClick={()=>setActiveSport(null)} style={{background:activeSport===null?"rgba(0,212,255,0.12)":"rgba(0,212,255,0.04)",border:activeSport===null?"1px solid rgba(0,212,255,0.4)":"1px solid rgba(0,212,255,0.1)",borderRadius:8,padding:"6px 12px",color:activeSport===null?"#00d4ff":"#4a7a8a",cursor:"pointer",fontSize:11,fontWeight:700}}>🏠 {lang==="en"?"HOME":"INICIO"}</button>
+          <button onClick={()=>setActiveSport("football")} style={{background:activeSport==="football"?"rgba(34,197,94,0.15)":"rgba(34,197,94,0.06)",border:activeSport==="football"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>{t("tab.football", lang)}</button>
+          <button onClick={()=>setActiveSport("nba")} style={{background:activeSport==="nba"?"rgba(239,68,68,0.18)":"rgba(239,68,68,0.06)",border:activeSport==="nba"?"1px solid rgba(239,68,68,0.5)":"1px solid rgba(239,68,68,0.18)",borderRadius:8,padding:"6px 12px",color:"#f87171",cursor:"pointer",fontSize:11,fontWeight:700}}>{t("tab.nba", lang)}</button>
+          <button onClick={()=>setActiveSport("mlb")} style={{background:activeSport==="mlb"?"rgba(251,146,60,0.18)":"rgba(251,146,60,0.06)",border:activeSport==="mlb"?"1px solid rgba(251,146,60,0.5)":"1px solid rgba(251,146,60,0.18)",borderRadius:8,padding:"6px 12px",color:"#fb923c",cursor:"pointer",fontSize:11,fontWeight:700}}>{t("tab.mlb", lang)}</button>
           <button onClick={()=>setActiveSport("nfl")} style={{background:activeSport==="nfl"?"rgba(34,197,94,0.18)":"rgba(34,197,94,0.06)",border:activeSport==="nfl"?"1px solid rgba(34,197,94,0.5)":"1px solid rgba(34,197,94,0.18)",borderRadius:8,padding:"6px 12px",color:"#4ade80",cursor:"pointer",fontSize:11,fontWeight:700}}>🏈 NFL</button>
           <button onClick={()=>setShowHistorial(true)} style={{background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 12px",color:"#67c8e0",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            📊 Historial
+            📊 {t("nav.history", lang)}
           </button>
           <button onClick={()=>setShowPlans(true)} style={{background:"linear-gradient(135deg,rgba(168,85,247,0.15),rgba(0,212,255,0.08))",border:"1px solid rgba(168,85,247,0.35)",borderRadius:8,padding:"6px 12px",color:"#c084fc",cursor:"pointer",fontSize:11,fontWeight:700}}>
-            ⚡ PLANES
+            ⚡ {t("nav.plans", lang)}
           </button>
           
           {user ? (
             <button onClick={handleLogout} style={{background:"rgba(0,212,255,0.04)",border:"1px solid rgba(0,212,255,0.12)",borderRadius:8,padding:"6px 12px",color:"#4a7a8a",cursor:"pointer",fontSize:11}}>
-              👤 {user.email?.split("@")[0]} · Salir
+              👤 {user.email?.split("@")[0]} · {t("nav.logout", lang)}
             </button>
           ) : (
             <button onClick={()=>setShowAuth(true)} style={{background:"rgba(0,212,255,0.08)",border:"1px solid rgba(0,212,255,0.28)",borderRadius:8,padding:"6px 12px",color:"#00d4ff",cursor:"pointer",fontSize:11,fontWeight:700}}>
-              🔐 ENTRAR
+              🔐 {t("nav.login", lang)}
             </button>
           )}
+          <LangSwitcher lang={lang} />
 
         </div>
       </div>
