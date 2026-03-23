@@ -1210,11 +1210,8 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       )}
                     </div>
                     <div style={{display:"flex",gap:8}}>
-                      <button onClick={runAI} disabled={loadingAI||loadingMulti||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingMulti||loadingInjuries)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti||loadingInjuries)?"not-allowed":"pointer"}}>
+                      <button onClick={runAI} disabled={loadingAI||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingInjuries)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingInjuries)?"not-allowed":"pointer"}}>
                         {loadingInjuries?"⏳ Cargando bajas...":loadingAI?"⏳ ANALIZANDO...":"🤖 PREDICCIÓN IA"}
-                      </button>
-                      <button onClick={runAIMulti} disabled={loadingAI||loadingMulti||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingMulti||loadingInjuries)?"rgba(139,92,246,0.3)":"linear-gradient(90deg,#8b5cf6,#6d28d9)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingMulti||loadingInjuries)?"not-allowed":"pointer"}}>
-                        {loadingMulti?"⏳ CONSULTANDO...":"🤖 MULTI-IA"}
                       </button>
                     </div>
                   </div>
