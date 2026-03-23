@@ -411,6 +411,9 @@ export default function App() {
   const [nextMatches,   setNextMatches]   = useState({home:[], away:[]});
   const [activeTab,     setActiveTab]     = useState("stats");
 
+  // Payment result
+  const [paymentStatus, setPaymentStatus] = useState(null); // "success" | "cancelled" | null
+
   // Auth
   const [user,          setUser]          = useState(null);
   const [showUpgrade,   setShowUpgrade]   = useState(false);
@@ -492,6 +495,14 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null);
     });
+    // Detectar redirección de pago
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (payment === "success" || payment === "cancelled") {
+      setPaymentStatus(payment);
+      // Limpiar URL sin recargar
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     return () => listener.subscription.unsubscribe();
   }, []);
   const headers = useCallback(() => ({ "Content-Type": "application/json" }), []);
@@ -3412,6 +3423,58 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
           </div>
         </div>
       )}
+      {/* Modal: Resultado de pago */}
+      {paymentStatus && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:16}}
+          onClick={() => setPaymentStatus(null)}>
+          <div style={{background:"linear-gradient(145deg,#0d1117,#111827)",border:`1px solid ${paymentStatus==="success"?"rgba(34,197,94,0.4)":"rgba(239,68,68,0.3)"}`,borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center"}}
+            onClick={e=>e.stopPropagation()}>
+            {paymentStatus === "success" ? (
+              <>
+                <div style={{fontSize:64,marginBottom:12}}>🎉</div>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#4ade80",letterSpacing:3,marginBottom:8}}>
+                  ¡PAGO EXITOSO!
+                </div>
+                <div style={{fontSize:14,color:"#888",marginBottom:24,lineHeight:1.7}}>
+                  Tu suscripción ha sido activada.<br/>
+                  Ya puedes disfrutar de todos los beneficios de tu plan.
+                </div>
+                <div style={{background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:12,padding:"16px",marginBottom:24}}>
+                  <div style={{fontSize:12,color:"#4ade80",fontWeight:700,marginBottom:4}}>✅ Plan activado</div>
+                  <div style={{fontSize:11,color:"#555"}}>Tu plan se actualizó automáticamente. Si no ves los cambios, recarga la página.</div>
+                </div>
+                <button
+                  onClick={() => { setPaymentStatus(null); window.location.reload(); }}
+                  style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
+                  EMPEZAR A ANALIZAR 🚀
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{fontSize:64,marginBottom:12}}>😕</div>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#ef4444",letterSpacing:3,marginBottom:8}}>
+                  PAGO CANCELADO
+                </div>
+                <div style={{fontSize:14,color:"#888",marginBottom:24,lineHeight:1.7}}>
+                  No se realizó ningún cargo.<br/>
+                  Puedes intentarlo de nuevo cuando quieras.
+                </div>
+                <button
+                  onClick={() => { setPaymentStatus(null); setShowPlans(true); }}
+                  style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:10}}>
+                  VER PLANES
+                </button>
+                <button
+                  onClick={() => setPaymentStatus(null)}
+                  style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
+                  Continuar gratis
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
