@@ -377,7 +377,7 @@ function calcNBAEdges(nbaPoisson, nbaOdds) {
   return edges.sort((a,b) => b.edge - a.edge);
 }
 
-export default function NBAPanel({ onClose, inline = false }) {
+export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
   const [games, setGames] = useState([]);
   const [standings, setStandings] = useState({ east: [], west: [] });
   const [loading, setLoading] = useState(false);
@@ -727,7 +727,103 @@ export default function NBAPanel({ onClose, inline = false }) {
 
       const safeInjuries = Array.isArray(injuries) ? injuries : [];
 
-      const prompt = `Eres un analista NBA experto con especialidad en apuestas deportivas y detección de value bets.
+      const isEN = lang === "en";
+      const prompt = isEN ? `You are an expert NBA analyst specializing in sports betting and value bet detection.
+IMPORTANT: Real-time data for the 2025-2026 season. Trust 100% the provided data, NOT your prior knowledge.
+
+GAME: ${home} vs ${away} | Status: ${status}${scorePart}
+
+════ ${home} (HOME) ════
+Stats: ${hSL}
+Top players: ${topH || "No data"}
+Expected points (model): ${hLine}
+
+════ ${away} (AWAY) ════
+Stats: ${aSL}
+Top players: ${topA || "No data"}
+Expected points (model): ${aLine}
+
+════ MARKET LINES ════
+Projected total: ${totalLine} pts
+${home} projected: ${hLine} | ${away} projected: ${aLine}
+${nbaOdds ? `REFERENCE ODDS (${nbaOdds.bookmaker || "DraftKings"} — may differ from your sportsbook):
+  Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
+  const dec = o.price;
+  const am = dec >= 2 ? "+" + Math.round((dec-1)*100) : "-" + Math.round(100/(dec-1));
+  return o.name + " " + am + " (dec:" + dec + ")";
+}).join(" | ") || "N/A") + `
+  Total: ` + (nbaOdds.totals?.outcomes?.map(o => o.name + " " + o.point + " @ " + (o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)))).join(" | ") || "N/A") + `
+CRITICAL: Use EXACTLY these total lines in your picks. DO NOT invent lines.` : "Odds not available"}
+
+════ NBA POISSON MODEL ════
+` + (nbaPoisson ? `Expected xPts: ${home}=${nbaPoisson.xPtsHome} | ${away}=${nbaPoisson.xPtsAway}
+Poisson projected total: ${nbaPoisson.total} pts | Spread: ${home} ${nbaPoisson.spread > 0 ? "+"+nbaPoisson.spread : nbaPoisson.spread}
+Offensive strength: ${home}=${nbaPoisson.hOff}x | ${away}=${nbaPoisson.aOff}x
+Defensive strength: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
+Win probability: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
+Over real market line (${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/A"}): ${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(nbaPoisson.total, parseFloat(nbaOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
+H2H last games: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "No H2H available") : "Poisson not available") + `
+
+════ CALCULATED EDGES (Poisson vs NBA Market) ════
+` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"no value"}`).join("\n") : "No odds loaded — load odds to detect edges") + `
+IMPORTANT: Base highlighted bets ONLY on positive edges. If no edges, state there is no value.
+
+════ INJURIES & OUT ════
+${safeInjuries.length > 0
+  ? safeInjuries.map(p => `❌ ${p.name} (${p.team}) — ${p.reason} [${p.status}]`).join("\n")
+  : "No injuries reported for this game"}
+
+MANDATORY INJURY RULES:
+1. NEVER recommend props for a player marked ❌ Out or Day-To-Day
+2. If a star is Out, ADJUST team probabilities downward
+3. Check EVERY player in your picks against the injury list — if ❌, REMOVE that pick
+4. Explicitly mention the most important injuries in the summary
+5. A team with 2+ key players Out loses 3-8 points of expected advantage
+
+════ TRIPLE-DOUBLE CANDIDATES ════
+${tdNote}
+A triple-double requires ≥10 in points, rebounds AND assists. Evaluate real probability based on player averages and projected game pace.
+
+════ ANALYSIS INSTRUCTIONS ════
+STEP 1 — Analyze offensive/defensive performance of each team
+STEP 2 — Evaluate impact of available key players
+STEP 3 — Detect trends: consistent Over/Under? Team on a streak?
+STEP 4 — Use Poisson Model: compare xPts vs market line to detect line errors
+STEP 5 — Identify value bets: Poisson probabilities vs implied odds
+STEP 6 — Generate final JSON
+
+════ CRITICAL CONFIDENCE CALIBRATION RULES ════
+- NEVER use confidence > 80%
+- NEVER use confidence > 75% unless edge is crystal clear
+- Normal range: 52%-68% for most bets
+- Good range: 69%-74% only with real edge and solid data
+- Exceptional: 75%-80% only for extreme situations
+- Player props: MAX 68% — too much variance
+- CRITICAL: Before recommending any player prop, verify they are NOT on the injury list ❌
+
+Respond ONLY with valid JSON, no extra text: ` + JSON.stringify({
+          resumen:"detailed 3-4 sentence analysis with reasoning",
+          ganadorProbable:"team",
+          probabilidades:{home:52,away:48},
+          apuestasDestacadas:[
+            {tipo:"Moneyline",pick:"",odds_sugerido:"",confianza:62,razon:"",categoria:"main",jugador:null},
+            {tipo:"Spread",pick:"",odds_sugerido:"",confianza:58,razon:"",categoria:"main",jugador:null},
+            {tipo:"Over/Under",pick:"",odds_sugerido:"",confianza:61,razon:"",categoria:"totals",jugador:null},
+            {tipo:"Player Points",pick:"",odds_sugerido:"",confianza:57,razon:"",categoria:"player",jugador:"name"},
+            {tipo:"Player Assists",pick:"",odds_sugerido:"",confianza:55,razon:"",categoria:"player",jugador:"name"},
+            {tipo:"Player Rebounds",pick:"",odds_sugerido:"",confianza:56,razon:"",categoria:"player",jugador:"name"},
+            {tipo:"Triple Double",pick:"Yes/No will achieve triple double",odds_sugerido:"",confianza:52,razon:"based on pts/reb/ast averages vs rival defense",categoria:"player",jugador:"candidate name or null"},
+            {tipo:"First Half",pick:"",odds_sugerido:"",confianza:59,razon:"",categoria:"half",jugador:null},
+            {tipo:"Double Chance",pick:"",odds_sugerido:"",confianza:63,razon:"",categoria:"alternative",jugador:null}
+          ],
+          valueBet:{existe:true,mercado:"",explicacion:"",odds_recomendado:"",edge:""},
+          erroresLinea:[{descripcion:"",mercado:"",contradiccion:""}],
+          tendenciasDetectadas:["concrete trend 1","concrete trend 2"],
+          alertas:[""],
+          nivelConfianza:"MEDIUM",
+          razonConfianza:""
+        }) :
+      `Eres un analista NBA experto con especialidad en apuestas deportivas y detección de value bets.
 IMPORTANTE: Datos en tiempo real temporada 2025-2026. Confía 100% en los datos proporcionados, NO en tu conocimiento previo.
 
 PARTIDO: ${home} vs ${away} | Estado: ${status}${scorePart}
@@ -752,7 +848,7 @@ ${nbaOdds ? `MOMIOS REFERENCIA (${nbaOdds.bookmaker || "DraftKings"} — pueden 
   return o.name + " " + am + " (dec:" + dec + ")";
 }).join(" | ") || "N/D") + `
   Total: ` + (nbaOdds.totals?.outcomes?.map(o => o.name + " " + o.point + " @ " + (o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)))).join(" | ") || "N/D") + `
-CRÍTICO: Usa EXACTAMENTE estas líneas de totales en tus picks (Over/Under X.X donde X.X es el punto de la línea real). NO inventes líneas.` : "Momios no disponibles"}
+CRÍTICO: Usa EXACTAMENTE estas líneas de totales en tus picks. NO inventes líneas.` : "Momios no disponibles"}
 
 ════ MODELO POISSON NBA ════
 ` + (nbaPoisson ? `xPts esperados: ${home}=${nbaPoisson.xPtsHome} | ${away}=${nbaPoisson.xPtsAway}
@@ -773,8 +869,8 @@ ${safeInjuries.length > 0
   : "Sin bajas reportadas para este partido"}
 
 REGLAS OBLIGATORIAS SOBRE BAJAS:
-1. NUNCA recomiendes props de un jugador marcado como ❌ Out o Day-To-Day — es un error grave
-2. Si una estrella está Out (ej: Wiggins, Rozier), AJUSTA las probabilidades del equipo a la baja
+1. NUNCA recomiendes props de un jugador marcado como ❌ Out o Day-To-Day
+2. Si una estrella está Out, AJUSTA las probabilidades del equipo a la baja
 3. Revisa CADA jugador en tus picks contra la lista de bajas — si aparece ❌, ELIMINA esa pick
 4. Menciona explícitamente las bajas más importantes en el resumen
 5. Un equipo con 2+ jugadores clave Out pierde entre 3-8 puntos de ventaja esperada
@@ -792,18 +888,12 @@ PASO 5 — Identifica value bets: probabilidades Poisson vs implícitas en momio
 PASO 6 — Genera el JSON final
 
 ════ REGLAS CRÍTICAS DE CALIBRACIÓN DE CONFIANZA ════
-Los porcentajes de confianza DEBEN ser realistas. En apuestas deportivas profesionales:
-- NUNCA uses confianza > 80% — ningún modelo serio lo justifica
-- NUNCA uses confianza > 75% salvo que el edge sea clarísimo y los datos sean contundentes
+- NUNCA uses confianza > 80%
+- NUNCA uses confianza > 75% salvo que el edge sea clarísimo
 - Rango normal: 52%-68% para la mayoría de apuestas
 - Rango bueno: 69%-74% solo si hay edge real y datos sólidos
-- Rango excepcional: 75%-80% solo para situaciones extremas (lesión estrella clave, diferencia abismal de forma)
 - Props de jugadores: MÁXIMO 68% — hay demasiada varianza
 - CRÍTICO: Antes de recomendar cualquier prop de jugador, verifica que NO esté en la lista de bajas ❌
-- Si el jugador está en bajas, reemplaza su pick por otro jugador disponible
-- Doble Oportunidad: aunque tenga alta probabilidad, el valor es bajo — confianza máxima 70%
-- Si un equipo es favorito pero el mercado ya lo refleja, la confianza baja (el mercado es eficiente)
-- Sé honesto: si los datos son escasos o el partido es parejo, usa 52%-60%
 
 Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           resumen:"análisis detallado 3-4 oraciones con razonamiento",
@@ -831,7 +921,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, lang }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);

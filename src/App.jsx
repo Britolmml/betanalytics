@@ -1154,71 +1154,7 @@ export default function App() {
       ? players.map(p => `${p.name} (${p.pos||"?"}) — ${p.goals}G ${p.assists}A${p.rating ? ` rating:${p.rating}` : ""}${p.injured ? " ⚠️LESIONADO" : ""}`).join(" | ")
       : "Sin datos de jugadores";
 
-    const isEN = lang === "en";
-    const prompt = isEN ? `You are a professional sports bettor with 15 years of experience and a proven 12% annual ROI. Your specialty is finding VALUE BETS — bets where the real probability is higher than what the odds imply. Never force a prediction when data is ambiguous: in those cases recommend "PASS" on the 1X2 result and look for value in secondary markets.
-
-MATCH TO ANALYZE: ${homeTeam.name} vs ${awayTeam.name} · League: ${league?.name} · Season ${SEASON}
-FORMAT: ${isKnockout ? "⚠️ KNOCKOUT (two legs) — A draw in 90 min may be VALID if it favors the aggregate score. Analyze if any team needs to score or can defend. Away goal may carry extra weight. DO NOT recommend 1X2 as main bet if knockout context changes the game." : "Regular league — standard 1X2 result"}
-
-════ ${homeTeam.name} DATA (HOME) ════
-TABLE: ${standingBlock(homeTeam.name, homeStanding)}
-LAST 5 FORM: ${hS.results.join("-")} | Avg goals scored: ${hS.avgScored} | Avg goals conceded: ${hS.avgConceded}
-${formBlock(homeTeam.name, homeFormLocal, "home")}
-Avg corners: ${hS.avgCorners} | Avg yellows: ${hS.avgCards} | Avg shots on target: ${hS.avgShotsOn !== null ? hS.avgShotsOn : "N/A"} | Avg total shots: ${hS.avgShotsTotal !== null ? hS.avgShotsTotal : "N/A"}
-BTTS: ${hS.btts}/5 | Over 2.5: ${hS.over25}/5 | Clean Sheets: ${hS.cleanSheets}/5
-${injuryBlock(homeTeam.name, homeInjuries)}
-KEY PLAYERS: ${playersBlock(homePlayers)}
-
-════ ${awayTeam.name} DATA (AWAY) ════
-TABLE: ${standingBlock(awayTeam.name, awayStanding)}
-LAST 5 FORM: ${aS.results.join("-")} | Avg goals scored: ${aS.avgScored} | Avg goals conceded: ${aS.avgConceded}
-${formBlock(awayTeam.name, awayFormVisita, "away")}
-Avg corners: ${aS.avgCorners} | Avg yellows: ${aS.avgCards} | Avg shots on target: ${aS.avgShotsOn !== null ? aS.avgShotsOn : "N/A"} | Avg total shots: ${aS.avgShotsTotal !== null ? aS.avgShotsTotal : "N/A"}
-BTTS: ${aS.btts}/5 | Over 2.5: ${aS.over25}/5 | Clean Sheets: ${aS.cleanSheets}/5
-${injuryBlock(awayTeam.name, awayInjuries)}
-KEY PLAYERS: ${playersBlock(awayPlayers)}
-
-════ HEAD TO HEAD ════
-${h2hBlock()}
-
-════ BOOKMAKER ODDS ════
-${oddsBlock()}
-
-════ CALCULATED EDGES (Poisson vs Market) ════
-${edges.length>0 ? edges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% ImpliedOdds=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% Odds=${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE BET":"no value"}`).join("\n") : "No odds loaded - no edges available"}
-IMPORTANT: Only recommend bets where Edge > 0. If no positive edges, explicitly state there is no value in this match.
-
-════ POISSON MODEL — STATISTICAL PROBABILITIES ════
-${poissonResult ? `Expected xG: ${homeTeam.name}=${poissonResult.xgHome} | ${awayTeam.name}=${poissonResult.xgAway}
-Attack strength: ${homeTeam.name}=${poissonResult.homeAttack}x | ${awayTeam.name}=${poissonResult.awayAttack}x (1x = league average)
-Defense strength: ${homeTeam.name}=${poissonResult.homeDefense}x | ${awayTeam.name}=${poissonResult.awayDefense}x
-Poisson probabilities: Home=${poissonResult.pHome}% | Draw=${poissonResult.pDraw}% | Away=${poissonResult.pAway}%
-BTTS statistical=${poissonResult.pBTTS}% | Over 2.5=${poissonResult.pOver25}% | Over 3.5=${poissonResult.pOver35}%
-Most likely scores: ${poissonResult.topScores.map(s=>s.score+"("+s.prob+"%)").join(" | ")}
-IMPORTANT: Compare these Poisson probabilities vs implied odds probabilities to detect value bets.` : "Poisson model not available"}
-
-════ REASONING INSTRUCTIONS ════
-STEP 1 — Analyze ${homeTeam.name} at home: form consistency, key scorers available, defensive solidity.
-STEP 2 — Analyze ${awayTeam.name} away: away performance, key injuries, form trend.
-STEP 3 — H2H: historical dominance, goals trend, confirmation vs current form.
-STEP 4 — Odds analysis using Poisson: convert odds to implied probability, compare with Poisson, detect value.
-STEP 5 — Find imbalances: level difference, injuries impact, corners/cards consistency.
-STEP 6 — Value bets: if 1X2 is too close (<10% diff), mark as low value. Confidence 70%+ requires 3+ aligned factors.
-STEP 7 — Generate final JSON.
-
-════ CONFIDENCE RULES (VERY IMPORTANT) ════
-Soccer is the most unpredictable sport. Markets are efficient. Be conservative:
-- NEVER use confidence > 78%
-- 70-75%: 3-4 aligned factors, no key injuries, very consistent form
-- 60-69%: 2-3 factors aligned, some uncertainty → bet with caution
-- 52-59%: mixed data → low value, alternative markets
-- <52%: too much uncertainty → mark as "PASS"
-- Corners and cards markets: MAX 65% — high variance
-- 1X2 in balanced matches: MAX 62%
-
-Respond ONLY with valid JSON, no extra text or markdown backticks:
-{"resumen":"Detailed 3-4 sentence analysis explaining main reasoning and why these picks were chosen","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Why there is value here vs the market"},"apuestasDestacadas":[{"tipo":"Result","pick":"...","odds_sugerido":"1.80","confianza":63,"factores":["factor1","factor2"]},{"tipo":"Total Goals","pick":"Over/Under 2.5","odds_sugerido":"1.90","confianza":61,"factores":["..."]},{"tipo":"BTTS","pick":"Yes/No","odds_sugerido":"1.75","confianza":59,"factores":["..."]},{"tipo":"Corners","pick":"Over/Under 9.5","odds_sugerido":"1.85","confianza":55,"factores":["..."]},{"tipo":"Cards","pick":"Over/Under 3.5","odds_sugerido":"1.80","confianza":54,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":64,"razonamiento":"Detailed explanation of why"}],"alertas":["Concrete alert based on real data"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"MEDIUM/LOW","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Scorer/Assist","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]},"h2hResumen":{"dominador":"...","tendenciaGoles":"over/under","bttsH2H":true,"alertaH2H":"..."},"momiosAnalisis":{"valueBetsDetectados":[{"mercado":"...","cuotaReal":"1.90","probImplicita":"52%","probCalculada":"62%","valorEdge":"10%"}],"erroresLinea":[{"descripcion":"...","mercado1":"...","mercado2":"...","contradiccion":"..."}],"recomendacionMomios":"..."},"tendenciasDetectadas":["Concrete trend 1 based on data","Concrete trend 2","Concrete trend 3"]}}` :
-    `Eres un tipster profesional con 15 años de experiencia y un ROI demostrado del 12% anual. Tu especialidad es encontrar VALUE BETS — apuestas donde la probabilidad real es mayor a la que implica la cuota del mercado. Nunca fuerzas una predicción cuando los datos son ambiguos: en esos casos recomiendas "PASO" en el resultado 1X2 y buscas valor en mercados secundarios.
+    const prompt = `Eres un tipster profesional con 15 años de experiencia y un ROI demostrado del 12% anual. Tu especialidad es encontrar VALUE BETS — apuestas donde la probabilidad real es mayor a la que implica la cuota del mercado. Nunca fuerzas una predicción cuando los datos son ambiguos: en esos casos recomiendas "PASO" en el resultado 1X2 y buscas valor en mercados secundarios.
 
 PARTIDO A ANALIZAR: ${homeTeam.name} vs ${awayTeam.name} · Liga: ${league?.name} · Temporada ${SEASON}
 FORMATO: ${isKnockout ? "⚠️ ELIMINATORIA (ida y vuelta) — El empate en 90 min puede ser VÁLIDO si favorece al marcador global. Analiza si algún equipo necesita marcar o puede defenderse. El gol de visitante puede tener peso extra. NO recomiendas resultado 1X2 como apuesta principal si el contexto de eliminatoria cambia el juego." : "Liga regular — resultado 1X2 estándar"}
@@ -1261,27 +1197,57 @@ Marcadores más probables: ${poissonResult.topScores.map(s=>s.score+"("+s.prob+"
 IMPORTANTE: Compara estas probabilidades Poisson vs las probabilidades implícitas en los momios para detectar value bets.` : "Modelo Poisson no disponible"}
 
 ════ INSTRUCCIONES DE RAZONAMIENTO ════
-PASO 1 — Analiza ${homeTeam.name} como local: forma, goleadores disponibles, solidez defensiva.
-PASO 2 — Analiza ${awayTeam.name} como visitante: rendimiento fuera, bajas, tendencia de forma.
-PASO 3 — H2H: dominancia histórica, tendencia de goles, confirmación vs forma actual.
-PASO 4 — Momios usando Poisson: convertir cuotas a prob implícita, comparar con Poisson, detectar value.
-PASO 5 — Desequilibrios: diferencia de nivel, impacto bajas, consistencia corners/tarjetas.
-PASO 6 — Value bets: si 1X2 muy parejo (<10% diff), marcar bajo valor. Confianza 70%+ requiere 3+ factores.
-PASO 7 — Genera JSON final.
+Antes de generar el JSON, razona internamente siguiendo ESTOS PASOS en orden:
+
+PASO 1 — Analiza ${homeTeam.name} como local:
+  · ¿Su forma como local es consistente o irregular?
+  · ¿Sus goleadores clave están disponibles?
+  · ¿Su defensa en casa es sólida (clean sheets, goles recibidos)?
+
+PASO 2 — Analiza ${awayTeam.name} como visitante:
+  · ¿Rinde bien fuera de casa o cae significativamente?
+  · ¿Tiene bajas importantes que afecten su ataque o defensa?
+  · ¿Su forma general es ascendente o descendente?
+
+PASO 3 — Analiza el H2H:
+  · ¿Qué equipo domina históricamente este duelo?
+  · ¿Cuál es la tendencia de goles en duelos directos (over/under, BTTS)?
+  · ¿El H2H confirma o contradice la forma actual de los equipos?
+
+PASO 4 — Analiza los momios usando el Modelo Poisson:
+  · Convierte cada cuota a probabilidad implícita (1/cuota)
+  · Compara con las probabilidades Poisson: si Poisson > prob_implícita → HAY VALUE BET
+  · Ejemplo: si Poisson dice Over 2.5 = 68% pero la cuota implica 55%, hay edge del 13%
+  · Detecta inconsistencias: si BTTS Over está a 1.50 pero Total Under 2.5 a 1.60, hay contradicción → error de línea
+  · Los marcadores más probables del Poisson te indican si apostar Over/Under y BTTS
+
+PASO 5 — Compara y encuentra desequilibrios:
+  · ¿Hay una diferencia clara de nivel entre ambos equipos?
+  · ¿Algún factor cambia el balance (bajas importantes, diferencia en tabla)?
+  · ¿Los datos de corners y tarjetas son consistentes para apostar en esos mercados?
+
+PASO 6 — Identifica value bets:
+  · Si el resultado 1X2 es muy parejo (menos de 10% de diferencia entre las 3 opciones), marca ese mercado como bajo valor y busca mercados alternativos.
+  · Solo asigna confianza 70%+ cuando AL MENOS 3 factores apuntan en la misma dirección.
+  · Confianza 75%+ solo si hay 4+ factores alineados Y no hay factores en contra.
+  · Si hay incertidumbre alta, baja la confianza honestamente aunque la pick sea válida.
+
+PASO 7 — Genera el JSON final con tus conclusiones.
 
 ════ REGLAS DE CONFIANZA (MUY IMPORTANTE) ════
 El fútbol es el deporte más impredecible. Los mercados son eficientes. Sé conservador:
-- NUNCA uses confianza > 78%
-- 70-75%: 3-4 factores alineados, sin bajas clave, forma muy consistente
+- NUNCA uses confianza > 78% — ningún modelo serio lo justifica en fútbol
+- NUNCA uses confianza > 75% salvo que el edge sea clarísimo y todos los datos sean contundentes
+- 70-75%: 3-4 factores alineados, sin bajas clave, forma muy consistente → apuesta recomendada
 - 60-69%: 2-3 factores alineados, alguna incertidumbre → apostar con precaución
-- 52-59%: datos mixtos → valor bajo, mercados alternativos
-- <52%: demasiada incertidumbre → marcar como "PASO"
-- Corners y tarjetas: MÁXIMO 65%
-- 1X2 en partidos parejos: MÁXIMO 62%
+- 52-59%: datos mixtos, partido equilibrado → valor bajo, mercados alternativos
+- <52%: demasiada incertidumbre → marcar como "PASO" en ese mercado
+- Mercados de corners y tarjetas: MÁXIMO 65% — alta varianza
+- Resultado 1X2 en partidos parejos: MÁXIMO 62%
+- El mercado ya descuenta al favorito — que alguien sea favorito NO justifica confianza alta
 
 Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 {"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":63,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":61,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":59,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":55,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":54,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":64,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]},"h2hResumen":{"dominador":"...","tendenciaGoles":"over/under","bttsH2H":true,"alertaH2H":"..."},"momiosAnalisis":{"valueBetsDetectados":[{"mercado":"...","cuotaReal":"1.90","probImplicita":"52%","probCalculada":"62%","valorEdge":"10%"}],"erroresLinea":[{"descripcion":"...","mercado1":"...","mercado2":"...","contradiccion":"..."}],"recomendacionMomios":"..."},"tendenciasDetectadas":["Tendencia concreta 1 basada en datos","Tendencia concreta 2","Tendencia concreta 3"]}}`;
-
 
     try {
       const res = await fetch("/api/predict", {
@@ -2973,10 +2939,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
       {/* NBA inline section */}
       {activeSport === "nba" && (
-        <NBAPanel onClose={()=>setActiveSport(null)} inline={true} />
+        <NBAPanel onClose={()=>setActiveSport(null)} inline={true} lang={lang} />
       )}
       {activeSport === "mlb" && (
-        <MLBPanel onClose={()=>setActiveSport(null)} inline={true} />
+        <MLBPanel onClose={()=>setActiveSport(null)} inline={true} lang={lang} />
       )}
       {activeSport === "nfl" && (
         <div style={{maxWidth:700,margin:"60px auto",padding:"40px 24px",textAlign:"center"}}>

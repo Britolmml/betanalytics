@@ -128,7 +128,7 @@ function StatBar({ label, value, max, color = "#fb923c" }) {
   );
 }
 
-export default function MLBPanel({ inline }) {
+export default function MLBPanel({ inline, lang = "es" }) {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -257,7 +257,33 @@ export default function MLBPanel({ inline }) {
     const oddsInfo = odds ? `Momios (${odds.bookmaker}): ${odds.h2h?.outcomes?.map(o=>`${o.name} ${o.price?.toFixed(2)}`).join(" | ")} | Total línea: ${odds.totals?.outcomes?.find(o=>o.name==="Over")?.point}` : "";
     const valueBets = edges.filter(e=>e.hasValue).map(e=>`${e.market} ${e.pick}: nuestra prob ${e.ourProb}% vs implícita ${e.implied}% (edge +${e.edge}%)`).join(", ");
 
-    const prompt = `Eres un analista experto en béisbol MLB con especialidad en apuestas deportivas y value bets.
+    const isEN = lang === "en";
+    const prompt = isEN ? `You are an expert MLB baseball analyst specializing in sports betting and value bets.
+
+GAME: ${home} vs ${away} — MLB Spring Training ${new Date(selectedGame.date).toLocaleDateString("en-US")}
+
+${home} (HOME) — Spring Training ${MLB_SEASON}:
+- Runs/game: ${hS?.avgRuns || "N/A"} | Allowed/game: ${hS?.avgRunsAgainst || "N/A"}
+- Record: ${hS?.wins || 0}W/${(hS?.games||0)-(hS?.wins||0)}L | Recent form: ${hS?.results || "N/A"}
+
+${away} (AWAY) — Spring Training ${MLB_SEASON}:
+- Runs/game: ${aS?.avgRuns || "N/A"} | Allowed/game: ${aS?.avgRunsAgainst || "N/A"}
+- Record: ${aS?.wins || 0}W/${(aS?.games||0)-(aS?.wins||0)}L | Recent form: ${aS?.results || "N/A"}
+
+${poissonInfo}
+${oddsInfo}
+${valueBets ? "DETECTED VALUE BETS: " + valueBets : ""}
+
+RULES:
+- Spring Training: MAX confidence 62% — pitcher rotations, experimental lineups
+- Run Line (-1.5) analyzes if favorite can win by 2+
+- Normal MLB total: 8-9 runs, Spring Training usually similar
+- If value bets detected, explain them in the analysis
+- First 5 innings (F5) is a popular baseball market
+
+Respond ONLY with valid JSON, no markdown:
+{"resumen":"Detailed 3-4 sentence analysis","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","odds_sugerido":"1.90","confianza":57,"factores":["...","..."]},{"tipo":"Total Runs","pick":"Over/Under X.5","odds_sugerido":"1.90","confianza":54,"factores":["..."]},{"tipo":"Run Line","pick":"... -1.5 or ... +1.5","odds_sugerido":"2.10","confianza":50,"factores":["..."]},{"tipo":"F5 (First 5 Innings)","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":52,"factores":["..."]},{"tipo":"NRFI (No Run First Inning)","pick":"Yes/No","odds_sugerido":"1.80","confianza":51,"factores":["..."]},{"tipo":"Team Total Home","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":53,"factores":["..."]}],"valueBet":{"existe":false,"mercado":"","explicacion":""},"alertas":["Specific alert based on data"],"tendencias":{"carrerasEsperadas":"${poisson?.total || '8.5'}","favorito":"${home} or ${away}","nivelConfianza":"LOW/MEDIUM"}}` :
+    `Eres un analista experto en béisbol MLB con especialidad en apuestas deportivas y value bets.
 
 PARTIDO: ${home} vs ${away} — MLB Spring Training ${new Date(selectedGame.date).toLocaleDateString("es-MX")}
 
@@ -284,7 +310,7 @@ Responde SOLO con JSON válido sin markdown:
 {"resumen":"Análisis detallado de 3-4 oraciones","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","odds_sugerido":"1.90","confianza":57,"factores":["...","..."]},{"tipo":"Total Carreras","pick":"Más/Menos X.5","odds_sugerido":"1.90","confianza":54,"factores":["..."]},{"tipo":"Run Line","pick":"... -1.5 o ... +1.5","odds_sugerido":"2.10","confianza":50,"factores":["..."]},{"tipo":"F5 (Primeras 5 entradas)","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":52,"factores":["..."]},{"tipo":"NRFI (No Run First Inning)","pick":"Sí/No","odds_sugerido":"1.80","confianza":51,"factores":["..."]},{"tipo":"Team Total Local","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":53,"factores":["..."]}],"valueBet":{"existe":false,"mercado":"","explicacion":""},"alertas":["Alerta específica basada en datos"],"tendencias":{"carrerasEsperadas":"${poisson?.total || '8.5'}","favorito":"${home} o ${away}","nivelConfianza":"BAJO/MEDIO"}}`;
 
     try {
-      const res = await fetch("/api/predict", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt}) });
+      const res = await fetch("/api/predict", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt, lang}) });
       const data = await res.json();
       const raw = data.result || data.content?.[0]?.text || "";
       const clean = raw.replace(/```[\w]*\n?/g,"").replace(/```/g,"").trim();
