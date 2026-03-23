@@ -1625,7 +1625,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {view==="analysis" && (
             <button onClick={()=>{setView("setup");setAnalysis(null);}} style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 12px",color:"#7dd3e8",cursor:"pointer",fontSize:12}}>
-              ← Nuevo análisis
+              {lang==="en"?"← New analysis":"← Nuevo análisis"}
             </button>
           )}
 
@@ -2597,7 +2597,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
                 <button onClick={handleSavePrediction}
                   style={{background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.35)",borderRadius:8,padding:"7px 14px",color:"#60a5fa",cursor:"pointer",fontSize:12,fontWeight:700}}>
-                  💾 Guardar predicción
+                  💾 {lang==="en"?"Save prediction":"Guardar predicción"}
                 </button>
               </div>
             </div>
@@ -2995,11 +2995,11 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
               <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3,marginBottom:16}}>
                 <span style={{width:5,height:5,borderRadius:"50%",background:"#00d4ff",display:"inline-block"}}/>
-                ANÁLISIS EN TIEMPO REAL
+                {lang==="en" ? "REAL-TIME ANALYSIS" : "ANÁLISIS EN TIEMPO REAL"}
               </div>
               <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:82,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.88,marginBottom:16}}>BETANALYTICS</div>
               <div style={{display:"inline-block",background:"rgba(6,13,24,0.55)",backdropFilter:"blur(8px)",borderRadius:8,padding:"6px 18px",fontSize:11,color:"rgba(200,238,255,0.75)",letterSpacing:4,textTransform:"uppercase"}}>
-                ESTADÍSTICAS · PREDICCIONES IA · JORNADAS
+                {lang==="en" ? "STATISTICS · AI PREDICTIONS · SCHEDULES" : "ESTADÍSTICAS · PREDICCIONES IA · JORNADAS"}
               </div>
             </div>
           </div>
@@ -3019,9 +3019,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(34,197,94,0.8),rgba(0,212,255,0.4),transparent)"}}/>
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
                   <span style={{fontSize:40}}>⚽</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#4ade80",letterSpacing:4}}>FÚTBOL</div>
-                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>Ligas · Jornadas · IA</div>
-                  <div style={{marginTop:7,background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#4ade80",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#4ade80",letterSpacing:4}}>{lang==="en"?"SOCCER":"FÚTBOL"}</div>
+                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>{lang==="en"?"Leagues · Schedule · AI":"Ligas · Jornadas · IA"}</div>
+                  <div style={{marginTop:7,background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#4ade80",fontWeight:700,letterSpacing:1}}>{lang==="en"?"ENTER →":"ENTRAR →"}</div>
                 </div>
               </button>
 
@@ -3037,8 +3037,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
                   <span style={{fontSize:40}}>🏀</span>
                   <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#f87171",letterSpacing:4}}>NBA</div>
-                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>Partidos · Stats · Picks</div>
-                  <div style={{marginTop:7,background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#f87171",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
+                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>{lang==="en"?"Games · Stats · Picks":"Partidos · Stats · Picks"}</div>
+                  <div style={{marginTop:7,background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#f87171",fontWeight:700,letterSpacing:1}}>{lang==="en"?"ENTER →":"ENTRAR →"}</div>
                 </div>
               </button>
 
@@ -3054,8 +3054,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
                   <span style={{fontSize:40}}>⚾</span>
                   <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#fb923c",letterSpacing:4}}>MLB</div>
-                  <div style={{fontSize:11,color:"rgba(251,146,60,0.45)",letterSpacing:1}}>Partidos · Stats · Picks</div>
-                  <div style={{marginTop:7,background:"rgba(251,146,60,0.07)",border:"1px solid rgba(251,146,60,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#fb923c",fontWeight:700,letterSpacing:1}}>ENTRAR →</div>
+                  <div style={{fontSize:11,color:"rgba(251,146,60,0.45)",letterSpacing:1}}>{lang==="en"?"Games · Stats · Picks":"Partidos · Stats · Picks"}</div>
+                  <div style={{marginTop:7,background:"rgba(251,146,60,0.07)",border:"1px solid rgba(251,146,60,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#fb923c",fontWeight:700,letterSpacing:1}}>{lang==="en"?"ENTER →":"ENTRAR →"}</div>
                 </div>
               </button>
 
@@ -3071,8 +3071,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
                   <span style={{fontSize:40}}>🏈</span>
                   <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#00d4ff",letterSpacing:4}}>NFL</div>
-                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>Próximamente · Sep 2026</div>
-                  <div style={{marginTop:7,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#00d4ff",fontWeight:700,letterSpacing:1}}>¿QUÉ HAY? →</div>
+                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>{lang==="en"?"Coming Soon · Sep 2026":"Próximamente · Sep 2026"}</div>
+                  <div style={{marginTop:7,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#00d4ff",fontWeight:700,letterSpacing:1}}>{lang==="en"?"WHAT'S THERE? →":"¿QUÉ HAY? →"}</div>
                 </div>
               </button>
             </div>
@@ -3080,7 +3080,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div style={{width:3,height:20,background:"linear-gradient(#00d4ff,#22c55e)",borderRadius:2}}/>
-                  <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📰 Noticias del día</span>
+                  <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📰 {lang==="en"?"Today's News":"Noticias del día"}</span>
                 </div>
                 <button onClick={loadNews} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 14px",color:"rgba(0,212,255,0.6)",cursor:"pointer",fontSize:11,fontWeight:600}}>
                   {loadingNews ? "⏳ Cargando..." : "🔄 Actualizar"}
@@ -3275,7 +3275,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         <div style={{maxWidth:1060,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
           <div style={{fontSize:11,color:"#888",lineHeight:1.6}}>
-            BetAnalytics te ofrece análisis y predicciones basadas en datos para ayudarte a tomar mejores decisiones. Recuerda que ninguna predicción es 100% segura y siempre existe riesgo. Juega con responsabilidad, apuesta solo lo que puedas permitirte perder y asegúrate de cumplir con la normativa de tu país. Uso exclusivo para mayores de 18 años.
+            {lang==="en"
+              ? "BetAnalytics provides data-driven analysis and predictions to help you make better decisions. Remember that no prediction is 100% accurate and there is always risk involved. Gamble responsibly, only bet what you can afford to lose, and make sure to comply with the laws of your country. For users 18 and older only."
+              : "BetAnalytics te ofrece análisis y predicciones basadas en datos para ayudarte a tomar mejores decisiones. Recuerda que ninguna predicción es 100% segura y siempre existe riesgo. Juega con responsabilidad, apuesta solo lo que puedas permitirte perder y asegúrate de cumplir con la normativa de tu país. Uso exclusivo para mayores de 18 años."
+            }
           </div>
         </div>
       </div>
@@ -3287,28 +3290,28 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             onClick={e=>e.stopPropagation()}>
             <div style={{textAlign:"center",marginBottom:24}}>
               <div style={{fontSize:40,marginBottom:8}}>⚡</div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#c084fc",letterSpacing:3,marginBottom:6}}>PLANES BETANALYTICS</div>
-              <div style={{fontSize:13,color:"#555"}}>Elige el plan que mejor se adapte a ti</div>
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#c084fc",letterSpacing:3,marginBottom:6}}>{lang==="en"?"BETANALYTICS PLANS":"PLANES BETANALYTICS"}</div>
+              <div style={{fontSize:13,color:"#555"}}>{lang==="en"?"Choose the plan that fits you best":"Elige el plan que mejor se adapte a ti"}</div>
             </div>
 
             {/* Plan Free */}
             <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"16px 20px",marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <div style={{fontWeight:800,color:"#888",fontSize:15}}>🆓 FREE</div>
-                <div style={{fontSize:22,fontWeight:900,color:"#888"}}>$0<span style={{fontSize:12,color:"#444"}}>/mes</span></div>
+                <div style={{fontSize:22,fontWeight:900,color:"#888"}}>$0<span style={{fontSize:12,color:"#444"}}>{lang==="en"?"/mo":"/mes"}</span></div>
               </div>
-              <div style={{fontSize:11,color:"#444"}}>1 análisis/día · Todos los deportes · Historial básico</div>
+              <div style={{fontSize:11,color:"#444"}}>{lang==="en"?"1 analysis/day · All sports · Basic history":"1 análisis/día · Todos los deportes · Historial básico"}</div>
             </div>
 
             {/* Plan Pro */}
             <div style={{background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:14,padding:"16px 20px",marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <div style={{fontWeight:800,color:"#e2f4ff",fontSize:15}}>⚡ PRO</div>
-                <div style={{fontSize:22,fontWeight:900,color:"#00d4ff"}}>$9<span style={{fontSize:12,color:"#555"}}>/mes</span></div>
+                <div style={{fontSize:22,fontWeight:900,color:"#00d4ff"}}>$9<span style={{fontSize:12,color:"#555"}}>{lang==="en"?"/mo":"/mes"}</span></div>
               </div>
-              <div style={{fontSize:11,color:"#555",marginBottom:12}}>10 análisis/día · Todos los deportes · Historial completo</div>
+              <div style={{fontSize:11,color:"#555",marginBottom:12}}>{lang==="en"?"10 analyses/day · All sports · Full history":"10 análisis/día · Todos los deportes · Historial completo"}</div>
               {usageInfo?.plan === "pro" ? (
-                <div style={{textAlign:"center",padding:"8px",borderRadius:8,background:"rgba(0,212,255,0.1)",color:"#00d4ff",fontSize:12,fontWeight:700}}>✅ Tu plan actual</div>
+                <div style={{textAlign:"center",padding:"8px",borderRadius:8,background:"rgba(0,212,255,0.1)",color:"#00d4ff",fontSize:12,fontWeight:700}}>✅ {lang==="en"?"Your current plan":"Tu plan actual"}</div>
               ) : (
                 <button onClick={async () => {
                   try {
@@ -3317,21 +3320,21 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     if (d.url) window.location.href = d.url;
                   } catch(e) { alert('Error al procesar pago'); }
                 }} style={{width:"100%",padding:"9px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer"}}>
-                  💳 SUSCRIBIRSE — $9/MES
+                  💳 {lang==="en"?"SUBSCRIBE — $9/MO":"SUSCRIBIRSE — $9/MES"}
                 </button>
               )}
             </div>
 
             {/* Plan Elite */}
             <div style={{background:"rgba(168,85,247,0.05)",border:"1px solid rgba(168,85,247,0.3)",borderRadius:14,padding:"16px 20px",marginBottom:20,position:"relative"}}>
-              <div style={{position:"absolute",top:-10,right:16,background:"linear-gradient(135deg,#a855f7,#7c3aed)",borderRadius:20,padding:"2px 10px",fontSize:10,color:"#fff",fontWeight:700}}>MÁS POPULAR</div>
+              <div style={{position:"absolute",top:-10,right:16,background:"linear-gradient(135deg,#a855f7,#7c3aed)",borderRadius:20,padding:"2px 10px",fontSize:10,color:"#fff",fontWeight:700}}>{lang==="en"?"MOST POPULAR":"MÁS POPULAR"}</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <div style={{fontWeight:800,color:"#e2f4ff",fontSize:15}}>👑 ELITE</div>
-                <div style={{fontSize:22,fontWeight:900,color:"#a855f7"}}>$29<span style={{fontSize:12,color:"#555"}}>/mes</span></div>
+                <div style={{fontSize:22,fontWeight:900,color:"#a855f7"}}>$29<span style={{fontSize:12,color:"#555"}}>{lang==="en"?"/mo":"/mes"}</span></div>
               </div>
-              <div style={{fontSize:11,color:"#555",marginBottom:12}}>Análisis ilimitados · Todos los deportes · Historial completo</div>
+              <div style={{fontSize:11,color:"#555",marginBottom:12}}>{lang==="en"?"Unlimited analyses · All sports · Full history":"Análisis ilimitados · Todos los deportes · Historial completo"}</div>
               {usageInfo?.plan === "elite" ? (
-                <div style={{textAlign:"center",padding:"8px",borderRadius:8,background:"rgba(168,85,247,0.1)",color:"#a855f7",fontSize:12,fontWeight:700}}>✅ Tu plan actual</div>
+                <div style={{textAlign:"center",padding:"8px",borderRadius:8,background:"rgba(168,85,247,0.1)",color:"#a855f7",fontSize:12,fontWeight:700}}>✅ {lang==="en"?"Your current plan":"Tu plan actual"}</div>
               ) : (
                 <button onClick={async () => {
                   try {
@@ -3340,14 +3343,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     if (d.url) window.location.href = d.url;
                   } catch(e) { alert('Error al procesar pago'); }
                 }} style={{width:"100%",padding:"9px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#a855f7,#7c3aed)",color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer"}}>
-                  💳 SUSCRIBIRSE — $29/MES
+                  💳 {lang==="en"?"SUBSCRIBE — $29/MO":"SUSCRIBIRSE — $29/MES"}
                 </button>
               )}
             </div>
 
             <button onClick={()=>setShowPlans(false)}
               style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
-              Cerrar
+              {lang==="en"?"Close":"Cerrar"}
             </button>
           </div>
         </div>
@@ -3361,11 +3364,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:48,marginBottom:8}}>🚀</div>
             <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:30,color:"#00d4ff",letterSpacing:3,marginBottom:6}}>
-              ACTUALIZA TU PLAN
+              {lang==="en"?"UPGRADE YOUR PLAN":"ACTUALIZA TU PLAN"}
             </div>
             <div style={{fontSize:13,color:"#666",marginBottom:24,lineHeight:1.6}}>
-              Has usado tu análisis gratuito del día.<br/>
-              Elige un plan para seguir analizando.
+              {lang==="en"?"You've used your free daily analysis.\nChoose a plan to keep analyzing.":"Has usado tu análisis gratuito del día.\nElige un plan para seguir analizando."}
             </div>
 
             {/* Plan Pro */}
@@ -3421,10 +3423,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
             <button onClick={()=>setShowUpgrade(false)}
               style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
-              Continuar con plan gratuito
+              {lang==="en"?"Continue with free plan":"Continuar con plan gratuito"}
             </button>
             <div style={{marginTop:12,fontSize:10,color:"#333"}}>
-              {usageInfo?.used}/{usageInfo?.limit} análisis usados hoy · Reinicia a medianoche
+              {usageInfo?.used}/{usageInfo?.limit} {lang==="en"?"analyses used today · Resets at midnight":"análisis usados hoy · Reinicia a medianoche"}
             </div>
           </div>
         </div>
@@ -3439,41 +3441,41 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <>
                 <div style={{fontSize:64,marginBottom:12}}>🎉</div>
                 <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#4ade80",letterSpacing:3,marginBottom:8}}>
-                  ¡PAGO EXITOSO!
+                  {lang==="en"?"PAYMENT SUCCESSFUL!":"¡PAGO EXITOSO!"}
                 </div>
                 <div style={{fontSize:14,color:"#888",marginBottom:24,lineHeight:1.7}}>
-                  Tu suscripción ha sido activada.<br/>
-                  Ya puedes disfrutar de todos los beneficios de tu plan.
+                  {lang==="en"?"Your subscription has been activated.":"Tu suscripción ha sido activada."}<br/>
+                  {lang==="en"?"You can now enjoy all the benefits of your plan.":"Ya puedes disfrutar de todos los beneficios de tu plan."}
                 </div>
                 <div style={{background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:12,padding:"16px",marginBottom:24}}>
-                  <div style={{fontSize:12,color:"#4ade80",fontWeight:700,marginBottom:4}}>✅ Plan activado</div>
-                  <div style={{fontSize:11,color:"#555"}}>Tu plan se actualizó automáticamente. Si no ves los cambios, recarga la página.</div>
+                  <div style={{fontSize:12,color:"#4ade80",fontWeight:700,marginBottom:4}}>✅ {lang==="en"?"Plan activated":"Plan activado"}</div>
+                  <div style={{fontSize:11,color:"#555"}}>{lang==="en"?"Your plan was updated automatically. If you don't see changes, reload the page.":"Tu plan se actualizó automáticamente. Si no ves los cambios, recarga la página."}</div>
                 </div>
                 <button
                   onClick={() => { setPaymentStatus(null); window.location.reload(); }}
                   style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
-                  EMPEZAR A ANALIZAR 🚀
+                  {lang==="en"?"START ANALYZING 🚀":"EMPEZAR A ANALIZAR 🚀"}
                 </button>
               </>
             ) : (
               <>
                 <div style={{fontSize:64,marginBottom:12}}>😕</div>
                 <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:32,color:"#ef4444",letterSpacing:3,marginBottom:8}}>
-                  PAGO CANCELADO
+                  {lang==="en"?"PAYMENT CANCELLED":"PAGO CANCELADO"}
                 </div>
                 <div style={{fontSize:14,color:"#888",marginBottom:24,lineHeight:1.7}}>
-                  No se realizó ningún cargo.<br/>
-                  Puedes intentarlo de nuevo cuando quieras.
+                  {lang==="en"?"No charge was made.":"No se realizó ningún cargo."}<br/>
+                  {lang==="en"?"You can try again whenever you want.":"Puedes intentarlo de nuevo cuando quieras."}
                 </div>
                 <button
                   onClick={() => { setPaymentStatus(null); setShowPlans(true); }}
                   style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",marginBottom:10}}>
-                  VER PLANES
+                  {lang==="en"?"VIEW PLANS":"VER PLANES"}
                 </button>
                 <button
                   onClick={() => setPaymentStatus(null)}
                   style={{width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"#555",fontSize:12,cursor:"pointer"}}>
-                  Continuar gratis
+                  {lang==="en"?"Continue for free":"Continuar gratis"}
                 </button>
               </>
             )}
