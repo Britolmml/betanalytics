@@ -2,32 +2,37 @@
 // Llama a Claude API desde el servidor (evita CORS)
 
 // ── FALLBACK: respuesta cuando no hay créditos ─────────────
-function buildFallback(prompt) {
-  // Intentar extraer equipos del prompt para personalizar el fallback
-  const homeMatch = prompt.match(/Local[:\s]+([^\n|,]+)/i) || prompt.match(/equipo local[:\s]+([^\n|,]+)/i);
-  const awayMatch = prompt.match(/Visitante[:\s]+([^\n|,]+)/i) || prompt.match(/equipo visitante[:\s]+([^\n|,]+)/i);
-  const home = homeMatch?.[1]?.trim() || "Local";
-  const away = awayMatch?.[1]?.trim() || "Visitante";
-
+function buildFallback(lang) {
+  const isEN = lang === "en";
   return JSON.stringify({
     prediccionMarcador: "1-1",
     probabilidades: { local: 38, empate: 28, visitante: 34 },
-    resumen: `Análisis no disponible temporalmente. El servicio de IA está en mantenimiento. Vuelve a intentarlo en unos minutos.`,
+    resumen: isEN
+      ? "Analysis temporarily unavailable. The AI service is under maintenance. Please try again in a few minutes."
+      : "Análisis no disponible temporalmente. El servicio de IA está en mantenimiento. Vuelve a intentarlo en unos minutos.",
     apuestasDestacadas: [
       {
-        tipo: "Total Goles",
-        pick: "Más de 1.5",
+        tipo: isEN ? "Total Goals" : "Total Goles",
+        pick: isEN ? "Over 1.5" : "Más de 1.5",
         confianza: 62,
         odds_sugerido: 1.45,
-        razon: "Análisis estadístico básico — IA temporalmente no disponible",
+        razon: isEN ? "Basic statistical analysis — AI temporarily unavailable" : "Análisis estadístico básico — IA temporalmente no disponible",
         hasValue: false,
       }
     ],
-    btts: { prob: 45, pick: "Sí", confianza: 52 },
-    corners: { total: 9, pick: "Más de 8.5", confianza: 55 },
+    btts: { prob: 45, pick: isEN ? "Yes" : "Sí", confianza: 52 },
+    corners: { total: 9, pick: isEN ? "Over 8.5" : "Más de 8.5", confianza: 55 },
     _fallback: true,
-    _fallbackMsg: "⚠️ IA temporalmente no disponible. Mostrando análisis básico.",
+    _fallbackMsg: isEN ? "⚠️ AI temporarily unavailable. Showing basic analysis." : "⚠️ IA temporalmente no disponible. Mostrando análisis básico.",
   });
+}
+
+// ── Instrucción de idioma para Claude ──────────────────────
+function getLangInstruction(lang) {
+  if (lang === "en") {
+    return `IMPORTANT: You must respond ENTIRELY in English. All text in the JSON response (resumen, picks, factores, alertas, razonamiento, descriptions, etc.) must be in English. Do not use Spanish anywhere in your response.\n\n`;
+  }
+  return `IMPORTANTE: Responde COMPLETAMENTE en español. Todo el texto del JSON (resumen, picks, factores, alertas, razonamiento, descripciones, etc.) debe estar en español.\n\n`;
 }
 
 export default async function handler(req, res) {
@@ -42,8 +47,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "ANTHROPIC_API_KEY no está configurada en Vercel" });
   }
 
-  const { prompt } = req.body;
+  const { prompt, lang } = req.body;
   if (!prompt) return res.status(400).json({ error: "Falta el campo prompt" });
+
+  const fullPrompt = getLangInstruction(lang) + prompt;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -56,13 +63,12 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 6000,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: fullPrompt }],
       }),
     });
 
     const data = await response.json();
 
-    // ── Detectar errores de créditos / billing ──────────────
     if (data.error) {
       const msg = data.error.message || "";
       const isCredits =
@@ -73,8 +79,7 @@ export default async function handler(req, res) {
         data.error.type === "overloaded_error";
 
       if (isCredits) {
-        // Devolver fallback silencioso al frontend
-        return res.status(200).json({ result: buildFallback(prompt), _fallback: true });
+        return res.status(200).json({ result: buildFallback(lang), _fallback: true });
       }
 
       return res.status(400).json({ error: msg });
@@ -89,8 +94,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ result: text });
 
   } catch (e) {
-    // Error de red u otro — devolver fallback en lugar de romper la app
     console.error("predict.js error:", e.message);
-    return res.status(200).json({ result: buildFallback(prompt), _fallback: true });
+    return res.status(200).json({ result: buildFallback(lang), _fallback: true });
   }
 }

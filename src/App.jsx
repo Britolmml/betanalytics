@@ -1253,7 +1253,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, lang }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
