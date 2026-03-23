@@ -2577,7 +2577,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               )}
 
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:16}}>
-                <div style={{fontSize:10,color:"#444",marginTop:4,padding:"6px 10px",background:"rgba(239,68,68,0.05)",border:"1px solid rgba(239,68,68,0.1)",borderRadius:6}}>⚠️ Análisis orientativo con fines informativos. No garantiza resultados. Apuesta con responsabilidad y solo lo que puedas perder.</div>
+
                 <button onClick={handleSavePrediction}
                   style={{background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.35)",borderRadius:8,padding:"7px 14px",color:"#60a5fa",cursor:"pointer",fontSize:12,fontWeight:700}}>
                   💾 Guardar predicción
