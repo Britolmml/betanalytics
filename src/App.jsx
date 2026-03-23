@@ -1,6 +1,7 @@
 import NBAPanel from "./NBAPanel";
 import MLBPanel from "./MLBPanel";
 import HistorialPanel from "./HistorialPanel";
+import AuthModal from "./AuthModal";
 import { useState, useCallback, useEffect } from "react";
 import { supabase, savePrediction, saveAllPicks, saveBestPick, getPredictions, updateResult, autoResolveFootball, checkUsageLimit, incrementUsage } from "./supabase";
 
@@ -2589,30 +2590,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
       {/* Modal: Auth */}
       {showAuth && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowAuth(false)}>
-          <div style={{...C.card,width:340,padding:28}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,marginBottom:4,color:"#00d4ff"}}>
-              {authView==="login"?"🔐 Iniciar sesión":"📝 Crear cuenta"}
-            </div>
-            <div style={{fontSize:11,color:"#555",marginBottom:18}}>Para guardar y revisar tus predicciones</div>
-            <input placeholder="Email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)}
-              style={{...C.inp,marginBottom:10}} type="email"/>
-            <input placeholder="Contraseña" value={authPass} onChange={e=>setAuthPass(e.target.value)}
-              style={{...C.inp,marginBottom:14}} type="password"/>
-            {authErr && <div style={{fontSize:12,color:authErr.startsWith("✅")?"#00d4ff":"#ef4444",marginBottom:10}}>{authErr}</div>}
-            <button onClick={handleAuth} disabled={authLoading}
-              style={{width:"100%",background:"linear-gradient(135deg,#00d4ff,#059669)",border:"none",borderRadius:8,padding:"10px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,marginBottom:10}}>
-              {authLoading?"⏳ ...":authView==="login"?"Entrar":"Crear cuenta"}
-            </button>
-            <div style={{textAlign:"center",fontSize:12,color:"#555"}}>
-              {authView==="login"?(
-                <>¿Sin cuenta? <span style={{color:"#00d4ff",cursor:"pointer"}} onClick={()=>setAuthView("register")}>Regístrate</span></>
-              ):(
-                <>¿Ya tienes cuenta? <span style={{color:"#00d4ff",cursor:"pointer"}} onClick={()=>setAuthView("login")}>Entra</span></>
-              )}
-            </div>
-          </div>
-        </div>
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onAuth={(u) => { setUser(u); setShowAuth(false); }}
+        />
       )}
 
       
