@@ -213,7 +213,7 @@ function GameCard({ game, isSelected, onSelect }) {
         <TeamRow name={away?.name} code={away?.code} score={aScore} win={aWin} isDone={isDone} isLive={isLive} />
       </div>
       <div style={{ padding: "8px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", textAlign: "center", fontSize: 11, fontWeight: 700, color: isSelected ? "#f87171" : "#555" }}>
-        {isSelected ? "✓ Seleccionado — ver predicción abajo" : "🤖 Tap para predicción IA →"}
+        {isSelected ? (lang==="en"?"✓ Selected — see prediction below":"✓ Seleccionado — ver predicción abajo") : (lang==="en"?"🤖 Tap for AI prediction →":"🤖 Tap para predicción IA →")}
       </div>
     </div>
   );
@@ -1195,7 +1195,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                               </div>
                             </div>
                           ) : (
-                            <div style={{ textAlign: "center", color: "#555", fontSize: 12 }}>Sin datos</div>
+                            <div style={{ textAlign: "center", color: "#555", fontSize: 12 }}>{lang==="en"?"No data":"Sin datos"}</div>
                           )}
                         </div>
                       ))}
@@ -1206,9 +1206,9 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                       <div key={`injuries-${selectedGame.id}`} style={{ marginBottom: 14, background: safeInjuries.length > 0 ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.02)", border: `1px solid ${safeInjuries.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "10px 12px" }}>
                         <div style={{ fontSize: 10, color: safeInjuries.length > 0 ? "#f87171" : "#444", fontWeight: 700, letterSpacing: 1, marginBottom: safeInjuries.length > 0 ? 8 : 0, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
-                            🚑 BAJAS / LESIONES
+                            🚑 {lang==="en"?"INJURIES / OUT":"BAJAS / LESIONES"}
                             {loadingInjuries && <span style={{fontSize:9,color:"#555",fontWeight:400}}>— cargando...</span>}
-                            {!loadingInjuries && safeInjuries.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— Sin bajas reportadas</span>}
+                            {!loadingInjuries && safeInjuries.length === 0 && <span style={{fontWeight:400,color:"#555"}}>— {lang==="en"?"No injuries reported":"Sin bajas reportadas"}</span>}
                           </div>
                           {/* Botón actualizar bajas */}
                           {!loadingInjuries && selectedGame && (
@@ -1254,7 +1254,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     {/* Top jugadores */}
                     {(players.home.length > 0 || players.away.length > 0) && (
                       <div style={{ marginBottom: 14 }}>
-                        <div style={{ fontSize: 10, color: "#666", fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>👤 TOP JUGADORES</div>
+                        <div style={{ fontSize: 10, color: "#666", fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>👤 {lang==="en"?"TOP PLAYERS":"TOP JUGADORES"}</div>
                         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                           {[["home", selectedGame.teams?.home?.name], ["away", selectedGame.teams?.visitors?.name]].map(([side, name]) => (
                             <button key={side} onClick={() => setPlayerTab(side)} style={{ flex: 1, padding: "5px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: playerTab === side ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.04)", color: playerTab === side ? "#f87171" : "#555" }}>
@@ -1263,7 +1263,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           ))}
                         </div>
                         {loadingPlayers ? (
-                          <div style={{ fontSize: 11, color: "#555", textAlign: "center", padding: "8px" }}>Cargando jugadores...</div>
+                          <div style={{ fontSize: 11, color: "#555", textAlign: "center", padding: "8px" }}>{lang==="en"?"Loading players...":"Cargando jugadores..."}</div>
                         ) : (
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             {(players[playerTab] || []).map((p, i) => (
@@ -1284,7 +1284,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
                       {loadingOdds ? (
                         <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"6px 14px",color:"#f59e0b",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-                          ⏳ Cargando momios...
+                          ⏳ {lang==="en"?"Loading odds...":"Cargando momios..."}
                         </div>
                       ) : nbaOdds ? (
                         <div style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:8,padding:"6px 14px",color:"#00d4ff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -1294,14 +1294,14 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                         </div>
                       ) : (
                         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 14px",color:"#555",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-                          💹 Sin momios disponibles
-                          <button onClick={loadNBAOdds} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:10,padding:0,marginLeft:4}}>↻ reintentar</button>
+                          💹 {lang==="en"?"No odds available":"Sin momios disponibles"}
+                          <button onClick={loadNBAOdds} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:10,padding:0,marginLeft:4}}>↻ {lang==="en"?"retry":"reintentar"}</button>
                         </div>
                       )}
                     </div>
                     <div style={{display:"flex",gap:8}}>
                       <button onClick={runAI} disabled={loadingAI||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingInjuries)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingInjuries)?"not-allowed":"pointer"}}>
-                        {loadingInjuries?"⏳ Cargando bajas...":loadingAI?"⏳ ANALIZANDO...":"🤖 PREDICCIÓN IA"}
+                        {loadingInjuries?(lang==="en"?"⏳ Loading injuries...":"⏳ Cargando bajas..."):loadingAI?(lang==="en"?"⏳ ANALYZING...":"⏳ ANALIZANDO..."):(lang==="en"?"🤖 AI PREDICTION":"🤖 PREDICCIÓN IA")}
                       </button>
                     </div>
                   </div>
@@ -1309,14 +1309,14 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
                 {loadingAI && !preview && (
                   <div style={{ background: "rgba(13,17,23,0.4)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, textAlign: "center", color: "#f87171", fontSize: 13 }}>
-                    ⏳ Cargando estadísticas del partido...
+                    ⏳ {lang==="en"?"Loading game stats...":"Cargando estadísticas del partido..."}
                   </div>
                 )}
 
                 {(analysis || aiErr || (loadingAI && preview)) && (
                   <div style={{ background: "rgba(13,17,23,0.4)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 14, padding: 16, marginTop: 8 }}>
                     <div style={{ fontSize: 12, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>🤖 ANÁLISIS IA NBA</div>
-                    {loadingAI && <div style={{ textAlign: "center", padding: 24, color: "#f87171", fontSize: 13 }}>⚙️ Analizando partido...</div>}
+                    {loadingAI && <div style={{ textAlign: "center", padding: 24, color: "#f87171", fontSize: 13 }}>⚙️ {lang==="en"?"Analyzing game...":"Analizando partido..."}</div>}
                     {aiErr && <div style={{ color: "#ef4444", fontSize: 12 }}>{aiErr}</div>}
                     {analysis && (
                       <div>
@@ -1520,7 +1520,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                         {/* Tendencias */}
                         {(analysis.tendenciasDetectadas||[]).length > 0 && (
                           <div style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
-                            <div style={{ fontSize: 10, color: "#06b6d4", fontWeight: 700, marginBottom: 6 }}>📈 TENDENCIAS DETECTADAS</div>
+                            <div style={{ fontSize: 10, color: "#06b6d4", fontWeight: 700, marginBottom: 6 }}>📈 {lang==="en"?"DETECTED TRENDS":"TENDENCIAS DETECTADAS"}</div>
                             {analysis.tendenciasDetectadas.map((t,i)=>(
                               <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                                 <span style={{ color: "#06b6d4", flexShrink: 0 }}>→</span>
@@ -1571,7 +1571,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <span style={{fontSize:22}}>🎰</span>
                       <div>
-                        <div style={{fontSize:14,fontWeight:800,color:"#a78bfa",letterSpacing:1}}>PARLAY DE JORNADA — {megaParlay.length} PICKS</div>
+                        <div style={{fontSize:14,fontWeight:800,color:"#a78bfa",letterSpacing:1}}>{lang==="en"?"ROUND PARLAY":"PARLAY DE JORNADA"} — {megaParlay.length} PICKS</div>
                         <div style={{fontSize:10,color:"#666"}}>Mejores edges del día vs mercado</div>
                       </div>
                     </div>
@@ -1642,7 +1642,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             {[["east", "🔵 Conferencia Este"], ["west", "🔴 Conferencia Oeste"]].map(([conf, label]) => (
               <div key={conf} style={{ background: "rgba(13,17,23,0.4)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
                 <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>{label}</div>
-                {standings[conf].length === 0 && <div style={{ color: "#444", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos. Pulsa Actualizar.</div>}
+                {standings[conf].length === 0 && <div style={{ color: "#444", fontSize: 12, textAlign: "center", padding: 20 }}>{lang==="en"?"No data. Press Update.":"Sin datos. Pulsa Actualizar."}</div>}
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
                     <tr style={{ color: "#444" }}>
