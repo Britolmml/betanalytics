@@ -372,7 +372,7 @@ Responde SOLO con JSON válido sin markdown:
                         <img src={game.teams?.home?.logo} alt="" style={{ height:28, width:28, objectFit:"contain" }} onError={e=>e.target.style.display="none"}/>
                         <div>
                           <div style={{ fontSize:13, fontWeight:800, color:hWin?"#fb923c":"#e2f4ff" }}>{game.teams?.home?.name}</div>
-                          <div style={{ fontSize:10, color:"#444", marginTop:1 }}>Local</div>
+                          <div style={{ fontSize:10, color:"#444", marginTop:1 }}>{lang==="en"?"Home":"Local"}</div>
                         </div>
                       </div>
                       {/* Score */}
@@ -391,7 +391,7 @@ Responde SOLO con JSON válido sin markdown:
                       <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, justifyContent:"flex-end" }}>
                         <div style={{ textAlign:"right" }}>
                           <div style={{ fontSize:13, fontWeight:800, color:aWin?"#fb923c":"#888" }}>{game.teams?.away?.name}</div>
-                          <div style={{ fontSize:10, color:"#444", marginTop:1 }}>Visitante</div>
+                          <div style={{ fontSize:10, color:"#444", marginTop:1 }}>{lang==="en"?"Away":"Visitante"}</div>
                         </div>
                         <img src={game.teams?.away?.logo} alt="" style={{ height:28, width:28, objectFit:"contain" }} onError={e=>e.target.style.display="none"}/>
                       </div>
@@ -401,14 +401,14 @@ Responde SOLO con JSON válido sin markdown:
               })}
             </div>
             {!loading && !err && games.length===0 && (
-              <div style={{ color:"#4a7a8a", fontSize:12, textAlign:"center", padding:24 }}>⚾ No hay partidos para esta fecha</div>
+              <div style={{ color:"#4a7a8a", fontSize:12, textAlign:"center", padding:24 }}>⚾ {lang==="en"?"No games for this date":"No hay partidos para esta fecha"}</div>
             )}
           </div>
 
           {/* ── Panel derecho ── */}
           <div style={{ flex:1, minWidth:0 }}>
             {!selectedGame && !loading && (
-              <div style={{ color:"#4a7a8a", fontSize:13, textAlign:"center", padding:60 }}>⚾ Selecciona un partido para ver el análisis</div>
+              <div style={{ color:"#4a7a8a", fontSize:13, textAlign:"center", padding:60 }}>⚾ {lang==="en"?"Select a game to see the analysis":"Selecciona un partido para ver el análisis"}</div>
             )}
 
             {selectedGame && preview && (
@@ -437,13 +437,13 @@ Responde SOLO con JSON válido sin markdown:
                               <span>{stats.wins}V-{stats.games-stats.wins}D</span>
                             </div>
                           </>
-                        ) : <div style={{ color:"#555", fontSize:11 }}>Sin datos</div>}
+                        ) : <div style={{ color:"#555", fontSize:11 }}>{lang==="en"?"No data":"Sin datos"}</div>}
                       </div>
                     ))}
                   </div>
 
                   {/* Momios y edges */}
-                  {loadingOdds && <div style={{ fontSize:11, color:"#4a7a8a", marginBottom:10 }}>⏳ Cargando momios...</div>}
+                  {loadingOdds && <div style={{ fontSize:11, color:"#4a7a8a", marginBottom:10 }}>⏳ {lang==="en"?"Loading odds...":"Cargando momios..."}</div>}
                   {odds && (
                     <div style={{ marginBottom:12, padding:"10px 14px", background:"rgba(0,212,255,0.04)", border:"1px solid rgba(0,212,255,0.12)", borderRadius:10 }}>
                       <div style={{ fontSize:10, color:"#00d4ff", fontWeight:700, letterSpacing:1, marginBottom:8 }}>📈 MOMIOS — {odds.bookmaker}</div>
@@ -475,7 +475,7 @@ Responde SOLO con JSON válido sin markdown:
 
                   <button onClick={runAI} disabled={loadingAI}
                     style={{ width:"100%", padding:"11px", borderRadius:10, border:"none", background:loadingAI?"rgba(251,146,60,0.3)":"linear-gradient(90deg,#f97316,#ea580c)", color:"#fff", fontWeight:800, fontSize:13, cursor:loadingAI?"not-allowed":"pointer" }}>
-                    {loadingAI ? "⏳ ANALIZANDO..." : "🤖 PREDICCIÓN IA — MLB"}
+                    {loadingAI ? `⏳ ${lang==="en"?"ANALYZING...":"ANALIZANDO..."}` : `🤖 ${lang==="en"?"AI PREDICTION — MLB":"PREDICCIÓN IA — MLB"}`}
                   </button>
                   {aiErr && <div style={{ color:"#ef4444", fontSize:12, marginTop:8 }}>{aiErr}</div>}
                 </div>
@@ -502,7 +502,7 @@ Responde SOLO con JSON válido sin markdown:
                         </div>
                         {analysis.tendencias && (
                           <div style={{ fontSize:10, color:"#555", marginTop:6 }}>
-                            Carreras: {analysis.tendencias.carrerasEsperadas} | {analysis.tendencias.nivelConfianza}
+                            {lang==="en"?"Runs":"Carreras"}: {analysis.tendencias.carrerasEsperadas} | {analysis.tendencias.nivelConfianza}
                           </div>
                         )}
                       </div>
@@ -523,10 +523,10 @@ Responde SOLO con JSON válido sin markdown:
                         <div style={{ fontSize:10, color:"#fb923c", fontWeight:700, letterSpacing:1, marginBottom:8 }}>📊 MODELO POISSON</div>
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
                           {[
-                            {label:"xRuns Local", val:poisson.xRunsHome},
+                            {label:lang==="en"?"xRuns Home":"xRuns Local", val:poisson.xRunsHome},
                             {label:"xRuns Visit.", val:poisson.xRunsAway},
                             {label:"Total", val:poisson.total},
-                            {label:"P(Local)", val:`${poisson.pHome}%`},
+                            {label:lang==="en"?"P(Home)":"P(Local)", val:`${poisson.pHome}%`},
                             {label:"P(Visit.)", val:`${poisson.pAway}%`},
                           ].map(({label,val})=>(
                             <div key={label} style={{ background:"rgba(251,146,60,0.08)", border:"1px solid rgba(251,146,60,0.2)", borderRadius:8, padding:"4px 10px", fontSize:11 }}>
@@ -575,7 +575,7 @@ Responde SOLO con JSON válido sin markdown:
 
                     {analysis.alertas?.length>0 && (
                       <div style={{ marginTop:10, padding:"10px 12px", background:"rgba(245,158,11,0.06)", border:"1px solid rgba(245,158,11,0.15)", borderRadius:10 }}>
-                        <div style={{ fontSize:10, color:"#f59e0b", fontWeight:700, marginBottom:6 }}>⚠️ ALERTAS</div>
+                        <div style={{ fontSize:10, color:"#f59e0b", fontWeight:700, marginBottom:6 }}>⚠️ {lang==="en"?"ALERTS":"ALERTAS"}</div>
                         {analysis.alertas.map((a,i)=><div key={i} style={{ fontSize:11, color:"#cce8f4", marginBottom:3 }}>• {a}</div>)}
                       </div>
                     )}
