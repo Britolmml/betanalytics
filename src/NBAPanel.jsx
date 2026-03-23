@@ -173,7 +173,7 @@ const getNBALogo = (teamName) => {
   return abbr ? NBA_LOGO(abbr) : null;
 };
 
-function GameCard({ game, isSelected, onSelect }) {
+function GameCard({ game, isSelected, onSelect, lang = "es" }) {
   const home = game.teams?.home;
   const away = game.teams?.visitors;
   const hScore = game.scores?.home?.points;
@@ -1163,7 +1163,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12, marginBottom: 16 }}>
               {games.map((g, i) => (
-                <GameCard key={i} game={g} isSelected={selectedGame?.id === g.id} onSelect={selectGame} />
+                <GameCard key={i} game={g} isSelected={selectedGame?.id === g.id} onSelect={selectGame} lang={lang} />
               ))}
             </div>
 
