@@ -941,7 +941,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
   const generateMegaParlay = async () => {
     setLoadingMega(true);
     setMegaParlay([]);
-    setMegaProgress("Cargando partidos del día...");
+    setMegaProgress(lang==="en"?"Loading today's games...":"Cargando partidos del día...");
     const allPicks = [];
 
     try {
@@ -963,13 +963,13 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         seenIds.add(g.id); return true;
       });
       if (todayGames.length === 0) {
-        setMegaProgress("No hay partidos hoy.");
+        setMegaProgress(lang==="en"?"No games today.":"No hay partidos hoy.");
         setLoadingMega(false);
         return;
       }
 
       // Load all odds at once
-      setMegaProgress(`Cargando momios para ${todayGames.length} partidos...`);
+      setMegaProgress(lang==="en"?`Loading odds for ${todayGames.length} games...`:`Cargando momios para ${todayGames.length} partidos...`);
       let allOddsMap = {};
       try {
         const oddsRes = await fetch("/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us");
@@ -1064,7 +1064,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
       setMegaParlay(top20);
       setMegaProgress(top20.length > 0
         ? `✅ ${top20.length} picks con edge real encontradas`
-        : "⚠️ Sin edges significativos hoy — el mercado está bien calibrado"
+        : (lang==="en"?"⚠️ No significant edges today — market is well calibrated":"⚠️ Sin edges significativos hoy — el mercado está bien calibrado")
       );
     } catch(e) {
       setMegaProgress("Error: " + e.message);
@@ -1127,7 +1127,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             </button>
             {!inline && (
               <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", color: "#aaa", cursor: "pointer", fontSize: 11 }}>
-                ✕ Cerrar
+                ✕ {lang==="en"?"Close":"Cerrar"}
               </button>
             )}
           </div>
@@ -1135,7 +1135,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 4, marginBottom: 18, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 4 }}>
-          {[["games", "🏀 Partidos"], ["standings", "🏆 Tabla"], ["parlay", "🎰 Parlay"]].map(([t, l]) => {
+          {[["games", `🏀 ${lang==="en"?"Games":"Partidos"}`], ["standings", `🏆 ${lang==="en"?"Standings":"Tabla"}`], ["parlay", "🎰 Parlay"]].map(([t, l]) => {
             const active = tab === t;
             return (
               <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: active ? "rgba(239,68,68,0.2)" : "transparent", color: active ? "#f87171" : "#555", transition: "all 0.2s" }}>
@@ -1148,7 +1148,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         {loading && (
           <div style={{ textAlign: "center", padding: 40, color: "#f87171" }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🏀</div>
-            <div style={{ fontSize: 13 }}>Cargando datos NBA...</div>
+            <div style={{ fontSize: 13 }}>{lang==="en"?"Loading NBA data...":"Cargando datos NBA..."}</div>
           </div>
         )}
         {err && <div style={{ padding: 14, background: "rgba(239,68,68,0.1)", borderRadius: 8, color: "#f87171", fontSize: 12, marginBottom: 16 }}>{err}</div>}
@@ -1158,7 +1158,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           <div>
             {games.length === 0 && (
               <div style={{ textAlign: "center", padding: 40, color: "#555", fontSize: 13 }}>
-                No se encontraron partidos. Pulsa Actualizar.
+                {lang==="en"?"No games found. Press Update.":"No se encontraron partidos. Pulsa Actualizar."}
               </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12, marginBottom: 16 }}>
@@ -1172,7 +1172,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                 {preview && !loadingAI && (
                   <div style={{ background: "rgba(13,17,23,0.4)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
                     <div style={{ fontSize: 11, color: "#666", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>
-                      📊 VISTA PREVIA — {selectedGame.teams?.home?.name} vs {selectedGame.teams?.visitors?.name}
+                      📊 {lang==="en"?"PREVIEW":"VISTA PREVIA"} — {selectedGame.teams?.home?.name} vs {selectedGame.teams?.visitors?.name}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 14 }}>
                       {[
@@ -1183,15 +1183,15 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           <div style={{ fontSize: 13, fontWeight: 800, color: "#e8eaf0", marginBottom: 10 }}>{team}</div>
                           {stats ? (
                             <div>
-                              <StatsBar label="Puntos/partido" val={stats.avgPts} max={130} color="#f97316" />
-                              <StatsBar label="Puntos recibidos" val={stats.avgPtsCon} max={130} color="#ef4444" />
+                              <StatsBar label={lang==="en"?"Points/game":"Puntos/partido"} val={stats.avgPts} max={130} color="#f97316" />
+                              <StatsBar label={lang==="en"?"Points allowed":"Puntos recibidos"} val={stats.avgPtsCon} max={130} color="#ef4444" />
                               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11 }}>
-                                <span style={{ color: "#666" }}>Forma reciente</span>
-                                <span style={{ fontWeight: 700, color: "#10b981" }}>{stats.results || "N/D"}</span>
+                                <span style={{ color: "#666" }}>{lang==="en"?"Recent form":"Forma reciente"}</span>
+                                <span style={{ fontWeight: 700, color: "#10b981" }}>{stats.results || "N/A"}</span>
                               </div>
                               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-                                <span style={{ color: "#666" }}>Record últimos 5</span>
-                                <span style={{ fontWeight: 700, color: "#aaa" }}>{stats.wins}V / {(stats.games || 5) - stats.wins}D</span>
+                                <span style={{ color: "#666" }}>{lang==="en"?"Last 5 record":"Record últimos 5"}</span>
+                                <span style={{ fontWeight: 700, color: "#aaa" }}>{stats.wins}{lang==="en"?"W":"V"} / {(stats.games || 5) - stats.wins}{lang==="en"?"L":"D"}</span>
                               </div>
                             </div>
                           ) : (
@@ -1315,7 +1315,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
 
                 {(analysis || aiErr || (loadingAI && preview)) && (
                   <div style={{ background: "rgba(13,17,23,0.4)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 14, padding: 16, marginTop: 8 }}>
-                    <div style={{ fontSize: 12, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>🤖 ANÁLISIS IA NBA</div>
+                    <div style={{ fontSize: 12, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>🤖 {lang==="en"?"AI ANALYSIS NBA":"ANÁLISIS IA NBA"}</div>
                     {loadingAI && <div style={{ textAlign: "center", padding: 24, color: "#f87171", fontSize: 13 }}>⚙️ {lang==="en"?"Analyzing game...":"Analizando partido..."}</div>}
                     {aiErr && <div style={{ color: "#ef4444", fontSize: 12 }}>{aiErr}</div>}
                     {analysis && (
@@ -1335,15 +1335,15 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           return (
                             <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
                               <div style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                <span>💹 Momios referencia — {nbaOdds.bookmaker || "DraftKings"}</span>
-                                <span style={{fontSize:9,color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:4,padding:"2px 6px"}}>⚠️ Compara con tu casa antes de apostar</span>
+                                <span>💹 {lang==="en"?"Reference odds":"Momios referencia"} — {nbaOdds.bookmaker || "DraftKings"}</span>
+                                <span style={{fontSize:9,color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:4,padding:"2px 6px"}}>⚠️ {lang==="en"?"Compare with your sportsbook before betting":"Compara con tu casa antes de apostar"}</span>
                               </div>
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
                                 {[
-                                  {l:"LOCAL", name:selectedGame?.teams?.home?.name?.split(" ").pop(), v:homeO?.price},
-                                  {l:"VISITANTE", name:selectedGame?.teams?.visitors?.name?.split(" ").pop(), v:awayO?.price},
-                                  {l:"MAS " + (overO?.point ?? ""), name:"Over", v:overO?.price},
-                                  {l:"MENOS " + (underO?.point ?? ""), name:"Under", v:underO?.price},
+                                  {l:lang==="en"?"HOME":"LOCAL", name:selectedGame?.teams?.home?.name?.split(" ").pop(), v:homeO?.price},
+                                  {l:lang==="en"?"AWAY":"VISITANTE", name:selectedGame?.teams?.visitors?.name?.split(" ").pop(), v:awayO?.price},
+                                  {l:(lang==="en"?"OVER ":"MAS ") + (overO?.point ?? ""), name:"Over", v:overO?.price},
+                                  {l:(lang==="en"?"UNDER ":"MENOS ") + (underO?.point ?? ""), name:"Under", v:underO?.price},
                                 ].map(({l,name,v}) => {
                                   if (!v) return null;
                                   // Conversión decimal → americano correcta
@@ -1624,7 +1624,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
             })()}
 
             {/* Classic Parlay */}
-            <div style={{fontSize:10,color:"#444",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Parlay manual (partidos analizados)</div>
+            <div style={{fontSize:10,color:"#444",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>{lang==="en"?"Manual parlay (analyzed games)":"Parlay manual (partidos analizados)"}</div>
             <ParlayBox allAnalyses={allAnalyses} />
             {Object.keys(allAnalyses).length > 0 && (
               <div style={{ marginTop: 12, textAlign: "right" }}>
@@ -1639,7 +1639,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
         {/* Tab: Standings */}
         {tab === "standings" && !loading && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {[["east", "🔵 Conferencia Este"], ["west", "🔴 Conferencia Oeste"]].map(([conf, label]) => (
+            {[["east", lang==="en"?"🔵 Eastern Conference":"🔵 Conferencia Este"], ["west", lang==="en"?"🔴 Western Conference":"🔴 Conferencia Oeste"]].map(([conf, label]) => (
               <div key={conf} style={{ background: "rgba(13,17,23,0.4)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
                 <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, letterSpacing: 2, marginBottom: 12 }}>{label}</div>
                 {standings[conf].length === 0 && <div style={{ color: "#444", fontSize: 12, textAlign: "center", padding: 20 }}>{lang==="en"?"No data. Press Update.":"Sin datos. Pulsa Actualizar."}</div>}
@@ -1647,7 +1647,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                   <thead>
                     <tr style={{ color: "#444" }}>
                       <th style={{ textAlign: "left", paddingBottom: 6, fontWeight: 600 }}>#</th>
-                      <th style={{ textAlign: "left", paddingBottom: 6, fontWeight: 600 }}>Equipo</th>
+                      <th style={{ textAlign: "left", paddingBottom: 6, fontWeight: 600 }}>{lang==="en"?"Team":"Equipo"}</th>
                       <th style={{ textAlign: "center", paddingBottom: 6, fontWeight: 600 }}>W</th>
                       <th style={{ textAlign: "center", paddingBottom: 6, fontWeight: 600 }}>L</th>
                       <th style={{ textAlign: "center", paddingBottom: 6, fontWeight: 600 }}>%</th>
@@ -1755,7 +1755,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     const ss = v=>(v===null||v===undefined)?"":typeof v==="object"?JSON.stringify(v):String(v);
                     return (
                       <div style={{background:"linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08))",border:"1px solid rgba(139,92,246,0.4)",borderRadius:16,padding:20}}>
-                        <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 PREDICCIÓN FINAL CONSOLIDADA</div>
+                        <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>🏆 {lang==="en"?"FINAL CONSOLIDATED PREDICTION":"PREDICCIÓN FINAL CONSOLIDADA"}</div>
                         <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
                           <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:18,color:"#a78bfa"}}>{ss(c.marcadorEstimado||c.prediccionMarcador||"?")}</div>
                           {typeof c.consenso==="number" && <div style={{textAlign:"center"}}>
