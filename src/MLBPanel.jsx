@@ -74,6 +74,36 @@ function StatBar({ label, value, max, color="#fb923c" }) {
   );
 }
 
+function ApuestaCard({ a }) {
+  const color = a.confianza > 59 ? "#10b981" : a.confianza > 52 ? "#f59e0b" : "#ef4444";
+  return (
+    <div style={{background:"rgba(255,255,255,0.03)",border:`1px solid ${color}22`,borderRadius:10,padding:"10px 12px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+      <div style={{flex:1}}>
+        <div style={{fontSize:10,color:"#fb923c",fontWeight:700,marginBottom:2}}>{a.tipo}</div>
+        <div style={{fontSize:13,color:"#e8eaf0",fontWeight:700,marginBottom:4}}>{a.pick}</div>
+        {a.factores?.length>0&&<div style={{fontSize:10,color:"#555",marginBottom:4}}>{a.factores.join(" · ")}</div>}
+        {a.insight&&<div style={{fontSize:10,color:"#a78bfa",background:"rgba(167,139,250,0.08)",borderRadius:6,padding:"3px 8px"}}>💡 {a.insight}</div>}
+      </div>
+      <div style={{textAlign:"right",flexShrink:0}}>
+        <div style={{fontSize:18,fontWeight:900,color,lineHeight:1}}>{a.confianza}%</div>
+        {a.odds_sugerido&&<div style={{fontSize:10,color:"#555",marginTop:2}}>{a.odds_sugerido}</div>}
+      </div>
+    </div>
+  );
+}
+
+function ProbBar({ name, pct, color }) {
+  return (
+    <div style={{background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+      <div style={{fontSize:11,color:"#555",marginBottom:4}}>{name}</div>
+      <div style={{fontSize:28,fontWeight:900,color}}>{pct}%</div>
+      <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:6,overflow:"hidden"}}>
+        <div style={{width:String(pct)+"%",height:"100%",background:color}}/>
+      </div>
+    </div>
+  );
+}
+
 export default function MLBPanel({ inline, lang="es" }) {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -286,22 +316,16 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
                         {isSel&&<span style={{fontSize:9,color:"#fb923c",fontWeight:700}}>▼ {isEN?"SELECTED":"SELECCIONADO"}</span>}
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
-                          {game.teams?.home?.logo&&<img src={game.teams.home.logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
-                          <div>
-                            <div style={{fontSize:13,fontWeight:800,color:hS>aS?"#fb923c":"#e2f4ff"}}>{game.teams?.home?.name}</div>
-                            <div style={{fontSize:10,color:"#555"}}>{isEN?"Home":"Local"}</div>
-                          </div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:800,color:hS>aS?"#fb923c":"#e2f4ff"}}>{game.teams?.home?.name}</div>
+                          <div style={{fontSize:10,color:"#555"}}>{isEN?"Home":"Local"}</div>
                         </div>
                         <div style={{textAlign:"center",padding:"0 10px"}}>
                           {(isDone||isLive)?<div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#fb923c"}}>{hS??"-"} – {aS??"-"}</div>:<div style={{fontSize:12,color:"#555"}}>VS</div>}
                         </div>
-                        <div style={{flex:1,textAlign:"right",display:"flex",alignItems:"center",justifyContent:"flex-end",gap:8}}>
-                          <div>
-                            <div style={{fontSize:13,fontWeight:800,color:aS>hS?"#fb923c":"#888"}}>{game.teams?.away?.name}</div>
-                            <div style={{fontSize:10,color:"#555"}}>{isEN?"Away":"Visit."}</div>
-                          </div>
-                          {game.teams?.away?.logo&&<img src={game.teams.away.logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
+                        <div style={{flex:1,textAlign:"right"}}>
+                          <div style={{fontSize:13,fontWeight:800,color:aS>hS?"#fb923c":"#888"}}>{game.teams?.away?.name}</div>
+                          <div style={{fontSize:10,color:"#555"}}>{isEN?"Away":"Visit."}</div>
                         </div>
                       </div>
                     </div>
@@ -322,12 +346,9 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
 
                       {/* Stats grid */}
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:14}}>
-                        {[{team:selectedGame.teams?.home?.name,logo:selectedGame.teams?.home?.logo,stats:preview.home,color:"#fb923c"},{team:selectedGame.teams?.away?.name,logo:selectedGame.teams?.away?.logo,stats:preview.away,color:"#60a5fa"}].map(({team,logo,stats,color})=>(
+                        {[{team:selectedGame.teams?.home?.name,stats:preview.home,color:"#fb923c"},{team:selectedGame.teams?.away?.name,stats:preview.away,color:"#60a5fa"}].map(({team,stats,color})=>(
                           <div key={team}>
-                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                              {logo&&<img src={logo} alt="" style={{width:24,height:24,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
-                              <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0"}}>{team}</div>
-                            </div>
+                            <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0",marginBottom:10}}>{team}</div>
                             {stats?(
                               <>
                                 <StatBar label={isEN?"Runs/game":"Carreras/juego"} value={stats.avgRuns} max={12} color={color}/>
@@ -446,45 +467,142 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
                         </div>
                       )}
 
+                      {/* Resumen */}
                       <div style={{fontSize:13,color:"#cce8f4",lineHeight:1.7,marginBottom:14,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10}}>{analysis.resumen}</div>
 
-                      <div style={{display:"flex",gap:12,marginBottom:14}}>
-                        <div style={{flex:1,background:"rgba(251,146,60,0.08)",border:"1px solid rgba(251,146,60,0.2)",borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
-                          <div style={{fontSize:10,color:"#888",letterSpacing:1}}>{isEN?"PREDICTED SCORE":"MARCADOR ESTIMADO"}</div>
-                          <div style={{fontSize:24,fontWeight:900,color:"#fb923c"}}>{analysis.prediccionMarcador}</div>
-                        </div>
-                        <div style={{flex:1,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 14px"}}>
-                          <div style={{fontSize:10,color:"#888",letterSpacing:1,marginBottom:6}}>{isEN?"WIN PROBABILITY":"PROBABILIDADES"}</div>
-                          <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700}}>
-                            <span style={{color:"#fb923c"}}>{selectedGame?.teams?.home?.name?.split(" ").pop()} {analysis.probabilidades?.local}%</span>
-                            <span style={{color:"#60a5fa"}}>{selectedGame?.teams?.away?.name?.split(" ").pop()} {analysis.probabilidades?.visitante}%</span>
+                      {/* Odds referencia */}
+                      {odds&&(()=>{
+                        const h2hO=odds.h2h?.outcomes||[];
+                        const overO=odds.totals?.outcomes?.find(o=>o.name==="Over");
+                        const underO=odds.totals?.outcomes?.find(o=>o.name==="Under");
+                        return(
+                          <div style={{background:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:12}}>
+                            <div style={{fontSize:9,color:"#f59e0b",fontWeight:700,letterSpacing:1,marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <span>💹 {isEN?"Reference odds":"Momios referencia"} — {odds.bookmaker||"DraftKings"}</span>
+                              <span style={{fontSize:9,color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:4,padding:"2px 6px"}}>⚠️ {isEN?"Compare before betting":"Compara antes de apostar"}</span>
+                            </div>
+                            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                              {[
+                                {l:isEN?"HOME":"LOCAL",name:selectedGame?.teams?.home?.name?.split(" ").pop(),v:h2hO[0]?.price},
+                                {l:isEN?"AWAY":"VISIT.",name:selectedGame?.teams?.away?.name?.split(" ").pop(),v:h2hO[1]?.price},
+                                {l:`OVER ${overO?.point??""}`,name:"Over",v:overO?.price},
+                                {l:`UNDER ${underO?.point??""}`,name:"Under",v:underO?.price},
+                              ].map(({l,name,v})=>{
+                                if(!v)return null;
+                                const am=v>=2?"+"+Math.round((v-1)*100):"-"+Math.round(100/(v-1));
+                                return(
+                                  <div key={l} style={{textAlign:"center",padding:"8px 4px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                                    <div style={{fontSize:8,color:"#666",marginBottom:2,fontWeight:700}}>{l}</div>
+                                    <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#f59e0b",lineHeight:1}}>{am}</div>
+                                    <div style={{fontSize:9,color:"#555",marginTop:2}}>{name}</div>
+                                    <div style={{fontSize:8,color:"#444",marginTop:1}}>{v.toFixed(2)}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                          {analysis.tendencias&&<div style={{fontSize:10,color:"#555",marginTop:6}}>{isEN?"Runs":"Carreras"}: {analysis.tendencias.carrerasEsperadas} | {analysis.tendencias.nivelConfianza}</div>}
+                        );
+                      })()}
+
+                      {/* Poisson Model */}
+                      {poisson&&(
+                        <div style={{background:"rgba(251,146,60,0.06)",border:"1px solid rgba(251,146,60,0.2)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+                          <div style={{fontSize:9,color:"#fb923c",fontWeight:700,letterSpacing:1,marginBottom:10}}>🎲 {isEN?"Poisson Model — MLB":"Modelo Poisson — MLB"}</div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                            {[
+                              {name:selectedGame?.teams?.home?.name?.split(" ").pop(),xr:poisson.xRunsHome,c:"#fb923c"},
+                              {name:selectedGame?.teams?.away?.name?.split(" ").pop(),xr:poisson.xRunsAway,c:"#60a5fa"},
+                            ].map(({name,xr,c})=>(
+                              <div key={name} style={{background:"rgba(255,255,255,0.02)",borderRadius:8,padding:"8px 10px",border:`1px solid ${c}22`}}>
+                                <div style={{fontSize:11,color:c,fontWeight:700,marginBottom:6}}>{name}</div>
+                                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                                  <span style={{fontSize:10,color:"#666"}}>xRuns</span>
+                                  <span style={{fontSize:16,fontWeight:800,color:c}}>{xr}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                            {[
+                              {l:"Total",v:poisson.total,c:"#fb923c"},
+                              {l:isEN?"P(Home)":"P(Local)",v:`${poisson.pHome}%`,c:"#10b981"},
+                              {l:isEN?"P(Away)":"P(Visit.)",v:`${poisson.pAway}%`,c:"#60a5fa"},
+                            ].map(({l,v,c})=>(
+                              <div key={l} style={{textAlign:"center",padding:"6px 4px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                                <div style={{fontSize:8,color:"#555",marginBottom:2}}>{l}</div>
+                                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:c,lineHeight:1}}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {poisson.top5?.length>0&&(
+                            <div style={{marginTop:10}}>
+                              <div style={{fontSize:9,color:"#666",marginBottom:6}}>{isEN?"Most likely scores":"Marcadores más probables"}</div>
+                              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                                {poisson.top5.map((s,i)=>(
+                                  <div key={i} style={{background:i===0?"rgba(251,146,60,0.15)":"rgba(255,255,255,0.03)",border:`1px solid ${i===0?"rgba(251,146,60,0.4)":"rgba(255,255,255,0.06)"}`,borderRadius:6,padding:"3px 8px",textAlign:"center"}}>
+                                    <div style={{fontSize:12,fontWeight:700,color:i===0?"#fb923c":"#aaa"}}>{s.h}-{s.a}</div>
+                                    <div style={{fontSize:9,color:"#555"}}>{s.p}%</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      )}
+
+                      {/* Edges */}
+                      {edges.length>0&&(
+                        <div style={{marginBottom:12}}>
+                          <div style={{fontSize:9,color:"#10b981",fontWeight:700,letterSpacing:1,marginBottom:8}}>📊 {isEN?"EDGES DETECTED":"EDGES DETECTADOS"}</div>
+                          {edges.map((e,i)=>(
+                            <div key={i} style={{background:e.hasValue?"rgba(16,185,129,0.08)":"rgba(255,255,255,0.02)",border:`1px solid ${e.hasValue?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.06)"}`,borderRadius:8,padding:"8px 12px",marginBottom:6}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                  {e.hasValue&&<span style={{fontSize:10}}>⭐</span>}
+                                  <span style={{fontSize:11,color:e.hasValue?"#10b981":"#aaa",fontWeight:700}}>{e.label}</span>
+                                  <span style={{fontSize:10,color:"#555"}}>{e.american}</span>
+                                </div>
+                                <span style={{fontSize:12,fontWeight:800,color:e.edge>0?"#10b981":"#ef4444"}}>{e.edge>0?"+":""}{e.edge}%</span>
+                              </div>
+                              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
+                                {[
+                                  {l:"Poisson",v:e.ourProb+"%",c:"#fb923c"},
+                                  {l:"Implied",v:e.implied+"%",c:"#555"},
+                                  {l:"Edge",v:(e.edge>0?"+":"")+e.edge+"%",c:e.edge>0?"#10b981":"#ef4444"},
+                                ].map(({l,v,c})=>(
+                                  <div key={l} style={{background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"3px 6px",textAlign:"center"}}>
+                                    <div style={{fontSize:7,color:"#444"}}>{l}</div>
+                                    <div style={{fontSize:12,fontWeight:700,color:c}}>{v}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Probabilidades */}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                        <ProbBar name={selectedGame?.teams?.home?.name} pct={analysis.probabilidades?.local} color="#fb923c"/>
+                        <ProbBar name={selectedGame?.teams?.away?.name} pct={analysis.probabilidades?.visitante} color="#60a5fa"/>
                       </div>
 
+                      {/* Value Bet */}
                       {analysis.valueBet?.existe&&(
                         <div style={{marginBottom:12,padding:"10px 12px",background:"rgba(16,185,129,0.06)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:10}}>
-                          <div style={{fontSize:10,color:"#10b981",fontWeight:700,marginBottom:4}}>💰 VALUE BET — {analysis.valueBet.mercado} {analysis.valueBet.edge&&`(Edge: ${analysis.valueBet.edge})`}</div>
+                          <div style={{fontSize:10,color:"#10b981",fontWeight:700,marginBottom:4}}>💰 VALUE BET — {analysis.valueBet.mercado} {analysis.valueBet.edge&&`| Edge: ${analysis.valueBet.edge}`}</div>
                           <div style={{fontSize:12,color:"#cce8f4"}}>{analysis.valueBet.explicacion}</div>
                         </div>
                       )}
 
-                      {analysis.apuestasDestacadas?.map((a,i)=>(
-                        <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 14px",marginBottom:8}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                            <div>
-                              <span style={{fontSize:10,color:"#fb923c",fontWeight:700,letterSpacing:1}}>{a.tipo}</span>
-                              <span style={{fontSize:13,fontWeight:800,color:"#e2f4ff",marginLeft:8}}>{a.pick}</span>
-                              {a.odds_sugerido&&<span style={{fontSize:11,color:"#555",marginLeft:8}}>{a.odds_sugerido}</span>}
-                            </div>
-                            <span style={{background:`${confColor(a.confianza)}22`,color:confColor(a.confianza),border:`1px solid ${confColor(a.confianza)}44`,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>{a.confianza}%</span>
-                          </div>
-                          {a.factores?.length>0&&<div style={{fontSize:10,color:"#555",marginBottom:4}}>{a.factores.join(" · ")}</div>}
-                          {a.insight&&<div style={{fontSize:10,color:"#a78bfa",background:"rgba(167,139,250,0.08)",borderRadius:6,padding:"3px 8px"}}>💡 {a.insight}</div>}
-                        </div>
-                      ))}
+                      {/* Picks */}
+                      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+                        {(analysis.apuestasDestacadas||[]).map((a,i)=>(
+                          <ApuestaCard key={i} a={a}/>
+                        ))}
+                      </div>
 
+                      {/* Alertas */}
                       {analysis.alertas?.length>0&&(
                         <div style={{marginTop:10,padding:"10px 12px",background:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.15)",borderRadius:10}}>
                           <div style={{fontSize:10,color:"#f59e0b",fontWeight:700,marginBottom:6}}>⚠️ {isEN?"ALERTS":"ALERTAS"}</div>
