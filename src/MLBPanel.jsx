@@ -316,16 +316,22 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
                         {isSel&&<span style={{fontSize:9,color:"#fb923c",fontWeight:700}}>▼ {isEN?"SELECTED":"SELECCIONADO"}</span>}
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:13,fontWeight:800,color:hS>aS?"#fb923c":"#e2f4ff"}}>{game.teams?.home?.name}</div>
-                          <div style={{fontSize:10,color:"#555"}}>{isEN?"Home":"Local"}</div>
+                        <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+                          {game.teams?.home?.logo&&<img src={game.teams.home.logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
+                          <div>
+                            <div style={{fontSize:13,fontWeight:800,color:hS>aS?"#fb923c":"#e2f4ff"}}>{game.teams?.home?.name}</div>
+                            <div style={{fontSize:10,color:"#fb923c",fontWeight:700}}>{isEN?"HOME":"LOCAL"}</div>
+                          </div>
                         </div>
                         <div style={{textAlign:"center",padding:"0 10px"}}>
                           {(isDone||isLive)?<div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#fb923c"}}>{hS??"-"} – {aS??"-"}</div>:<div style={{fontSize:12,color:"#555"}}>VS</div>}
                         </div>
-                        <div style={{flex:1,textAlign:"right"}}>
-                          <div style={{fontSize:13,fontWeight:800,color:aS>hS?"#fb923c":"#888"}}>{game.teams?.away?.name}</div>
-                          <div style={{fontSize:10,color:"#555"}}>{isEN?"Away":"Visit."}</div>
+                        <div style={{flex:1,textAlign:"right",display:"flex",alignItems:"center",justifyContent:"flex-end",gap:8}}>
+                          <div>
+                            <div style={{fontSize:13,fontWeight:800,color:aS>hS?"#fb923c":"#888"}}>{game.teams?.away?.name}</div>
+                            <div style={{fontSize:10,color:"#60a5fa",fontWeight:700}}>{isEN?"AWAY":"VISIT."}</div>
+                          </div>
+                          {game.teams?.away?.logo&&<img src={game.teams.away.logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
                         </div>
                       </div>
                     </div>
@@ -346,9 +352,18 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
 
                       {/* Stats grid */}
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:14}}>
-                        {[{team:selectedGame.teams?.home?.name,stats:preview.home,color:"#fb923c"},{team:selectedGame.teams?.away?.name,stats:preview.away,color:"#60a5fa"}].map(({team,stats,color})=>(
+                        {[
+                          {team:selectedGame.teams?.home?.name,logo:selectedGame.teams?.home?.logo,stats:preview.home,color:"#fb923c",badge:isEN?"HOME":"LOCAL"},
+                          {team:selectedGame.teams?.away?.name,logo:selectedGame.teams?.away?.logo,stats:preview.away,color:"#60a5fa",badge:isEN?"AWAY":"VISIT."}
+                        ].map(({team,logo,stats,color,badge})=>(
                           <div key={team}>
-                            <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0",marginBottom:10}}>{team}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                              {logo&&<img src={logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
+                              <div>
+                                <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0"}}>{team}</div>
+                                <div style={{fontSize:9,color,fontWeight:700,letterSpacing:1}}>{badge}</div>
+                              </div>
+                            </div>
                             {stats?(
                               <>
                                 <StatBar label={isEN?"Runs/game":"Carreras/juego"} value={stats.avgRuns} max={12} color={color}/>
@@ -393,14 +408,15 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
                           <div style={{fontSize:10,color:"#f59e0b",fontWeight:700,letterSpacing:1,marginBottom:8}}>💹 {isEN?"LIVE ODDS":"MOMIOS"} — {odds.bookmaker}</div>
                           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:edges.length?10:0}}>
                             {[
-                              {l:isEN?"Home":"Local",v:odds.h2h?.outcomes?.[0]?.price},
-                              {l:isEN?"Away":"Visit.",v:odds.h2h?.outcomes?.[1]?.price},
-                              {l:`Over ${odds.totals?.outcomes?.find(o=>o.name==="Over")?.point}`,v:odds.totals?.outcomes?.find(o=>o.name==="Over")?.price},
-                              {l:`Under ${odds.totals?.outcomes?.find(o=>o.name==="Under")?.point}`,v:odds.totals?.outcomes?.find(o=>o.name==="Under")?.price},
-                            ].filter(x=>x.v).map(({l,v})=>(
-                              <div key={l} style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"4px 10px",textAlign:"center"}}>
+                              {l:isEN?"HOME":"LOCAL",name:selectedGame?.teams?.home?.name?.split(" ").pop(),v:odds.h2h?.outcomes?.[0]?.price},
+                              {l:isEN?"AWAY":"VISIT.",name:selectedGame?.teams?.away?.name?.split(" ").pop(),v:odds.h2h?.outcomes?.[1]?.price},
+                              {l:`Over ${odds.totals?.outcomes?.find(o=>o.name==="Over")?.point}`,name:"Over",v:odds.totals?.outcomes?.find(o=>o.name==="Over")?.price},
+                              {l:`Under ${odds.totals?.outcomes?.find(o=>o.name==="Under")?.point}`,name:"Under",v:odds.totals?.outcomes?.find(o=>o.name==="Under")?.price},
+                            ].filter(x=>x.v).map(({l,name,v})=>(
+                              <div key={l} style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"4px 10px",textAlign:"center",flex:1}}>
                                 <div style={{fontSize:9,color:"#888"}}>{l}</div>
                                 <div style={{fontSize:16,fontWeight:800,color:"#f59e0b"}}>{toAm(v)}</div>
+                                <div style={{fontSize:9,color:"#555",marginTop:1}}>{name}</div>
                               </div>
                             ))}
                           </div>
