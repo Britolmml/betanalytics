@@ -260,13 +260,13 @@ export default function MLBPanel({ inline, lang = "es" }) {
     const isEN = lang === "en";
     const prompt = isEN ? `You are an expert MLB baseball analyst specializing in sports betting and value bets.
 
-GAME: ${home} vs ${away} — MLB Spring Training ${new Date(selectedGame.date).toLocaleDateString("en-US")}
+GAME: ${home} vs ${away} — MLB Regular Season ${new Date(selectedGame.date).toLocaleDateString("en-US")}
 
-${home} (HOME) — Spring Training ${MLB_SEASON}:
+${home} (HOME) — Regular Season ${MLB_SEASON}:
 - Runs/game: ${hS?.avgRuns || "N/A"} | Allowed/game: ${hS?.avgRunsAgainst || "N/A"}
 - Record: ${hS?.wins || 0}W/${(hS?.games||0)-(hS?.wins||0)}L | Recent form: ${hS?.results || "N/A"}
 
-${away} (AWAY) — Spring Training ${MLB_SEASON}:
+${away} (AWAY) — Regular Season ${MLB_SEASON}:
 - Runs/game: ${aS?.avgRuns || "N/A"} | Allowed/game: ${aS?.avgRunsAgainst || "N/A"}
 - Record: ${aS?.wins || 0}W/${(aS?.games||0)-(aS?.wins||0)}L | Recent form: ${aS?.results || "N/A"}
 
@@ -275,9 +275,10 @@ ${oddsInfo}
 ${valueBets ? "DETECTED VALUE BETS: " + valueBets : ""}
 
 RULES:
-- Spring Training: MAX confidence 62% — pitcher rotations, experimental lineups
+- Regular Season: confidence up to 68% — full rosters, established rotations
 - Run Line (-1.5) analyzes if favorite can win by 2+
-- Normal MLB total: 8-9 runs, Spring Training usually similar
+- Normal MLB total: 8-9 runs in regular season
+- Starting pitcher is the most important factor — check who's pitching
 - If value bets detected, explain them in the analysis
 - First 5 innings (F5) is a popular baseball market
 
@@ -285,13 +286,13 @@ Respond ONLY with valid JSON, no markdown:
 {"resumen":"Detailed 3-4 sentence analysis","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"...","odds_sugerido":"1.90","confianza":57,"factores":["...","..."]},{"tipo":"Total Runs","pick":"Over/Under X.5","odds_sugerido":"1.90","confianza":54,"factores":["..."]},{"tipo":"Run Line","pick":"... -1.5 or ... +1.5","odds_sugerido":"2.10","confianza":50,"factores":["..."]},{"tipo":"F5 (First 5 Innings)","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":52,"factores":["..."]},{"tipo":"NRFI (No Run First Inning)","pick":"Yes/No","odds_sugerido":"1.80","confianza":51,"factores":["..."]},{"tipo":"Team Total Home","pick":"Over/Under X.5","odds_sugerido":"1.85","confianza":53,"factores":["..."]}],"valueBet":{"existe":false,"mercado":"","explicacion":""},"alertas":["Specific alert based on data"],"tendencias":{"carrerasEsperadas":"${poisson?.total || '8.5'}","favorito":"${home} or ${away}","nivelConfianza":"LOW/MEDIUM"}}` :
     `Eres un analista experto en béisbol MLB con especialidad en apuestas deportivas y value bets.
 
-PARTIDO: ${home} vs ${away} — MLB Spring Training ${new Date(selectedGame.date).toLocaleDateString("es-MX")}
+PARTIDO: ${home} vs ${away} — MLB Regular Season ${new Date(selectedGame.date).toLocaleDateString("es-MX")}
 
-${home} (LOCAL) — Spring Training ${MLB_SEASON}:
+${home} (LOCAL) — Regular Season ${MLB_SEASON}:
 - Carreras/juego: ${hS?.avgRuns || "N/D"} | Recibidas/juego: ${hS?.avgRunsAgainst || "N/D"}
 - Record: ${hS?.wins || 0}V/${(hS?.games||0)-(hS?.wins||0)}D | Forma reciente: ${hS?.results || "N/D"}
 
-${away} (VISITANTE) — Spring Training ${MLB_SEASON}:
+${away} (VISITANTE) — Regular Season ${MLB_SEASON}:
 - Carreras/juego: ${aS?.avgRuns || "N/D"} | Recibidas/juego: ${aS?.avgRunsAgainst || "N/D"}
 - Record: ${aS?.wins || 0}V/${(aS?.games||0)-(aS?.wins||0)}D | Forma reciente: ${aS?.results || "N/D"}
 
@@ -300,9 +301,10 @@ ${oddsInfo}
 ${valueBets ? "VALUE BETS DETECTADOS: " + valueBets : ""}
 
 REGLAS:
-- Spring Training: confianza MÁXIMA 62% — rotación de pitchers, alineaciones experimentales
+- Temporada regular: confianza hasta 68% — plantillas completas, rotaciones establecidas
 - Run Line (-1.5) analiza si el favorito puede ganar por 2+
-- Total normal MLB: 8-9 carreras en temporada regular, Spring Training suele ser similar
+- Total normal MLB: 8-9 carreras en temporada regular
+- El pitcher abridor es el factor más importante — verifica quién lanza
 - Si hay value bets detectados, explícalos en el análisis
 - Primeras 5 entradas (F5) es un mercado popular en béisbol
 
@@ -334,7 +336,7 @@ Responde SOLO con JSON válido sin markdown:
             <span style={{ fontSize:28 }}>⚾</span>
             <div>
               <div style={{ fontSize:22, fontWeight:900, letterSpacing:2 }}>MLB</div>
-              <div style={{ fontSize:11, color:"#fb923c", letterSpacing:1 }}>SPRING TRAINING {MLB_SEASON}</div>
+              <div style={{ fontSize:11, color:"#fb923c", letterSpacing:1 }}>REGULAR SEASON {MLB_SEASON}</div>
             </div>
           </div>
           <input type="date" value={selectedDate}
@@ -508,11 +510,11 @@ Responde SOLO con JSON válido sin markdown:
                       </div>
                     </div>
 
-                    {/* Spring Training Badge */}
+                    {/* Regular Season Badge */}
                     <div style={{ marginBottom:12, padding:"8px 14px", background:"rgba(239,68,68,0.08)", border:"2px solid rgba(239,68,68,0.35)", borderRadius:10, display:"flex", alignItems:"center", gap:10 }}>
                       <span style={{ fontSize:18 }}>⚠️</span>
                       <div>
-                        <div style={{ fontSize:11, color:"#f87171", fontWeight:800, letterSpacing:1 }}>SPRING TRAINING — CONFIANZA REDUCIDA</div>
+                        <div style={{ fontSize:11, color:"#10b981", fontWeight:800, letterSpacing:1 }}>REGULAR SEASON 2026 ⚾</div>
                         <div style={{ fontSize:10, color:"#888", marginTop:2 }}>Alineaciones experimentales · Pitchers rotan 2-4 innings · Splits squads frecuentes · Máx 62%</div>
                       </div>
                     </div>
