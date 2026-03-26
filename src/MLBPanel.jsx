@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 const MLB_PROXY = "/api/baseball";
-const MLB_LEAGUE_ID = 71;
+const MLB_LEAGUE_ID = 1;
 const MLB_SEASON = 2026;
 
 const mlbFetch = async (path) => {
