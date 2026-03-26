@@ -286,16 +286,22 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
                         {isSel&&<span style={{fontSize:9,color:"#fb923c",fontWeight:700}}>▼ {isEN?"SELECTED":"SELECCIONADO"}</span>}
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:13,fontWeight:800,color:hS>aS?"#fb923c":"#e2f4ff"}}>{game.teams?.home?.name}</div>
-                          <div style={{fontSize:10,color:"#555"}}>{isEN?"Home":"Local"}</div>
+                        <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+                          {game.teams?.home?.logo&&<img src={game.teams.home.logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
+                          <div>
+                            <div style={{fontSize:13,fontWeight:800,color:hS>aS?"#fb923c":"#e2f4ff"}}>{game.teams?.home?.name}</div>
+                            <div style={{fontSize:10,color:"#555"}}>{isEN?"Home":"Local"}</div>
+                          </div>
                         </div>
                         <div style={{textAlign:"center",padding:"0 10px"}}>
                           {(isDone||isLive)?<div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#fb923c"}}>{hS??"-"} – {aS??"-"}</div>:<div style={{fontSize:12,color:"#555"}}>VS</div>}
                         </div>
-                        <div style={{flex:1,textAlign:"right"}}>
-                          <div style={{fontSize:13,fontWeight:800,color:aS>hS?"#fb923c":"#888"}}>{game.teams?.away?.name}</div>
-                          <div style={{fontSize:10,color:"#555"}}>{isEN?"Away":"Visit."}</div>
+                        <div style={{flex:1,textAlign:"right",display:"flex",alignItems:"center",justifyContent:"flex-end",gap:8}}>
+                          <div>
+                            <div style={{fontSize:13,fontWeight:800,color:aS>hS?"#fb923c":"#888"}}>{game.teams?.away?.name}</div>
+                            <div style={{fontSize:10,color:"#555"}}>{isEN?"Away":"Visit."}</div>
+                          </div>
+                          {game.teams?.away?.logo&&<img src={game.teams.away.logo} alt="" style={{width:28,height:28,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
                         </div>
                       </div>
                     </div>
@@ -316,9 +322,12 @@ Solo JSON:{"resumen":"3-4 oraciones","prediccionMarcador":"X-X","probabilidades"
 
                       {/* Stats grid */}
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:14}}>
-                        {[{team:selectedGame.teams?.home?.name,stats:preview.home,color:"#fb923c"},{team:selectedGame.teams?.away?.name,stats:preview.away,color:"#60a5fa"}].map(({team,stats,color})=>(
+                        {[{team:selectedGame.teams?.home?.name,logo:selectedGame.teams?.home?.logo,stats:preview.home,color:"#fb923c"},{team:selectedGame.teams?.away?.name,logo:selectedGame.teams?.away?.logo,stats:preview.away,color:"#60a5fa"}].map(({team,logo,stats,color})=>(
                           <div key={team}>
-                            <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0",marginBottom:10}}>{team}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                              {logo&&<img src={logo} alt="" style={{width:24,height:24,objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>}
+                              <div style={{fontSize:13,fontWeight:800,color:"#e8eaf0"}}>{team}</div>
+                            </div>
                             {stats?(
                               <>
                                 <StatBar label={isEN?"Runs/game":"Carreras/juego"} value={stats.avgRuns} max={12} color={color}/>
