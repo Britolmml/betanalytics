@@ -750,6 +750,8 @@ export default function App() {
         const addD = (base, n) => { const [y,m,d]=base.split('-').map(Number); const dt=new Date(y,m-1,d+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
 
         // Ligas a buscar: la principal + extras definidas en el botón
+        // Si no hay leagueId definido usar búsqueda general
+        if (!lg.leagueId) { setTodayGames([]); setLoadingToday(false); return; }
         const leaguesToSearch = [{id:lg.leagueId, s:lg.season}, ...(lg.extraLeagues||[])];
         const utcToday = new Date().toISOString().split('T')[0];
         const utcTomorrow = addD(utcToday, 1);
@@ -1978,12 +1980,18 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 );
               })}
 
-              {/* Botón: Selecciones Nacionales — igual que las demás ligas */}
-              {(()=>{
-                const intlLeague = { id:"intl", name:"Selecciones Nacionales", country:"Internacional", flag:"🌐", logo:null, isIntl:true };
-                const active = league?.id === "intl";
+              {/* Botones: Ligas de Selecciones Nacionales */}
+              {[
+                {id:"intl_7",  leagueId:7,  season:2026, name:"Amistosos",  country:"Internacional", flag:"🤝", extraLeagues:[{id:10,s:2026},{id:7,s:2025}]},
+                {id:"intl_10", leagueId:10, season:2026, name:"CONCACAF",   country:"Eliminatorias", flag:"🌎"},
+                {id:"intl_6",  leagueId:6,  season:2026, name:"UEFA",       country:"Eliminatorias", flag:"🌍"},
+                {id:"intl_29", leagueId:29, season:2025, name:"CONMEBOL",   country:"Eliminatorias", flag:"🌎"},
+                {id:"intl_32", leagueId:32, season:2025, name:"AFC",        country:"Eliminatorias", flag:"🌏"},
+                {id:"intl_34", leagueId:34, season:2025, name:"CAF",        country:"Eliminatorias", flag:"🌍"},
+              ].map(lg => {
+                const active = league?.id === lg.id;
                 return (
-                  <button onClick={()=>loadTeams(intlLeague)}
+                  <button key={lg.id} onClick={()=>loadTeams({...lg, isIntl:true})}
                     style={{
                       background: active
                         ? "linear-gradient(135deg,rgba(168,85,247,0.22),rgba(139,92,246,0.15))"
@@ -1995,14 +2003,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                       transition:"all 0.15s",
                       boxShadow: active?"0 0 16px rgba(168,85,247,0.2)":"none",
                     }}>
-                    <span style={{fontSize:24}}>🌐</span>
+                    <span style={{fontSize:24}}>{lg.flag}</span>
                     <div style={{textAlign:"left"}}>
-                      <div style={{fontSize:13,color:active?"#c084fc":"#ccc",fontWeight:700}}>Selecciones Nacionales</div>
-                      <div style={{fontSize:10,color:active?"rgba(192,132,252,0.7)":"#555",marginTop:2}}>Internacional</div>
+                      <div style={{fontSize:13,color:active?"#c084fc":"#ccc",fontWeight:700}}>{lg.name}</div>
+                      <div style={{fontSize:10,color:active?"rgba(192,132,252,0.7)":"#555",marginTop:2}}>{lg.country}</div>
                     </div>
                   </button>
                 );
-              })()}
+              })}
             </div>
 
             {/* Partidos de hoy */}
