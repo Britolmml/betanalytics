@@ -3235,10 +3235,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
       {/* NBA inline section */}
       {activeSport === "nba" && (
-        <NBAPanel onClose={()=>setActiveSport(null)} inline={true} lang={lang} />
+        <NBAPanel onClose={()=>setActiveSport(null)} inline={true} lang={lang} user={user} />
       )}
       {activeSport === "mlb" && (
-        <MLBPanel onClose={()=>setActiveSport(null)} inline={true} lang={lang} />
+        <MLBPanel onClose={()=>setActiveSport(null)} inline={true} lang={lang} user={user} />
       )}
       {activeSport === "nfl" && (
         <div style={{maxWidth:700,margin:"60px auto",padding:"40px 24px",textAlign:"center"}}>

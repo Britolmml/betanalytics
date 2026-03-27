@@ -157,7 +157,7 @@ function ProbBar({ name, logo, pct, color, badge }) {
   );
 }
 
-export default function MLBPanel({ inline, lang="es" }) {
+export default function MLBPanel({ inline, lang="es", user }) {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -416,6 +416,14 @@ export default function MLBPanel({ inline, lang="es" }) {
 
   const runAI = async () => {
     if (!selectedGame||!preview) return;
+    if (user?.id) {
+      try {
+        const _r = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+        const _u = await _r.json();
+        if (!_u.allowed) { setAiErr("Has alcanzado tu límite de análisis diarios. ¡Actualiza tu plan!"); return; }
+        await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
+      } catch(e) { console.warn("usage check error", e.message); }
+    }
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const home=selectedGame.teams?.home?.name, away=selectedGame.teams?.away?.name;
     const hS=preview.home, aS=preview.away;

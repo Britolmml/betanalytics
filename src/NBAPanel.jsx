@@ -675,6 +675,15 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
 
   const runAI = async () => {
     if (!selectedGame || !preview) return;
+    // Check usage limit
+    if (user?.id) {
+      try {
+        const _r = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+        const _u = await _r.json();
+        if (!_u.allowed) { setAiErr("Has alcanzado tu límite de análisis diarios. ¡Actualiza tu plan!"); return; }
+        await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
+      } catch(e) { console.warn("usage check error", e.message); }
+    }
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     setSaving(true); setSaved(false); setSaveErr("");
     try {
