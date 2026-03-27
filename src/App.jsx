@@ -1080,7 +1080,56 @@ export default function App() {
     } catch(e) { console.warn("Error cargando jugadores:", e.message); }
 
     // ── Construir prompt enriquecido ───────────────────────────
-    // H2H block
+    // Cargar momios + splits aquí — no al seleccionar partido — para ahorrar requests de Owls
+    const sport = LEAGUE_SPORT_MAP[league?.id];
+    let currentOddsMap = { ...odds };
+    let footballSplits = null;
+    if (sport) {
+      try {
+        setLoadingOdds(true);
+        const fixtureId = selectedFixture?.fixture?.id || "";
+        const oddsUrl = fixtureId
+          ? `/api/odds?sport=${sport}&markets=h2h,totals&regions=eu&fixture_id=${fixtureId}`
+          : `/api/odds?sport=${sport}&markets=h2h,totals&regions=eu`;
+        const [oddsRes, splitsRes] = await Promise.allSettled([
+          fetch(oddsUrl).then(r=>r.json()),
+          fetch(`/api/odds?type=splits&sport=${sport}`).then(r=>r.json()),
+        ]);
+        if (Array.isArray(oddsRes.value)) {
+          const map = {};
+          oddsRes.value.forEach(g => {
+            map[`${g.home_team}|${g.away_team}`] = g.bookmakers?.[0]?.markets || [];
+            if (g.source === "api-sports" && fixtureId) map["__fixture__"] = g.bookmakers?.[0]?.markets || [];
+          });
+          setOdds(map);
+          currentOddsMap = map;
+          // Recalculate edges
+          const key1 = `${homeTeam.name}|${awayTeam.name}`;
+          const key2 = `${awayTeam.name}|${homeTeam.name}`;
+          let gOdds = currentOddsMap[key1] || currentOddsMap[key2] || currentOddsMap["__fixture__"];
+          if (!gOdds) {
+            const k = Object.keys(currentOddsMap).find(k => {
+              const [h, a] = k.split("|");
+              return (fuzzyMatch(h, homeTeam.name) && fuzzyMatch(a, awayTeam.name)) ||
+                     (fuzzyMatch(h, awayTeam.name) && fuzzyMatch(a, homeTeam.name));
+            });
+            if (k) gOdds = currentOddsMap[k];
+          }
+          if (gOdds && poissonResult) setEdges(calcEdges(poissonResult, gOdds, homeTeam?.name, awayTeam?.name) || []);
+        }
+        // Splits
+        const splitsData = splitsRes.value?.data || [];
+        const norm = s => s?.toLowerCase().replace(/[^a-z]/g,"") ?? "";
+        const nh = norm(homeTeam.name), na = norm(awayTeam.name);
+        const matchedSplits = splitsData.find(g => {
+          const gh = norm(g.home_team), ga = norm(g.away_team);
+          return (gh.includes(nh.slice(-5)) || nh.includes(gh.slice(-5))) &&
+                 (ga.includes(na.slice(-5)) || na.includes(ga.slice(-5)));
+        });
+        footballSplits = matchedSplits?.splits?.[0] || null;
+      } catch(e) { console.warn("Odds/splits error:", e.message); }
+      finally { setLoadingOdds(false); }
+    }
     // Use h2h state or fetch fresh if empty
     let currentH2H = h2h;
     if (!currentH2H || currentH2H.length === 0) {
@@ -1124,36 +1173,41 @@ export default function App() {
     const oddsBlock = () => {
       const key1 = `${homeTeam.name}|${awayTeam.name}`;
       const key2 = `${awayTeam.name}|${homeTeam.name}`;
-      let gameOdds = odds[key1] || odds[key2];
+      let gameOdds = currentOddsMap[key1] || currentOddsMap[key2];
       if (!gameOdds) {
-        const oddsKey = Object.keys(odds).find(k => {
+        const oddsKey = Object.keys(currentOddsMap).find(k => {
           const [h, a] = k.split("|");
           return (fuzzyMatch(h, homeTeam.name) && fuzzyMatch(a, awayTeam.name)) ||
                  (fuzzyMatch(h, awayTeam.name) && fuzzyMatch(a, homeTeam.name));
         });
-        if (oddsKey) gameOdds = odds[oddsKey];
+        if (oddsKey) gameOdds = currentOddsMap[oddsKey];
       }
-      if (!gameOdds || gameOdds.length === 0) return "Momios no disponibles (presiona Cargar momios antes de analizar)";
+      if (!gameOdds || gameOdds.length === 0) return "Momios no disponibles";
       const h2hM = gameOdds.find(m=>m.key==="h2h");
       const totalsM = gameOdds.find(m=>m.key==="totals");
+      const toAm = p => {
+        if (!p) return "N/D";
+        if (Math.abs(p) > 10) return p > 0 ? `+${p}` : `${p}`;
+        if (p >= 2) return `+${Math.round((p-1)*100)}`;
+        return `-${Math.round(100/(p-1))}`;
+      };
       let result = "";
       if (h2hM) {
         const outcomes = h2hM.outcomes || [];
         const home = outcomes.find(o=>fuzzyMatch(o.name, homeTeam.name));
         const away = outcomes.find(o=>fuzzyMatch(o.name, awayTeam.name));
         const draw = outcomes.find(o=>o.name==="Draw");
-        result += `Resultado 1X2: ${homeTeam.name}=${home?.price||"N/D"} | Empate=${draw?.price||"N/D"} | ${awayTeam.name}=${away?.price||"N/D"}`;
-        // Detect line errors
+        result += `Resultado 1X2: ${homeTeam.name}=${toAm(home?.price)} | Empate=${toAm(draw?.price)} | ${awayTeam.name}=${toAm(away?.price)}`;
         if (home?.price && away?.price && draw?.price) {
-          const impliedHome = 1/home.price, impliedDraw = 1/draw.price, impliedAway = 1/away.price;
-          const margin = ((impliedHome+impliedDraw+impliedAway)-1)*100;
+          const toImpl = p => Math.abs(p) > 10 ? (p > 0 ? 100/(p+100) : Math.abs(p)/(Math.abs(p)+100)) : 1/p;
+          const margin = ((toImpl(home.price)+toImpl(draw.price)+toImpl(away.price))-1)*100;
           result += ` (margen casa: ${margin.toFixed(1)}%)`;
         }
       }
       if (totalsM) {
         const over = totalsM.outcomes?.find(o=>o.name==="Over");
         const under = totalsM.outcomes?.find(o=>o.name==="Under");
-        if (over) result += ` | Total goles Over ${over.point}=${over.price} Under=${under?.price||"N/D"}`;
+        if (over) result += ` | Total goles Over ${over.point}=${toAm(over.price)} Under=${toAm(under?.price)}`;
       }
       return result || "Sin momios disponibles";
     };
@@ -1206,6 +1260,16 @@ ${oddsBlock()}
 ════ EDGES CALCULADOS (Poisson vs Mercado) ════
 ${edges.length>0 ? edges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% ImpliedOdds=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% Cuota=${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE BET":"sin valor"}`).join("\n") : "Sin momios cargados - no hay edges disponibles"}
 IMPORTANTE: Solo recomienda apuestas donde Edge > 0. Si no hay edges positivos, di explícitamente que no hay value en este partido.
+
+════ DINERO PÚBLICO Y APUESTAS (Owls Insight) ════
+${footballSplits ? (() => {
+  const ml = footballSplits.moneyline, tot = footballSplits.total;
+  const mlStr = ml ? `Moneyline: ${homeTeam.name} Handle=${ml.home_handle_pct}% Tickets=${ml.home_bets_pct}% | ${awayTeam.name} Handle=${ml.away_handle_pct}% Tickets=${ml.away_bets_pct}%` : "";
+  const totStr = tot ? `Total: Over Handle=${tot.over_handle_pct}% Tickets=${tot.over_bets_pct}% | Under Handle=${tot.under_handle_pct}% Tickets=${tot.under_bets_pct}%` : "";
+  const sharpML = ml && ml.home_handle_pct > ml.home_bets_pct + 15 ? `⚡ Dinero sharp en ${homeTeam.name}` : ml && ml.away_handle_pct > ml.away_bets_pct + 15 ? `⚡ Dinero sharp en ${awayTeam.name}` : "";
+  const sharpTot = tot && tot.over_handle_pct > tot.over_bets_pct + 15 ? "⚡ Sharp en Over" : tot && tot.under_handle_pct > tot.under_bets_pct + 15 ? "⚡ Sharp en Under" : "";
+  return [mlStr, totStr, sharpML, sharpTot].filter(Boolean).join("\n") || "Sin divergencia significativa";
+})() : "Splits de dinero público no disponibles"}
 
 ════ MODELO POISSON — PROBABILIDADES ESTADÍSTICAS ════
 ${poissonResult ? `xG esperados: ${homeTeam.name}=${poissonResult.xgHome} | ${awayTeam.name}=${poissonResult.xgAway}
@@ -1327,7 +1391,6 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       };
       setAnalysis(fullAnalysis);
       setView("analysis");
-      loadOdds();
       // Auto-save BEST pick to Supabase if user is logged in
       try {
         const { data: { session } } = await supabase?.auth.getSession() || {};
@@ -1808,6 +1871,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             setHomeTeam(ht); setAwayTeam(at);
                             setSelectedFixture(f);
                             setH2h([]);
+                            setOdds({}); setEdges([]);
                             // Cargar partidos de ambos equipos en paralelo
                             await Promise.all([
                               loadMatches(ht, setHomeMatches, "home"),
@@ -1815,7 +1879,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             ]);
                             // H2H con IDs directos del fixture
                             loadH2H(f.teams?.home?.id, f.teams?.away?.id);
-                            setTimeout(() => loadOdds(), 300);
+                            // Momios se cargan al pedir predicción IA para ahorrar requests de Owls
                           }}
                           style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
                           🔍 {lang==="en"?"Analyze":"Analizar"}
