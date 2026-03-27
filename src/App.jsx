@@ -1011,15 +1011,17 @@ export default function App() {
       setShowAuth(true);
       return;
     }
-    const usage = await checkUsageLimit(user.id);
+    // Usage check directo sin pasar por supabase.js
+    const _usageRes = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+    const usage = await _usageRes.json();
     setUsageInfo(usage);
     if (!usage.allowed) {
       setShowUpgrade(true);
       return;
     }
-    // Incrementar ANTES de analizar para evitar múltiples análisis simultáneos
-    await incrementUsage(user.id);
-    const newUsageCheck = await checkUsageLimit(user.id);
+    await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
+    const _newRes = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+    const newUsageCheck = await _newRes.json();
     setUsageInfo(newUsageCheck);
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const hS = calcStats(homeMatches, homeTeam.name);
@@ -1563,10 +1565,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
   const predictMulti = async () => {
     if (!user) { setShowAuth(true); return; }
-    const usageM = await checkUsageLimit(user.id);
+    const _usageMRes = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+    const usageM = await _usageMRes.json();
     setUsageInfo(usageM);
     if (!usageM.allowed) { setShowUpgrade(true); return; }
-    await incrementUsage(user.id);
+    await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
     setLoadingMulti(true); setMultiResult(null); setShowMulti(true);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);
