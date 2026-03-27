@@ -723,37 +723,33 @@ export default function App() {
         const targetDate = lg.selectedDate || null;
         const searchDate = targetDate || todayStr;
 
-        // Buscar día por día desde searchDate hasta encontrar partidos (máx 90 días)
-        const addDays = (base, n) => {
+        // Buscar día por día en fechas MX (búsqueda en UTC day y UTC day+1 para cubrir zona horaria)
+        const addDaysLocal = (base, n) => {
           const [y,m,d] = base.split('-').map(Number);
-          const dt = new Date(Date.UTC(y, m-1, d+n));
+          const dt = new Date(y, m-1, d+n);
           return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
         };
 
         let found = false;
         for (let offset = 0; offset <= 90 && !found; offset++) {
-          const dateStr = addDays(searchDate, offset);
-          const year = parseInt(dateStr.split('-')[0]);
-          // Para cada liga, intentar con sus seasons válidas
-          const calls = NATL_IDS.flatMap(id => {
-            const seasons = LEAGUE_SEASONS[id] || [year];
-            return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
-          });
+          const mxDay = addDaysLocal(searchDate, offset);       // día en MX
+          const utcNext = addDaysLocal(mxDay, 1);               // día siguiente en UTC (para capturar partidos nocturnos)
+          const year = parseInt(mxDay.split('-')[0]);
+          // Buscar tanto en el día MX como en el siguiente UTC
+          const calls = [mxDay, utcNext].flatMap(dateStr =>
+            NATL_IDS.flatMap(id => {
+              const seasons = LEAGUE_SEASONS[id] || [year];
+              return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
+            })
+          );
           const results = await Promise.allSettled(calls);
           const all = [];
           results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-          const games = filterSeniorOnly(dedup(all));
+          // Filtrar solo los que en MX corresponden a mxDay
+          const games = filterSeniorOnly(dedup(all)).filter(f => toMXDate(f.fixture.date) === mxDay);
           if (games.length > 0) {
-            // Agrupar por día MX — tomar el día MX más temprano
-            const byDayMX = {};
-            games.forEach(f => {
-              const d = toMXDate(f.fixture.date);
-              if (!byDayMX[d]) byDayMX[d] = [];
-              byDayMX[d].push(f);
-            });
-            const earliestMXDay = Object.keys(byDayMX).sort()[0];
-            setTodayGames(byDayMX[earliestMXDay]);
-            setTodayLabel(earliestMXDay === todayStr ? 'hoy' : earliestMXDay);
+            setTodayGames(games);
+            setTodayLabel(mxDay === todayStr ? 'hoy' : mxDay);
             found = true;
           }
         }
