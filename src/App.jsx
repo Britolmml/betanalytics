@@ -732,25 +732,33 @@ export default function App() {
     try {
       // Caso especial: Selecciones Nacionales — carga por fecha seleccionada o busca próximo día con partidos
       if (lg.isIntl) {
-        // Cargar partidos de las ligas activas con sus seasons correctas — pocas llamadas
-        const ACTIVE_LEAGUES = [
-          {id:7, s:2025}, {id:10, s:2026}, {id:6, s:2026},
-          {id:32, s:2025}, {id:34, s:2025}, {id:29, s:2025},
-          {id:1, s:2026}, {id:9, s:2024}, {id:4, s:2024}
-        ];
         const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
         const dedup2 = (arr) => { const seen = new Set(); return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }); };
+        const addD = (base, n) => { const [y,m,d]=base.split('-').map(Number); const dt=new Date(y,m-1,d+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
 
-        // Una sola ronda de llamadas: next=20 por liga
-        const res = await Promise.allSettled(ACTIVE_LEAGUES.map(({id,s}) => apiFetch('/fixtures?league='+id+'&next=20&season='+s)));
+        // Estrategia: buscar por fecha hoy + 7 días (para amistosos activos) + next=20 para el resto
+        const dates = Array.from({length:8}, (_,i) => addD(todayStr, i));
+        const utcDates = dates.map(d => addD(d, 1)); // día UTC siguiente para capturar nocturnos MX
+        const allDates = [...new Set([...dates, ...utcDates])];
+
+        // Ligas que buscar por fecha (activas ahora)
+        const BY_DATE = [{id:7,s:2025},{id:10,s:2026},{id:6,s:2026},{id:32,s:2025},{id:34,s:2025},{id:29,s:2025},{id:1,s:2026}];
+        // Ligas con partidos futuros lejanos
+        const BY_NEXT = [{id:9,s:2024},{id:4,s:2024},{id:7,s:2026},{id:10,s:2025}];
+
+        const callsByDate = allDates.flatMap(date => BY_DATE.map(({id,s}) => apiFetch('/fixtures?league='+id+'&date='+date+'&season='+s)));
+        const callsByNext = BY_NEXT.map(({id,s}) => apiFetch('/fixtures?league='+id+'&next=20&season='+s));
+
+        const [resDate, resNext] = await Promise.all([
+          Promise.allSettled(callsByDate),
+          Promise.allSettled(callsByNext)
+        ]);
         const all = [];
-        res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        [...resDate, ...resNext].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
         const allGames = filterSeniorOnly(dedup2(all));
 
-        // Guardar en cache para el picker
+        // Guardar cache y agrupar por día MX
         setIntlCachedGames(allGames);
-
-        // Agrupar por día MX y mostrar el más cercano a hoy
         const byDay = {};
         allGames.forEach(f => { const d = toMXDate(f.fixture.date); if(!byDay[d]) byDay[d]=[]; byDay[d].push(f); });
         const days = Object.keys(byDay).sort();
@@ -759,9 +767,7 @@ export default function App() {
           setTodayGames(byDay[nearest]);
           setTodayLabel(nearest === todayStr ? 'hoy' : nearest);
           setIntlPickerDate(nearest);
-        } else {
-          setTodayGames([]);
-        }
+        } else { setTodayGames([]); }
         setLoadingToday(false);
         return;
       }
