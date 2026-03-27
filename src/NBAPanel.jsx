@@ -1413,10 +1413,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                   {l:(lang==="en"?"UNDER ":"MENOS ") + (underO?.point ?? ""), name:"Under", v:underO?.price},
                                 ].map(({l,name,v}) => {
                                   if (!v) return null;
-                                  // Conversión decimal → americano correcta
-                                  const american = v >= 2
-                                    ? "+" + Math.round((v - 1) * 100)
-                                    : "-" + Math.round(100 / (v - 1));
+                                  const american = toAmerican(v);
                                   return (
                                     <div key={l} style={{ textAlign: "center", padding: "8px 4px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
                                       <div style={{ fontSize: 8, color: "#666", marginBottom: 2, fontWeight: 700 }}>{l}</div>
@@ -1424,7 +1421,6 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                                         {american}
                                       </div>
                                       <div style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{name}</div>
-                                      <div style={{ fontSize: 8, color: "#444", marginTop: 1 }}>{v.toFixed(2)}</div>
                                     </div>
                                   );
                                 })}
