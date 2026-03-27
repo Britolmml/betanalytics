@@ -880,13 +880,15 @@ export default function App() {
   // AI prediction — con datos enriquecidos
   const predict = async () => {
     // Verificar límite de uso
-    if (user) {
-      const usage = await checkUsageLimit(user.id);
-      setUsageInfo(usage);
-      if (!usage.allowed) {
-        setShowUpgrade(true);
-        return;
-      }
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    const usage = await checkUsageLimit(user.id);
+    setUsageInfo(usage);
+    if (!usage.allowed) {
+      setShowUpgrade(true);
+      return;
     }
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const hS = calcStats(homeMatches, homeTeam.name);
