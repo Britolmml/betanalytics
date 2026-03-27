@@ -736,32 +736,33 @@ export default function App() {
         const dedup2 = (arr) => { const seen = new Set(); return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }); };
         const addD = (base, n) => { const [y,m,d]=base.split('-').map(Number); const dt=new Date(y,m-1,d+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
 
-        // Cargar partidos de la liga específica con next=20 + fecha actual para capturar partidos inmediatos
-        const leagueId = lg.leagueId;
-        const season = lg.season;
-        const utcToday = new Date().toISOString().split('T')[0];
-        const utcTomorrow = addD(utcToday, 1);
+        // Estrategia: buscar por fecha hoy + 7 días (para amistosos activos) + next=20 para el resto
+        const dates = Array.from({length:8}, (_,i) => addD(todayStr, i));
+        const utcDates = dates.map(d => addD(d, 1)); // día UTC siguiente para capturar nocturnos MX
+        const allDates = [...new Set([...dates, ...utcDates])];
 
-        // Ligas a buscar: la principal + extras si las hay
-        const leaguesToSearch = [{id:leagueId,s:season}, ...(lg.extraLeagues||[])];
-        const calls = leaguesToSearch.flatMap(({id,s}) => [
-          apiFetch(`/fixtures?league=${id}&next=20&season=${s}`),
-          apiFetch(`/fixtures?league=${id}&date=${utcToday}&season=${s}`),
-          apiFetch(`/fixtures?league=${id}&date=${utcTomorrow}&season=${s}`),
+        // Ligas que buscar por fecha (activas ahora)
+        const BY_DATE = [{id:7,s:2025},{id:10,s:2026},{id:6,s:2026},{id:32,s:2025},{id:34,s:2025},{id:29,s:2025},{id:1,s:2026}];
+        // Ligas con partidos futuros lejanos
+        const BY_NEXT = [{id:9,s:2024},{id:4,s:2024},{id:7,s:2026},{id:10,s:2025}];
+
+        const callsByDate = allDates.flatMap(date => BY_DATE.map(({id,s}) => apiFetch('/fixtures?league='+id+'&date='+date+'&season='+s)));
+        const callsByNext = BY_NEXT.map(({id,s}) => apiFetch('/fixtures?league='+id+'&next=20&season='+s));
+
+        const [resDate, resNext] = await Promise.all([
+          Promise.allSettled(callsByDate),
+          Promise.allSettled(callsByNext)
         ]);
-        const results = await Promise.allSettled(calls);
         const all = [];
-        results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-        // Filtrar partidos que ya pasaron en zona horaria MX
-        const nowMX = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
-        const allGames = filterSeniorOnly(dedup2(all)).filter(f => new Date(f.fixture.date) > nowMX);
+        [...resDate, ...resNext].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        const allGames = filterSeniorOnly(dedup2(all));
 
         // Guardar cache y agrupar por día MX
         setIntlCachedGames(allGames);
         const byDay = {};
         allGames.forEach(f => { const d = toMXDate(f.fixture.date); if(!byDay[d]) byDay[d]=[]; byDay[d].push(f); });
         const days = Object.keys(byDay).sort();
-        const nearest = days.find(d => d >= todayStr) || days[0];
+        const nearest = days.find(d => d >= todayStr) || days[days.length-1];
         if (nearest) {
           setTodayGames(byDay[nearest]);
           setTodayLabel(nearest === todayStr ? 'hoy' : nearest);
@@ -1966,18 +1967,12 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 );
               })}
 
-              {/* Botones: Ligas de Selecciones Nacionales */}
-              {[
-                {id:"intl_7",  leagueId:7,  season:2026, name:"Amistosos",     country:"Internacional", flag:"🤝", extraLeagues:[{id:10,s:2026},{id:7,s:2025}]},
-                {id:"intl_10", leagueId:10, season:2026, name:"CONCACAF",      country:"Eliminatorias", flag:"🌎"},
-                {id:"intl_6",  leagueId:6,  season:2026, name:"UEFA",          country:"Eliminatorias", flag:"🌍"},
-                {id:"intl_29", leagueId:29, season:2025, name:"CONMEBOL",      country:"Eliminatorias", flag:"🌎"},
-                {id:"intl_32", leagueId:32, season:2025, name:"AFC",           country:"Eliminatorias", flag:"🌏"},
-                {id:"intl_34", leagueId:34, season:2025, name:"CAF",           country:"Eliminatorias", flag:"🌍"},
-              ].map(lg => {
-                const active = league?.id === lg.id;
+              {/* Botón: Selecciones Nacionales — igual que las demás ligas */}
+              {(()=>{
+                const intlLeague = { id:"intl", name:"Selecciones Nacionales", country:"Internacional", flag:"🌐", logo:null, isIntl:true };
+                const active = league?.id === "intl";
                 return (
-                  <button key={lg.id} onClick={()=>loadTeams({...lg, isIntl:true})}
+                  <button onClick={()=>loadTeams(intlLeague)}
                     style={{
                       background: active
                         ? "linear-gradient(135deg,rgba(168,85,247,0.22),rgba(139,92,246,0.15))"
@@ -1989,14 +1984,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                       transition:"all 0.15s",
                       boxShadow: active?"0 0 16px rgba(168,85,247,0.2)":"none",
                     }}>
-                    <span style={{fontSize:24}}>{lg.flag}</span>
+                    <span style={{fontSize:24}}>🌐</span>
                     <div style={{textAlign:"left"}}>
-                      <div style={{fontSize:13,color:active?"#c084fc":"#ccc",fontWeight:700}}>{lg.name}</div>
-                      <div style={{fontSize:10,color:active?"rgba(192,132,252,0.7)":"#555",marginTop:2}}>{lg.country}</div>
+                      <div style={{fontSize:13,color:active?"#c084fc":"#ccc",fontWeight:700}}>Selecciones Nacionales</div>
+                      <div style={{fontSize:10,color:active?"rgba(192,132,252,0.7)":"#555",marginTop:2}}>Internacional</div>
                     </div>
                   </button>
                 );
-              })}
+              })()}
             </div>
 
             {/* Partidos de hoy */}
@@ -2011,10 +2006,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     {league?.isIntl && (
                       <input
                         type="date"
-                        defaultValue={new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+                        value={intlPickerDate || new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
                         onChange={e => {
                           const date = e.target.value;
-                          if (date) filterIntlByDate(date);
+                          if (date) { setIntlPickerDate(date); filterIntlByDate(date); }
                         }}
                         style={{
                           background:"rgba(0,212,255,0.07)",
@@ -2037,7 +2032,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <div style={{color:"#555",fontSize:12,padding:"8px 0"}}>⏳ {lang==="en"?"Loading games...":"Cargando partidos..."}</div>
                 )}
                 {!loadingToday && todayGames.length === 0 && (
-                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>{league?.isIntl ? (lang==="en"?"No upcoming games registered for this FIFA window. Next window: June 2026.":"No hay partidos registrados para esta ventana FIFA. Próxima ventana: Junio 2026.") : (lang==="en"?"No upcoming games for this league.":"No hay partidos próximos para esta liga.")}</div>
+                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>{lang==="en"?"No upcoming games for this league.":"No hay partidos próximos para esta liga."}</div>
                 )}
                 {!loadingToday && todayGames.length > 0 && (() => {
                   const pending = todayGames.filter(f => !["FT","AET","PEN","1H","2H","HT","ET","BT","P"].includes(f.fixture?.status?.short) || ["1H","2H","HT","ET","BT","P"].includes(f.fixture?.status?.short));
