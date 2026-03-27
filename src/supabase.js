@@ -352,44 +352,22 @@ export async function getUserPlan(userId) {
 }
 
 export async function checkUsageLimit(userId) {
-  if (!supabase) return { allowed: false, used: 0, limit: FREE_LIMIT, plan: "free" };
   try {
-    const plan = await getUserPlan(userId);
-    const limit = plan === "elite" ? ELITE_LIMIT : plan === "pro" ? PRO_LIMIT : FREE_LIMIT;
-    const today = new Date().toISOString().split("T")[0];
-    // Usar maybeSingle() en lugar de single() para evitar error cuando no hay registro
-    const { data, error } = await supabase
-      .from("user_usage")
-      .select("count")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .maybeSingle();
-    if (error) {
-      console.warn("checkUsageLimit error:", error.message);
-      return { allowed: false, used: 0, limit, plan };
-    }
-    const used = data?.count || 0;
-    return { allowed: used < limit, used, limit, plan };
+    const res = await fetch(`/api/usage?action=check&userId=${userId}`);
+    if (!res.ok) return { allowed: false, used: 0, limit: FREE_LIMIT, plan: "free" };
+    return await res.json();
   } catch(e) {
-    console.warn("checkUsageLimit catch:", e.message);
+    console.warn("checkUsageLimit error:", e.message);
     return { allowed: false, used: 0, limit: FREE_LIMIT, plan: "free" };
   }
 }
 
 export async function incrementUsage(userId) {
-  if (!supabase) return;
   try {
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing } = await supabase
-      .from("user_usage")
-      .select("id, count")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .single();
-    if (existing) {
-      await supabase.from("user_usage").update({ count: existing.count + 1 }).eq("id", existing.id);
-    } else {
-      await supabase.from("user_usage").insert({ user_id: userId, date: today, count: 1 });
-    }
+    await fetch("/api/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "increment", userId }),
+    });
   } catch(e) { console.warn("incrementUsage error:", e.message); }
 }
