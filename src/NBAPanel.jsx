@@ -328,20 +328,17 @@ function overProbForLine(total, line, stdDevTotal = 11.0) {
   return Math.min(75, Math.max(25, Math.round(normCDF(z) * 100)));
 }
 
-function calcNBAEdges(nbaPoisson, nbaOdds) {
+function calcNBAEdges(nbaPoisson, nbaOdds, homeTeamName = "", awayTeamName = "") {
   if (!nbaPoisson || !nbaOdds) return [];
   const edges = [];
+  const norm = s => s?.toLowerCase().replace(/[^a-z]/g,"") ?? "";
 
   const addEdge = (market, pick, ourProb, decimal, label) => {
     if (!decimal || decimal <= 1 || !ourProb) return;
-    // Corrección por vig: la prob implícita incluye el margen de la casa (~4-6%)
-    // Normalizamos para comparar de forma justa
     const impliedProb = 1 / decimal;
     const edge = ourProb - impliedProb;
-    // Edge cap: máximo 12% — si supera eso el modelo tiene un error
     const cappedEdge = Math.min(12, Math.max(-20, Math.round(edge * 100)));
     const kelly = edge > 0 ? Math.min(10, Math.round((edge / (decimal - 1)) * 1000) / 10) : 0;
-    // Solo mostrar si el edge es plausible (entre -15% y +12%)
     if (Math.abs(cappedEdge) > 15) return;
     edges.push({
       market, pick, label,
@@ -351,18 +348,24 @@ function calcNBAEdges(nbaPoisson, nbaOdds) {
       decimal,
       american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
       kelly,
-      // Edge real mínimo de 3% y máximo creíble de 10% para marcar como value
       hasValue: edge > 0.03 && edge <= 0.10,
     });
   };
 
-  // Moneyline
+  // Moneyline — match by team name, not index
   const outcomes = nbaOdds.h2h?.outcomes || [];
-  if (outcomes.length >= 2) {
-    addEdge("Moneyline", "home", nbaPoisson.pHome/100, outcomes[0]?.price, outcomes[0]?.name);
-    addEdge("Moneyline", "away", nbaPoisson.pAway/100, outcomes[1]?.price, outcomes[1]?.name);
-  }
-  // Totals — usar línea exacta del mercado
+  const nh = norm(homeTeamName), na = norm(awayTeamName);
+  const homeO = nh
+    ? outcomes.find(o => norm(o.name).includes(nh.slice(-5)) || nh.includes(norm(o.name).slice(-5)))
+    : outcomes[0];
+  const awayO = na
+    ? outcomes.find(o => norm(o.name).includes(na.slice(-5)) || na.includes(norm(o.name).slice(-5)))
+    : outcomes[1];
+
+  if (homeO) addEdge("Moneyline", "home", nbaPoisson.pHome/100, homeO.price, homeO.name);
+  if (awayO) addEdge("Moneyline", "away", nbaPoisson.pAway/100, awayO.price, awayO.name);
+
+  // Totals
   const totals = nbaOdds.totals?.outcomes || [];
   const overO = totals.find(o=>o.name==="Over");
   const underO = totals.find(o=>o.name==="Under");
@@ -557,7 +560,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
             const marketTotal = parseFloat(totalsM?.outcomes?.find(o=>o.name==="Over")?.point);
             const betterPoisson = calcNBAPoisson(hStats, aStats, marketTotal || null);
             if (betterPoisson) setNbaPoisson(betterPoisson);
-            if (betterPoisson) setNbaEdges(calcNBAEdges(betterPoisson, newOdds));
+            if (betterPoisson) setNbaEdges(calcNBAEdges(betterPoisson, newOdds, home, away));
           } else {
             console.warn("[Odds] No match found for", home, "vs", away, "— available:", dataOdds.map(g=>g.home_team+"v"+g.away_team).join(", "));
           }
@@ -660,7 +663,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
           const totalsM = bk?.markets?.find(m=>m.key==="totals");
           const newOdds = { h2h: h2hM, totals: totalsM, raw: game, bookmaker: bk?.title };
           setNbaOdds(newOdds);
-          if (nbaPoisson) setNbaEdges(calcNBAEdges(nbaPoisson, newOdds));
+          if (nbaPoisson) setNbaEdges(calcNBAEdges(nbaPoisson, newOdds, home, away));
         } else {
           console.warn("[Odds manual] No match for", home, "vs", away);
         }
@@ -1036,7 +1039,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           const totalsM = bk?.markets?.find(m=>m.key==="totals");
           const gameOdds = { h2h: h2hM, totals: totalsM, bookmaker: bk?.title };
 
-          const edges = calcNBAEdges(poisson, gameOdds);
+          const edges = calcNBAEdges(poisson, gameOdds, home, away);
           console.log("[MEGA EDGES] " + home + " edges:", edges.map(e=>e.label+" edge="+e.edge+"%"));
           const valuePicks = edges.filter(e => e.hasValue);
           console.log("[MEGA VALUE] " + home + " value picks:", valuePicks.length);

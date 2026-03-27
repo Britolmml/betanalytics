@@ -289,7 +289,7 @@ const fuzzyMatch = (a, b) => {
 // ============================================================
 // EDGE & KELLY CRITERION
 // ============================================================
-function calcEdges(poissonResult, gameOdds) {
+function calcEdges(poissonResult, gameOdds, homeTeamName = "", awayTeamName = "") {
   if (!poissonResult || !gameOdds) return null;
   const h2hM = gameOdds.find(m => m.key === "h2h");
   const totalsM = gameOdds.find(m => m.key === "totals");
@@ -300,7 +300,6 @@ function calcEdges(poissonResult, gameOdds) {
     const impliedProb = 1 / decimal;
     const edge = ourProb - impliedProb;
     const kelly = edge > 0 ? (edge / (decimal - 1)) * 100 : 0;
-    // Cap edge a ±12% — si es mayor el modelo Poisson probablemente está mal
     const cappedEdge = Math.max(-20, Math.min(12, Math.round(edge * 100)));
     edges.push({
       market, pick, label,
@@ -310,14 +309,19 @@ function calcEdges(poissonResult, gameOdds) {
       decimal,
       american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
       kelly: Math.min(10, Math.round(kelly * 10) / 10),
-      hasValue: edge > 0.03 && edge <= 0.12, // value real: entre 3% y 12%
+      hasValue: edge > 0.03 && edge <= 0.12,
     });
   };
 
   if (h2hM) {
     const outcomes = h2hM.outcomes || [];
-    const homeO = outcomes.find(o => o.name && !o.name.includes("Draw"));
-    const awayO = outcomes.filter(o => o.name && !o.name.includes("Draw"))[1];
+    // Match by team name if provided, otherwise fallback to non-Draw filter
+    const homeO = homeTeamName
+      ? outcomes.find(o => fuzzyMatch(o.name, homeTeamName))
+      : outcomes.find(o => o.name && !o.name.includes("Draw"));
+    const awayO = awayTeamName
+      ? outcomes.find(o => fuzzyMatch(o.name, awayTeamName))
+      : outcomes.find(o => o.name && !o.name.includes("Draw") && o.name !== homeO?.name);
     const drawO = outcomes.find(o => o.name === "Draw");
     if (homeO) addEdge("1X2", "Local", poissonResult.pHome/100, homeO.price, homeO.name);
     if (drawO) addEdge("1X2", "Empate", poissonResult.pDraw/100, drawO.price, "Empate");
@@ -1476,7 +1480,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             });
             if (k) gOdds = map[k];
           }
-          if (gOdds) setEdges(calcEdges(poisson, gOdds) || []);
+          if (gOdds) setEdges(calcEdges(poisson, gOdds, homeTeam?.name, awayTeam?.name) || []);
         }
       }
     } catch(e) { console.warn("Odds error:", e.message); }
