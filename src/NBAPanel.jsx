@@ -552,63 +552,6 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
         }
       } catch(e) { /* silencioso */ }
 
-      // ── Auto-cargar momios NBA sin botón ──────────────────
-      try {
-        setLoadingOdds(true);
-        const home = game.teams?.home?.name;
-        const away = game.teams?.visitors?.name;
-        // Fetch odds y splits en paralelo
-        const [oddsRes, splitsRes] = await Promise.allSettled([
-          fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`).then(r=>r.json()),
-          fetch(`/api/odds?type=splits&sport=nba`).then(r=>r.json()),
-        ]);
-        const dataOdds = oddsRes.value;
-        if (Array.isArray(dataOdds) && dataOdds.length > 0) {
-          const norm = s => s?.toLowerCase()
-            .replace(/\b(golden state|los angeles|new york|oklahoma city|san antonio|new orleans|portland trail|memphis|indiana|milwaukee|cleveland|minnesota|orlando|charlotte|detroit|washington|philadelphia|phoenix|sacramento|utah|denver|dallas|houston|atlanta|brooklyn|boston|toronto|miami)\b/g, m => m.split(" ").pop())
-            .replace(/[^a-z]/g,"") ?? "";
-          const nh = norm(home), na = norm(away);
-          const matchedGame = dataOdds.find(g => {
-            const gh = norm(g.home_team), ga = norm(g.away_team);
-            return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
-                   (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
-          });
-          if (matchedGame) {
-            const isValidPrice = (p) => p && Math.abs(p) < 5000;
-            const validBks = matchedGame.bookmakers?.filter(b => {
-              const h2h = b.markets?.find(m=>m.key==="h2h");
-              return h2h?.outcomes?.every(o => isValidPrice(o.price));
-            });
-            const bk = validBks?.find(b=>b.key==="pinnacle") ||
-                       validBks?.find(b=>b.key==="draftkings") ||
-                       validBks?.find(b=>b.key==="fanduel") ||
-                       validBks?.[0] || matchedGame.bookmakers?.[0];
-            const h2hM = bk?.markets?.find(m=>m.key==="h2h");
-            const totalsM = bk?.markets?.find(m=>m.key==="totals");
-            const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
-            setNbaOdds(newOdds);
-            const marketTotal = parseFloat(totalsM?.outcomes?.find(o=>o.name==="Over")?.point);
-            const betterPoisson = calcNBAPoisson(hStats, aStats, marketTotal || null);
-            if (betterPoisson) setNbaPoisson(betterPoisson);
-            if (betterPoisson) setNbaEdges(calcNBAEdges(betterPoisson, newOdds, home, away));
-
-            // Match splits by team name
-            const splitsData = splitsRes.value?.data || [];
-            const matchedSplits = splitsData.find(g => {
-              const gh = norm(g.home_team), ga = norm(g.away_team);
-              return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
-                     (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
-            });
-            if (matchedSplits) setNbaSplits(matchedSplits.splits?.[0] || null);
-          } else {
-            console.warn("[Odds] No match found for", home, "vs", away);
-          }
-        } else {
-          console.warn("[Odds] Empty response or error:", dataOdds);
-        }
-      } catch(e) { console.warn("Auto-load odds error:", e.message); }
-      finally { setLoadingOdds(false); }
-
       // injuries cargadas via useEffect
 
       // Cargar top jugadores
@@ -743,6 +686,60 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
       const hStats = preview?.home;
       const aStats = preview?.away;
 
+      // ── Cargar momios + splits al pedir análisis (no al seleccionar partido) ──
+      let currentOdds = nbaOdds, currentEdges = nbaEdges, currentSplits = nbaSplits, currentPoisson = nbaPoisson;
+      if (!currentOdds) {
+        try {
+          setLoadingOdds(true);
+          const norm = s => s?.toLowerCase()
+            .replace(/\b(golden state|los angeles|new york|oklahoma city|san antonio|new orleans|portland trail|memphis|indiana|milwaukee|cleveland|minnesota|orlando|charlotte|detroit|washington|philadelphia|phoenix|sacramento|utah|denver|dallas|houston|atlanta|brooklyn|boston|toronto|miami)\b/g, m => m.split(" ").pop())
+            .replace(/[^a-z]/g,"") ?? "";
+          const nh = norm(home), na = norm(away);
+          const [oddsRes, splitsRes] = await Promise.allSettled([
+            fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`).then(r=>r.json()),
+            fetch(`/api/odds?type=splits&sport=nba`).then(r=>r.json()),
+          ]);
+          const dataOdds = oddsRes.value;
+          if (Array.isArray(dataOdds) && dataOdds.length > 0) {
+            const matchedGame = dataOdds.find(g => {
+              const gh = norm(g.home_team), ga = norm(g.away_team);
+              return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
+                     (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
+            });
+            if (matchedGame) {
+              const isValidPrice = (p) => p && Math.abs(p) < 5000;
+              const validBks = matchedGame.bookmakers?.filter(b => {
+                const h2h = b.markets?.find(m=>m.key==="h2h");
+                return h2h?.outcomes?.every(o => isValidPrice(o.price));
+              });
+              const bk = validBks?.find(b=>b.key==="pinnacle") ||
+                         validBks?.find(b=>b.key==="draftkings") ||
+                         validBks?.find(b=>b.key==="fanduel") ||
+                         validBks?.[0] || matchedGame.bookmakers?.[0];
+              const h2hM = bk?.markets?.find(m=>m.key==="h2h");
+              const totalsM = bk?.markets?.find(m=>m.key==="totals");
+              const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
+              const marketTotal = parseFloat(totalsM?.outcomes?.find(o=>o.name==="Over")?.point);
+              const bp = calcNBAPoisson(hStats, aStats, marketTotal || null);
+              const newEdges = bp ? calcNBAEdges(bp, newOdds, home, away) : [];
+              setNbaOdds(newOdds); setNbaPoisson(bp); setNbaEdges(newEdges);
+              currentOdds = newOdds; currentPoisson = bp; currentEdges = newEdges;
+              // Splits
+              const splitsData = splitsRes.value?.data || [];
+              const ms = splitsData.find(g => {
+                const gh = norm(g.home_team), ga = norm(g.away_team);
+                return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
+                       (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
+              });
+              const sp = ms?.splits?.[0] || null;
+              setNbaSplits(sp);
+              currentSplits = sp;
+            }
+          }
+        } catch(e) { console.warn("Odds/splits error:", e.message); }
+        finally { setLoadingOdds(false); }
+      }
+
       const hAvg = parseFloat(hStats?.avgPts || 110);
       const aAvg = parseFloat(aStats?.avgPts || 110);
       const hCon = parseFloat(hStats?.avgPtsCon || 110);
@@ -793,30 +790,30 @@ Expected points (model): ${aLine}
 ════ MARKET LINES ════
 Projected total: ${totalLine} pts
 ${home} projected: ${hLine} | ${away} projected: ${aLine}
-${nbaOdds ? `REFERENCE ODDS (${nbaOdds.bookmaker || "DraftKings"} — may differ from your sportsbook):
-  Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
+${currentOdds ? `REFERENCE ODDS (${currentOdds.bookmaker || "DraftKings"} — may differ from your sportsbook):
+  Moneyline: ` + (currentOdds.h2h?.outcomes?.map(o => {
   const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1));
   return o.name + " " + am;
 }).join(" | ") || "N/A") + `
-  Total: ` + (nbaOdds.totals?.outcomes?.map(o => { const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)); return o.name + " " + o.point + " @ " + am; }).join(" | ") || "N/A") + `
+  Total: ` + (currentOdds.totals?.outcomes?.map(o => { const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)); return o.name + " " + o.point + " @ " + am; }).join(" | ") || "N/A") + `
 CRITICAL: Use EXACTLY these total lines in your picks. DO NOT invent lines.` : "Odds not available"}
 
 ════ NBA POISSON MODEL ════
-` + (nbaPoisson ? `Expected xPts: ${home}=${nbaPoisson.xPtsHome} | ${away}=${nbaPoisson.xPtsAway}
-Poisson projected total: ${nbaPoisson.total} pts | Spread: ${home} ${nbaPoisson.spread > 0 ? "+"+nbaPoisson.spread : nbaPoisson.spread}
-Offensive strength: ${home}=${nbaPoisson.hOff}x | ${away}=${nbaPoisson.aOff}x
-Defensive strength: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
-Win probability: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
-Over real market line (${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/A"}): ${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(nbaPoisson.total, parseFloat(nbaOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
+` + (currentPoisson ? `Expected xPts: ${home}=${currentPoisson.xPtsHome} | ${away}=${currentPoisson.xPtsAway}
+Poisson projected total: ${currentPoisson.total} pts | Spread: ${home} ${currentPoisson.spread > 0 ? "+"+currentPoisson.spread : currentPoisson.spread}
+Offensive strength: ${home}=${currentPoisson.hOff}x | ${away}=${currentPoisson.aOff}x
+Defensive strength: ${home}=${currentPoisson.hDef}x | ${away}=${currentPoisson.aDef}x
+Win probability: ${home}=${currentPoisson.pHome}% | ${away}=${currentPoisson.pAway}%
+Over real market line (${currentOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/A"}): ${currentOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(currentPoisson.total, parseFloat(currentOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
 H2H last games: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "No H2H available") : "Poisson not available") + `
 
 ════ CALCULATED EDGES (Poisson vs NBA Market) ════
-` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"no value"}`).join("\n") : "No odds loaded — load odds to detect edges") + `
+` + ((currentEdges||[]).length>0 ? currentEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"no value"}`).join("\n") : "No odds loaded — load odds to detect edges") + `
 IMPORTANT: Base highlighted bets ONLY on positive edges. If no edges, state there is no value.
 
 ════ PUBLIC BETTING SPLITS (Owls Insight) ════
-` + (nbaSplits ? (() => {
-  const ml = nbaSplits.moneyline, tot = nbaSplits.total;
+` + (currentSplits ? (() => {
+  const ml = currentSplits.moneyline, tot = currentSplits.total;
   const mlStr = ml ? `Moneyline: ${home} Handle=${ml.home_handle_pct}% Tickets=${ml.home_bets_pct}% | ${away} Handle=${ml.away_handle_pct}% Tickets=${ml.away_bets_pct}%` : "";
   const totStr = tot ? `Total: Over Handle=${tot.over_handle_pct}% Tickets=${tot.over_bets_pct}% | Under Handle=${tot.under_handle_pct}% Tickets=${tot.under_bets_pct}%` : "";
   const sharpML = ml && ml.home_handle_pct > ml.home_bets_pct + 15 ? `⚡ Sharp money on ${home} — fade public on ${away}` : ml && ml.away_handle_pct > ml.away_bets_pct + 15 ? `⚡ Sharp money on ${away} — fade public on ${home}` : "No significant sharp/public divergence on moneyline";
@@ -898,30 +895,30 @@ Puntos esperados (modelo): ${aLine}
 ════ LÍNEAS DE MERCADO ════
 Total proyectado: ${totalLine} pts
 ${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
-${nbaOdds ? `MOMIOS REFERENCIA (${nbaOdds.bookmaker || "DraftKings"} — pueden diferir de tu casa de apuestas):
-  Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
+${currentOdds ? `MOMIOS REFERENCIA (${currentOdds.bookmaker || "DraftKings"} — pueden diferir de tu casa de apuestas):
+  Moneyline: ` + (currentOdds.h2h?.outcomes?.map(o => {
   const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1));
   return o.name + " " + am;
 }).join(" | ") || "N/D") + `
-  Total: ` + (nbaOdds.totals?.outcomes?.map(o => { const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)); return o.name + " " + o.point + " @ " + am; }).join(" | ") || "N/D") + `
+  Total: ` + (currentOdds.totals?.outcomes?.map(o => { const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)); return o.name + " " + o.point + " @ " + am; }).join(" | ") || "N/D") + `
 CRÍTICO: Usa EXACTAMENTE estas líneas de totales en tus picks. NO inventes líneas.` : "Momios no disponibles"}
 
 ════ MODELO POISSON NBA ════
-` + (nbaPoisson ? `xPts esperados: ${home}=${nbaPoisson.xPtsHome} | ${away}=${nbaPoisson.xPtsAway}
-Total proyectado Poisson: ${nbaPoisson.total} pts | Spread: ${home} ${nbaPoisson.spread > 0 ? "+"+nbaPoisson.spread : nbaPoisson.spread}
-Fuerza ofensiva: ${home}=${nbaPoisson.hOff}x | ${away}=${nbaPoisson.aOff}x
-Fuerza defensiva: ${home}=${nbaPoisson.hDef}x | ${away}=${nbaPoisson.aDef}x
-Probabilidad victoria: ${home}=${nbaPoisson.pHome}% | ${away}=${nbaPoisson.pAway}%
-Over línea mercado real (${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/D"}): ${nbaOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(nbaPoisson.total, parseFloat(nbaOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
+` + (currentPoisson ? `xPts esperados: ${home}=${currentPoisson.xPtsHome} | ${away}=${currentPoisson.xPtsAway}
+Total proyectado Poisson: ${currentPoisson.total} pts | Spread: ${home} ${currentPoisson.spread > 0 ? "+"+currentPoisson.spread : currentPoisson.spread}
+Fuerza ofensiva: ${home}=${currentPoisson.hOff}x | ${away}=${currentPoisson.aOff}x
+Fuerza defensiva: ${home}=${currentPoisson.hDef}x | ${away}=${currentPoisson.aDef}x
+Probabilidad victoria: ${home}=${currentPoisson.pHome}% | ${away}=${currentPoisson.pAway}%
+Over línea mercado real (${currentOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ?? "N/D"}): ${currentOdds?.totals?.outcomes?.find(o=>o.name==="Over")?.point ? overProbForLine(currentPoisson.total, parseFloat(currentOdds.totals.outcomes.find(o=>o.name==="Over").point)) : "?"}%
 H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts+"-"+g.aPts+" "+g.away).join(" | ") : "Sin H2H disponible") : "Poisson no disponible") + `
 
 ════ EDGES CALCULADOS (Poisson vs Mercado NBA) ════
-` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"sin valor"}`).join("\n") : "Sin momios cargados — carga momios para detectar edges") + `
+` + ((currentEdges||[]).length>0 ? currentEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"sin valor"}`).join("\n") : "Sin momios cargados — carga momios para detectar edges") + `
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
 
 ════ DINERO PÚBLICO Y APUESTAS (Owls Insight) ════
-` + (nbaSplits ? (() => {
-  const ml = nbaSplits.moneyline, tot = nbaSplits.total;
+` + (currentSplits ? (() => {
+  const ml = currentSplits.moneyline, tot = currentSplits.total;
   const mlStr = ml ? `Moneyline: ${home} Handle=${ml.home_handle_pct}% Tickets=${ml.home_bets_pct}% | ${away} Handle=${ml.away_handle_pct}% Tickets=${ml.away_bets_pct}%` : "";
   const totStr = tot ? `Total: Over Handle=${tot.over_handle_pct}% Tickets=${tot.over_bets_pct}% | Under Handle=${tot.under_handle_pct}% Tickets=${tot.under_bets_pct}%` : "";
   const sharpML = ml && ml.home_handle_pct > ml.home_bets_pct + 15 ? `⚡ Dinero sharp en ${home} — fade público en ${away}` : ml && ml.away_handle_pct > ml.away_bets_pct + 15 ? `⚡ Dinero sharp en ${away} — fade público en ${home}` : "Sin divergencia sharp/público significativa en moneyline";
