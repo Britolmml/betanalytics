@@ -279,6 +279,8 @@ export default function MLBPanel({ inline, lang="es" }) {
     } catch(e) { console.warn("Pitchers error:", e.message); }
     finally { setLoadingPitchers(false); }
   };
+
+  const fetchOddsForGame = async (game, hStats, aStats, p) => {
     const ro = await fetch(`/api/odds?sport=baseball_mlb&markets=h2h,totals&regions=us`);
     const do_ = await ro.json();
     if (!Array.isArray(do_)) return;
