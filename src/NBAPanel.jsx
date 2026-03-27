@@ -398,6 +398,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
   const [nbaPoisson, setNbaPoisson] = useState(null);
   const [nbaH2H, setNbaH2H] = useState([]);
   const [nbaEdges, setNbaEdges] = useState([]);
+  const [nbaSplits, setNbaSplits] = useState(null); // Handle % / Ticket %
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [loadingInjuries, setLoadingInjuries] = useState(false);
   const [injuries, setInjuries] = useState([]);
@@ -534,9 +535,12 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
         setLoadingOdds(true);
         const home = game.teams?.home?.name;
         const away = game.teams?.visitors?.name;
-        // NBA solo tiene cobertura en regions=us
-        const resOdds = await fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`);
-        const dataOdds = await resOdds.json();
+        // Fetch odds y splits en paralelo
+        const [oddsRes, splitsRes] = await Promise.allSettled([
+          fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`).then(r=>r.json()),
+          fetch(`/api/owls?type=splits&sport=nba`).then(r=>r.json()),
+        ]);
+        const dataOdds = oddsRes.value;
         if (Array.isArray(dataOdds) && dataOdds.length > 0) {
           const norm = s => s?.toLowerCase()
             .replace(/\b(golden state|los angeles|new york|oklahoma city|san antonio|new orleans|portland trail|memphis|indiana|milwaukee|cleveland|minnesota|orlando|charlotte|detroit|washington|philadelphia|phoenix|sacramento|utah|denver|dallas|houston|atlanta|brooklyn|boston|toronto|miami)\b/g, m => m.split(" ").pop())
@@ -556,13 +560,21 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
             const totalsM = bk?.markets?.find(m=>m.key==="totals");
             const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
             setNbaOdds(newOdds);
-            // Recalcular Poisson anclado a la línea del mercado
             const marketTotal = parseFloat(totalsM?.outcomes?.find(o=>o.name==="Over")?.point);
             const betterPoisson = calcNBAPoisson(hStats, aStats, marketTotal || null);
             if (betterPoisson) setNbaPoisson(betterPoisson);
             if (betterPoisson) setNbaEdges(calcNBAEdges(betterPoisson, newOdds, home, away));
+
+            // Match splits by team name
+            const splitsData = splitsRes.value?.data || [];
+            const matchedSplits = splitsData.find(g => {
+              const gh = norm(g.home_team), ga = norm(g.away_team);
+              return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
+                     (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
+            });
+            if (matchedSplits) setNbaSplits(matchedSplits.splits?.[0] || null);
           } else {
-            console.warn("[Odds] No match found for", home, "vs", away, "— available:", dataOdds.map(g=>g.home_team+"v"+g.away_team).join(", "));
+            console.warn("[Odds] No match found for", home, "vs", away);
           }
         } else {
           console.warn("[Odds] Empty response or error:", dataOdds);
@@ -1369,7 +1381,56 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           );
                         })()}
 
-                        {/* Modelo Poisson NBA */}
+                        {/* Handle % / Splits — Owls Insight */}
+                        {nbaSplits && (
+                          <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
+                            <div style={{ fontSize: 9, color: "#10b981", fontWeight: 700, letterSpacing: 1, marginBottom: 10, display:"flex", justifyContent:"space-between" }}>
+                              <span>📊 {lang==="en"?"PUBLIC BETTING SPLITS":"SPLITS — DINERO PÚBLICO"}</span>
+                              <span style={{fontSize:8,color:"#555"}}>{nbaSplits.title || "Circa/DraftKings"}</span>
+                            </div>
+                            {[
+                              { label: lang==="en"?"MONEYLINE":"MONEYLINE", data: nbaSplits.moneyline, homeLabel: selectedGame?.teams?.home?.name?.split(" ").pop(), awayLabel: selectedGame?.teams?.visitors?.name?.split(" ").pop() },
+                              { label: lang==="en"?"TOTAL":"TOTAL", data: nbaSplits.total, homeLabel: "Over", awayLabel: "Under", isTotal: true },
+                            ].map(({ label, data, homeLabel, awayLabel, isTotal }) => {
+                              if (!data) return null;
+                              const homeHandle = isTotal ? data.over_handle_pct : data.home_handle_pct;
+                              const awayHandle = isTotal ? data.under_handle_pct : data.away_handle_pct;
+                              const homeBets = isTotal ? data.over_bets_pct : data.home_bets_pct;
+                              const awayBets = isTotal ? data.under_bets_pct : data.away_bets_pct;
+                              if (!homeHandle && !awayHandle) return null;
+                              const sharpSide = homeHandle > awayHandle && homeBets < awayBets ? awayLabel :
+                                               awayHandle > homeHandle && awayBets < homeBets ? homeLabel : null;
+                              return (
+                                <div key={label} style={{ marginBottom: 10 }}>
+                                  <div style={{ fontSize: 9, color: "#555", fontWeight: 700, marginBottom: 6 }}>{label}</div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                    {[{ name: homeLabel, handle: homeHandle, bets: homeBets }, { name: awayLabel, handle: awayHandle, bets: awayBets }].map(({ name, handle, bets }) => (
+                                      <div key={name} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "6px 8px" }}>
+                                        <div style={{ fontSize: 10, color: "#aaa", marginBottom: 4, fontWeight: 700 }}>{name}</div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                                          <span style={{ fontSize: 9, color: "#555" }}>💰 {lang==="en"?"Handle":"Dinero"}</span>
+                                          <span style={{ fontSize: 12, fontWeight: 800, color: handle >= 60 ? "#10b981" : "#f59e0b" }}>{handle}%</span>
+                                        </div>
+                                        <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, marginBottom: 4 }}>
+                                          <div style={{ width: `${handle}%`, height: "100%", background: handle >= 60 ? "#10b981" : "#f59e0b", borderRadius: 2 }}/>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                          <span style={{ fontSize: 9, color: "#555" }}>🎟 {lang==="en"?"Tickets":"Tickets"}</span>
+                                          <span style={{ fontSize: 11, color: "#aaa" }}>{bets}%</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {sharpSide && (
+                                    <div style={{ marginTop: 6, fontSize: 10, color: "#f59e0b", background: "rgba(245,158,11,0.08)", borderRadius: 6, padding: "3px 8px", display: "flex", alignItems: "center", gap: 4 }}>
+                                      ⚡ {lang==="en"?`Sharp money on ${sharpSide} — public on other side`:`Dinero sharp en ${sharpSide} — público en el otro lado`}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         {nbaPoisson && (
                           <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.2)", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
                             <div style={{ fontSize: 9, color: "#a78bfa", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>🎲 Modelo Poisson NBA</div>

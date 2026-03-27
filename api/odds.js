@@ -1,5 +1,4 @@
-// api/odds.js — The Odds API + api-sports fallback
-
+// api/odds.js — Owls Insight (primary) + api-sports (fallback)
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
@@ -8,7 +7,40 @@ export default async function handler(req, res) {
   const { sport, markets = "h2h", regions = "eu", dateFormat = "iso", fixture_id } = req.query;
   if (!sport) return res.status(400).json({ error: "Falta parámetro sport" });
 
-  // 1. The Odds API primero
+  // ── 1. Owls Insight (primary) ─────────────────────────────────────────────
+  const OWLS_KEY = process.env.OWLS_INSIGHT_API_KEY;
+  if (OWLS_KEY) {
+    try {
+      const BASE = "https://api.owlsinsight.com/api/v1";
+      const headers = { "Authorization": `Bearer ${OWLS_KEY}`, "Accept": "application/json" };
+
+      const SPORT_MAP = {
+        "basketball_nba": "nba", "baseball_mlb": "mlb",
+        "soccer_epl": "soccer", "soccer_spain_la_liga": "soccer",
+        "soccer_germany_bundesliga": "soccer", "soccer_italy_serie_a": "soccer",
+        "soccer_france_ligue_one": "soccer", "soccer_uefa_champs_league": "soccer",
+        "soccer_uefa_europa_league": "soccer", "soccer_mexico_ligamx": "soccer",
+        "soccer_usa_mls": "soccer", "soccer_brazil_campeonato": "soccer",
+        "soccer_argentina_primera_division": "soccer", "soccer": "soccer",
+        "americanfootball_nfl": "nfl",
+      };
+
+      const owlsSport = SPORT_MAP[sport];
+      if (owlsSport) {
+        const books = "pinnacle,draftkings,fanduel,betmgm,bet365,circa";
+        const url = `${BASE}/${owlsSport}/odds?books=${books}`;
+        const r = await fetch(url, { headers });
+        const data = await r.json();
+
+        if (data.success && data.data) {
+          const normalized = normalizeOwlsOdds(data.data);
+          if (normalized.length > 0) return res.status(200).json(normalized);
+        }
+      }
+    } catch(e) { console.warn("Owls Insight error:", e.message); }
+  }
+
+  // ── 2. The Odds API (secondary fallback) ──────────────────────────────────
   const ODDS_API_KEY = process.env.ODDS_API_KEY;
   if (ODDS_API_KEY) {
     try {
@@ -19,9 +51,8 @@ export default async function handler(req, res) {
     } catch(e) { console.warn("The Odds API error:", e.message); }
   }
 
-  // 2. api-sports fallback — requiere fixture_id
+  // ── 3. api-sports fallback ────────────────────────────────────────────────
   if (!fixture_id) return res.status(200).json([]);
-
   const API_KEY = process.env.API_FOOTBALL_KEY;
   if (!API_KEY) return res.status(200).json([]);
 
@@ -31,13 +62,12 @@ export default async function handler(req, res) {
     const baseUrl = isBasketball ? "https://v2.basketball.api-sports.io"
       : isBaseball ? "https://v1.baseball.api-sports.io"
       : "https://v3.football.api-sports.io";
-    const headers = { "x-apisports-key": API_KEY };
+    const apiHeaders = { "x-apisports-key": API_KEY };
 
-    // Fetch fixture info y odds en paralelo
     const fixtureParam = (isBasketball || isBaseball) ? "game" : "fixture";
     const [fixtureRes, oddsRes] = await Promise.all([
-      fetch(`${baseUrl}/fixtures?id=${fixture_id}`, { headers }),
-      fetch(`${baseUrl}/odds?${fixtureParam}=${fixture_id}&bookmaker=8`, { headers }),
+      fetch(`${baseUrl}/fixtures?id=${fixture_id}`, { headers: apiHeaders }),
+      fetch(`${baseUrl}/odds?${fixtureParam}=${fixture_id}&bookmaker=8`, { headers: apiHeaders }),
     ]);
 
     const fixtureData = await fixtureRes.json();
@@ -45,7 +75,6 @@ export default async function handler(req, res) {
 
     const fixture = fixtureData.response?.[0];
     const oddsItem = oddsData.response?.[0];
-
     if (!oddsItem) return res.status(200).json([]);
 
     const homeTeam = fixture?.teams?.home?.name || "";
@@ -86,16 +115,42 @@ export default async function handler(req, res) {
     }
 
     if (!bookmaker.markets.length) return res.status(200).json([]);
-
     return res.status(200).json([{
-      id: String(fixture_id),
-      home_team: homeTeam,
-      away_team: awayTeam,
-      bookmakers: [bookmaker],
-      source: "api-sports"
+      id: String(fixture_id), home_team: homeTeam, away_team: awayTeam,
+      bookmakers: [bookmaker], source: "api-sports"
     }]);
   } catch(e) {
     console.warn("api-sports odds error:", e.message);
     return res.status(200).json([]);
   }
+}
+
+// Normalize Owls { pinnacle: [...], draftkings: [...] } → The Odds API format
+function normalizeOwlsOdds(owlsData) {
+  if (!owlsData || typeof owlsData !== "object") return [];
+  const gameMap = {};
+
+  for (const [, events] of Object.entries(owlsData)) {
+    if (!Array.isArray(events)) continue;
+    for (const event of events) {
+      const id = event.id || `${event.home_team}|${event.away_team}`;
+      if (!gameMap[id]) {
+        gameMap[id] = {
+          id, sport_key: event.sport_key,
+          commence_time: event.commence_time,
+          home_team: event.home_team, away_team: event.away_team,
+          bookmakers: [], league: event.league, country_code: event.country_code,
+        };
+      }
+      const bm = event.bookmakers?.[0];
+      if (bm?.markets?.length && !gameMap[id].bookmakers.find(b => b.key === bm.key)) {
+        gameMap[id].bookmakers.push({
+          key: bm.key, title: bm.title,
+          last_update: bm.last_update, event_link: bm.event_link,
+          markets: bm.markets,
+        });
+      }
+    }
+  }
+  return Object.values(gameMap).filter(g => g.bookmakers.length > 0);
 }

@@ -138,6 +138,7 @@ export default function MLBPanel({ inline, lang="es" }) {
   const [odds, setOdds] = useState(null);
   const [poisson, setPoisson] = useState(null);
   const [edges, setEdges] = useState([]);
+  const [splits, setSplits] = useState(null); // Handle % / Ticket %
   const [loadingOdds, setLoadingOdds] = useState(false);
   const [tab, setTab] = useState("games");
   const [standings, setStandings] = useState({al:[],nl:[]});
@@ -305,11 +306,18 @@ export default function MLBPanel({ inline, lang="es" }) {
   };
 
   const fetchOddsForGame = async (game, hStats, aStats, p) => {
-    const ro = await fetch(`/api/odds?sport=baseball_mlb&markets=h2h,totals&regions=us`);
-    const do_ = await ro.json();
-    if (!Array.isArray(do_)) return;
     const norm = s=>s?.toLowerCase().replace(/[^a-z]/g,"")??""
     const nh=norm(game.teams?.home?.name), na=norm(game.teams?.away?.name);
+
+    // Fetch odds y splits en paralelo
+    const [oddsRes, splitsRes] = await Promise.allSettled([
+      fetch(`/api/odds?sport=baseball_mlb&markets=h2h,totals&regions=us`).then(r=>r.json()),
+      fetch(`/api/owls?type=splits&sport=mlb`).then(r=>r.json()),
+    ]);
+
+    const do_ = oddsRes.value;
+    if (!Array.isArray(do_)) return null;
+
     const matched = do_.find(g=>{const gh=norm(g.home_team),ga=norm(g.away_team); return(gh.includes(nh.slice(-5))||nh.includes(gh.slice(-5)))&&(ga.includes(na.slice(-5))||na.includes(ga.slice(-5)));});
     if (matched) {
       const bk=matched.bookmakers?.find(b=>b.key==="draftkings")||matched.bookmakers?.[0];
@@ -321,7 +329,6 @@ export default function MLBPanel({ inline, lang="es" }) {
       const homeOutcome = outcomes.find(o => norm(o.name).includes(nh.slice(-5)) || nh.includes(norm(o.name).slice(-5)));
       const awayOutcome = outcomes.find(o => norm(o.name).includes(na.slice(-5)) || na.includes(norm(o.name).slice(-5)));
 
-      // Rebuild h2h with home first, away second — always consistent
       const fixedH2h = homeOutcome && awayOutcome
         ? { ...h2hMarket, outcomes: [homeOutcome, awayOutcome] }
         : h2hMarket;
@@ -329,7 +336,13 @@ export default function MLBPanel({ inline, lang="es" }) {
       const no_={h2h:fixedH2h, totals:totalsMarket, bookmaker:bk?.title};
       const mt=parseFloat(no_.totals?.outcomes?.find(o=>o.name==="Over")?.point);
       const bp=calcBaseballPoisson(hStats,aStats,mt||null);
-      return {odds:no_, poisson:bp||p, edges:calcEdges(bp||p, no_)};
+
+      // Match splits
+      const splitsData = splitsRes.value?.data || [];
+      const matchedSplits = splitsData.find(g=>{const gh=norm(g.home_team),ga=norm(g.away_team); return(gh.includes(nh.slice(-5))||nh.includes(gh.slice(-5)))&&(ga.includes(na.slice(-5))||na.includes(ga.slice(-5)));});
+      const gameSplits = matchedSplits?.splits?.[0] || null;
+
+      return {odds:no_, poisson:bp||p, edges:calcEdges(bp||p, no_), splits: gameSplits};
     }
     return null;
   };
@@ -337,7 +350,7 @@ export default function MLBPanel({ inline, lang="es" }) {
   const selectGame = async (game) => {
     if (selectedGame?.id===game.id) return;
     setSelectedGame(game); setAnalysis(null); setAiErr(""); setPreview(null);
-    setOdds(null); setPoisson(null); setEdges([]); setH2h([]); setPitchers(null);
+    setOdds(null); setPoisson(null); setEdges([]); setH2h([]); setPitchers(null); setSplits(null);
     setLoadingAI(true);
     // Fetch pitchers in parallel (non-blocking)
     fetchPitchers(game);
@@ -356,7 +369,7 @@ export default function MLBPanel({ inline, lang="es" }) {
       setLoadingOdds(true);
       try {
         const result = await fetchOddsForGame(game, hStats, aStats, p);
-        if (result) { setOdds(result.odds); setPoisson(result.poisson); setEdges(result.edges); }
+        if (result) { setOdds(result.odds); setPoisson(result.poisson); setEdges(result.edges); setSplits(result.splits||null); }
       } catch{} finally{setLoadingOdds(false);}
     } catch(e){setAiErr("Error: "+e.message);}
     finally{setLoadingAI(false);}
@@ -819,6 +832,52 @@ Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccion
                               ))}
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Poisson */}
+                      {splits&&(
+                        <div style={{padding:"10px 12px",background:"rgba(16,185,129,0.05)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:10,marginBottom:10}}>
+                          <div style={{fontSize:10,color:"#10b981",fontWeight:700,letterSpacing:1,marginBottom:8,display:"flex",justifyContent:"space-between"}}>
+                            <span>📊 {isEN?"PUBLIC BETTING SPLITS":"DINERO PÚBLICO"}</span>
+                            <span style={{fontSize:8,color:"#555"}}>{splits.title||"Circa/DraftKings"}</span>
+                          </div>
+                          {[
+                            {label:"MONEYLINE",data:splits.moneyline,h:selectedGame?.teams?.home?.name?.split(" ").pop(),a:selectedGame?.teams?.away?.name?.split(" ").pop(),isTotal:false},
+                            {label:"TOTAL",data:splits.total,h:"Over",a:"Under",isTotal:true},
+                          ].map(({label,data,h,a,isTotal})=>{
+                            if(!data)return null;
+                            const hH=isTotal?data.over_handle_pct:data.home_handle_pct;
+                            const aH=isTotal?data.under_handle_pct:data.away_handle_pct;
+                            const hB=isTotal?data.over_bets_pct:data.home_bets_pct;
+                            const aB=isTotal?data.under_bets_pct:data.away_bets_pct;
+                            if(!hH&&!aH)return null;
+                            const sharp = hH>aH&&hB<aB?a:aH>hH&&aB<hB?h:null;
+                            return(
+                              <div key={label} style={{marginBottom:8}}>
+                                <div style={{fontSize:9,color:"#555",fontWeight:700,marginBottom:5}}>{label}</div>
+                                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+                                  {[{name:h,handle:hH,bets:hB},{name:a,handle:aH,bets:aB}].map(({name,handle,bets})=>(
+                                    <div key={name} style={{background:"rgba(255,255,255,0.03)",borderRadius:7,padding:"5px 8px"}}>
+                                      <div style={{fontSize:10,color:"#aaa",marginBottom:3,fontWeight:700}}>{name}</div>
+                                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                                        <span style={{fontSize:9,color:"#555"}}>💰 {isEN?"Handle":"Dinero"}</span>
+                                        <span style={{fontSize:12,fontWeight:800,color:handle>=60?"#10b981":"#f59e0b"}}>{handle}%</span>
+                                      </div>
+                                      <div style={{height:3,background:"rgba(255,255,255,0.05)",borderRadius:2,marginBottom:3}}>
+                                        <div style={{width:`${handle}%`,height:"100%",background:handle>=60?"#10b981":"#f59e0b",borderRadius:2}}/>
+                                      </div>
+                                      <div style={{display:"flex",justifyContent:"space-between"}}>
+                                        <span style={{fontSize:9,color:"#555"}}>🎟 Tickets</span>
+                                        <span style={{fontSize:11,color:"#aaa"}}>{bets}%</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                {sharp&&<div style={{marginTop:5,fontSize:10,color:"#f59e0b",background:"rgba(245,158,11,0.08)",borderRadius:5,padding:"2px 8px"}}>⚡ {isEN?`Sharp money on ${sharp}`:`Dinero sharp en ${sharp}`}</div>}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
