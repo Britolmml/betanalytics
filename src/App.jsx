@@ -744,21 +744,19 @@ export default function App() {
             }
           }
         } else {
-          // Sin fecha: mostrar el día más cercano con partidos (ordenado por fecha MX)
-          const upcoming = unique
-            .filter(f => {
-              const st = f.fixture?.status?.short;
-              return !['FT','AET','PEN'].includes(st);
-            })
-            .sort((a,b) => {
-              const da = toMXDate(a.fixture.date) + a.fixture.date.split('T')[1];
-              const db = toMXDate(b.fixture.date) + b.fixture.date.split('T')[1];
-              return da.localeCompare(db);
-            });
-          if (upcoming.length > 0) {
-            const nextDate = toMXDate(upcoming[0].fixture.date);
-            const sameDay = upcoming.filter(f => toMXDate(f.fixture.date) === nextDate);
-            setTodayGames(filterSeniorOnly(sameDay));
+          // Sin fecha: agrupar por día MX y mostrar el más cercano
+          const upcoming = unique.filter(f => !['FT','AET','PEN'].includes(f.fixture?.status?.short));
+          // Agrupar todos por día MX
+          const byDay = {};
+          upcoming.forEach(f => {
+            const day = toMXDate(f.fixture.date);
+            if (!byDay[day]) byDay[day] = [];
+            byDay[day].push(f);
+          });
+          const days = Object.keys(byDay).sort();
+          if (days.length > 0) {
+            const nextDate = days[0];
+            setTodayGames(filterSeniorOnly(byDay[nextDate]));
             setTodayLabel(nextDate === todayStr ? 'hoy' : nextDate);
           } else {
             setTodayGames(unique.slice(0, 20));
