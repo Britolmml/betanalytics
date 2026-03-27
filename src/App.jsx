@@ -744,11 +744,16 @@ export default function App() {
           results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
           const games = filterSeniorOnly(dedup(all));
           if (games.length > 0) {
-            // Agrupar por día MX y tomar solo el día correcto
-            const mxDate = toMXDate(games[0].fixture.date);
-            const sameDay = games.filter(f => toMXDate(f.fixture.date) === mxDate);
-            setTodayGames(sameDay);
-            setTodayLabel(mxDate === todayStr ? 'hoy' : mxDate);
+            // Agrupar por día MX — tomar el día MX más temprano
+            const byDayMX = {};
+            games.forEach(f => {
+              const d = toMXDate(f.fixture.date);
+              if (!byDayMX[d]) byDayMX[d] = [];
+              byDayMX[d].push(f);
+            });
+            const earliestMXDay = Object.keys(byDayMX).sort()[0];
+            setTodayGames(byDayMX[earliestMXDay]);
+            setTodayLabel(earliestMXDay === todayStr ? 'hoy' : earliestMXDay);
             found = true;
           }
         }
