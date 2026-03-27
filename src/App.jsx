@@ -638,6 +638,21 @@ export default function App() {
   // Cargar partidos del día de todas las ligas internacionales
   // Cargar partidos internacionales por fecha específica
   const INTL_LEAGUE_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
+  const toMXDate = (isoStr) => {
+    if (!isoStr) return '';
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date(isoStr));
+  };
+  const filterSeniorOnly = (games) => {
+    const juniorKeywords = /u-?\d{2}|sub-?\d{2}|under-?\d{2}|u20|u21|u17|u23|olympic|olímpic/i;
+    return games.filter(f => {
+      const home = f.teams?.home?.name || '';
+      const away = f.teams?.away?.name || '';
+      return !juniorKeywords.test(home) && !juniorKeywords.test(away);
+    });
+  };
   const loadIntlByDate = async (dateStr) => {
     setLoadingToday(true);
     setTodayGames([]);
@@ -661,7 +676,7 @@ export default function App() {
       // Intentar la fecha pedida
       let games = await fetchDate(dateStr);
       if (games.length > 0) {
-        setTodayGames(games);
+        setTodayGames(filterSeniorOnly(games));
         setTodayLabel(dateStr === todayStr ? 'hoy' : dateStr);
       } else {
         // Buscar hacia adelante día por día hasta 30 días
@@ -670,7 +685,7 @@ export default function App() {
           const next = addDays(dateStr, i);
           games = await fetchDate(next);
           if (games.length > 0) {
-            setTodayGames(games);
+            setTodayGames(filterSeniorOnly(games));
             setTodayLabel(next === todayStr ? 'hoy' : next);
             found = true;
             break;
@@ -707,21 +722,21 @@ export default function App() {
         const all = [];
         res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
         all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-        const unique = dedup(all);
+        const unique = filterSeniorOnly(dedup(all));
 
         if (targetDate) {
           // Filtrar por fecha seleccionada; si vacío, mostrar el día más cercano con partidos
-          const filtered = unique.filter(f => f.fixture?.date?.startsWith(targetDate));
+          const filtered = unique.filter(f => toMXDate(f.fixture?.date) === targetDate);
           if (filtered.length > 0) {
-            setTodayGames(filtered);
+            setTodayGames(filterSeniorOnly(filtered));
             setTodayLabel(targetDate === todayStr ? 'hoy' : targetDate);
           } else {
             // Buscar el día más cercano a la fecha seleccionada
             const target = new Date(targetDate);
             const closest = unique.filter(f => new Date(f.fixture.date) >= target);
             if (closest.length > 0) {
-              const nextDate = closest[0].fixture.date.split('T')[0];
-              setTodayGames(closest.filter(f => f.fixture.date.startsWith(nextDate)));
+              const nextDate = toMXDate(closest[0].fixture.date);
+              setTodayGames(filterSeniorOnly(closest.filter(f => toMXDate(f.fixture.date) === nextDate)));
               setTodayLabel(nextDate);
             } else {
               setTodayGames(unique.slice(0, 20));
@@ -735,9 +750,9 @@ export default function App() {
             return !['FT','AET','PEN'].includes(st);
           });
           if (upcoming.length > 0) {
-            const nextDate = upcoming[0].fixture.date.split('T')[0];
-            const sameDay = upcoming.filter(f => f.fixture.date.startsWith(nextDate));
-            setTodayGames(sameDay);
+            const nextDate = toMXDate(upcoming[0].fixture.date);
+            const sameDay = upcoming.filter(f => toMXDate(f.fixture.date) === nextDate);
+            setTodayGames(filterSeniorOnly(sameDay));
             setTodayLabel(nextDate === todayStr ? 'hoy' : nextDate);
           } else {
             setTodayGames(unique.slice(0, 20));
