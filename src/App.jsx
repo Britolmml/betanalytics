@@ -647,7 +647,7 @@ export default function App() {
       return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
     };
     const fetchDate = async (d) => {
-      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${d}`)));
+      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${d}&season=${d.startsWith("2026") ? 2026 : 2025}`)));
       const all = [];
       res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
       return dedup(all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date)));
