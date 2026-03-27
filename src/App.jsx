@@ -1017,6 +1017,10 @@ export default function App() {
       setShowUpgrade(true);
       return;
     }
+    // Incrementar ANTES de analizar para evitar múltiples análisis simultáneos
+    await incrementUsage(user.id);
+    const newUsageCheck = await checkUsageLimit(user.id);
+    setUsageInfo(newUsageCheck);
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);
@@ -1550,10 +1554,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
             gameDate: selectedFixture?.fixture?.date?.split("T")[0] || null,
             analysis: fullAnalysis,
           }, picks, "football");
-          // Incrementar uso del día
-          await incrementUsage(user.id);
-          const newUsage = await checkUsageLimit(user.id);
-          setUsageInfo(newUsage);
+          // Uso ya incrementado al inicio del análisis
         }
       } catch(e) { /* silencioso */ }
     } catch(e) { setAiErr("Error: "+e.message); }
@@ -1565,6 +1566,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
     const usageM = await checkUsageLimit(user.id);
     setUsageInfo(usageM);
     if (!usageM.allowed) { setShowUpgrade(true); return; }
+    await incrementUsage(user.id);
     setLoadingMulti(true); setMultiResult(null); setShowMulti(true);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);
