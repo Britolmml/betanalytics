@@ -1963,7 +1963,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* Botones: Ligas de Selecciones Nacionales */}
               {[
-                {id:"intl_7",  leagueId:7,  season:2025, name:"Amistosos",     country:"Internacional", flag:"🤝"},
+                {id:"intl_7",  leagueId:7,  season:2026, name:"Amistosos",     country:"Internacional", flag:"🤝"},
                 {id:"intl_10", leagueId:10, season:2026, name:"CONCACAF",      country:"Eliminatorias", flag:"🌎"},
                 {id:"intl_6",  leagueId:6,  season:2026, name:"UEFA",          country:"Eliminatorias", flag:"🌍"},
                 {id:"intl_29", leagueId:29, season:2025, name:"CONMEBOL",      country:"Eliminatorias", flag:"🌎"},
