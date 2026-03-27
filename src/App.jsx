@@ -653,7 +653,8 @@ export default function App() {
       return !juniorKeywords.test(home) && !juniorKeywords.test(away);
     });
   };
-  const loadIntlByDate = async (dateStr) => {
+  const loadIntlByDate = async (mxDateStr) => {
+    // mxDateStr es la fecha en zona horaria México
     setLoadingToday(true);
     setTodayGames([]);
     const todayStr = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -661,31 +662,41 @@ export default function App() {
       const seen = new Set();
       return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
     };
-    const fetchDate = async (d) => {
-      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${d}&season=${d.startsWith("2026") ? 2026 : 2025}`)));
-      const all = [];
-      res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-      return dedup(all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date)));
-    };
-    const addDays = (base, n) => {
+    const addDaysLocal = (base, n) => {
       const [y,m,d] = base.split('-').map(Number);
       const dt = new Date(y, m-1, d+n);
       return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
     };
+    const LEAGUE_SEASONS = {9:[2024],6:[2026,2025],32:[2024,2025],34:[2024,2025],10:[2026,2025],4:[2024],29:[2024,2025],1:[2026,2025],7:[2025,2026]};
+    const fetchForMXDay = async (mxDay) => {
+      // Buscar en el día MX y en el siguiente UTC (para capturar partidos nocturnos)
+      const utcNext = addDaysLocal(mxDay, 1);
+      const year = parseInt(mxDay.split('-')[0]);
+      const calls = [mxDay, utcNext].flatMap(dateStr =>
+        INTL_LEAGUE_IDS.flatMap(id => {
+          const seasons = LEAGUE_SEASONS[id] || [year];
+          return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
+        })
+      );
+      const results = await Promise.allSettled(calls);
+      const all = [];
+      results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+      // Solo los que en MX corresponden al día pedido
+      return filterSeniorOnly(dedup(all).filter(f => toMXDate(f.fixture.date) === mxDay));
+    };
     try {
-      // Intentar la fecha pedida
-      let games = await fetchDate(dateStr);
+      let games = await fetchForMXDay(mxDateStr);
       if (games.length > 0) {
-        setTodayGames(filterSeniorOnly(games));
-        setTodayLabel(dateStr === todayStr ? 'hoy' : dateStr);
+        setTodayGames(games);
+        setTodayLabel(mxDateStr === todayStr ? 'hoy' : mxDateStr);
       } else {
-        // Buscar hacia adelante día por día hasta 30 días
+        // Buscar hacia adelante
         let found = false;
         for (let i = 1; i <= 30; i++) {
-          const next = addDays(dateStr, i);
-          games = await fetchDate(next);
+          const next = addDaysLocal(mxDateStr, i);
+          games = await fetchForMXDay(next);
           if (games.length > 0) {
-            setTodayGames(filterSeniorOnly(games));
+            setTodayGames(games);
             setTodayLabel(next === todayStr ? 'hoy' : next);
             found = true;
             break;
