@@ -676,7 +676,7 @@ export default function App() {
       const calls = [mxDay, utcNext].flatMap(dateStr =>
         INTL_LEAGUE_IDS.flatMap(id => {
           const seasons = LEAGUE_SEASONS[id] || [year, year-1];
-          return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
+          return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s+'&_t='+Date.now()));
         })
       );
       const results = await Promise.allSettled(calls);
@@ -750,7 +750,7 @@ export default function App() {
           const calls = [mxDay, utcNext].flatMap(dateStr =>
             NATL_IDS.flatMap(id => {
               const seasons = LEAGUE_SEASONS[id] || [year];
-              return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
+              return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s+'&_t='+Date.now()));
             })
           );
           const results = await Promise.allSettled(calls);
