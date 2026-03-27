@@ -490,6 +490,8 @@ export default function App() {
   const [loadingLeagues,setLoadingLeagues]= useState(false);
   const [leagueSearch,  setLeagueSearch]  = useState("");
   const [showAllLeagues,setShowAllLeagues]= useState(false);
+  const [intlCachedGames, setIntlCachedGames] = useState([]);
+  const [intlPickerDate,  setIntlPickerDate]  = useState('');
 
 
 
@@ -730,51 +732,36 @@ export default function App() {
     try {
       // Caso especial: Selecciones Nacionales — carga por fecha seleccionada o busca próximo día con partidos
       if (lg.isIntl) {
-        const NATL_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
-        // Season map: qué season tiene datos para cada liga
-        const LEAGUE_SEASONS = {
-          9: [2024], 6: [2026,2025], 32: [2024,2025], 34: [2024,2025],
-          10: [2026,2025], 4: [2024], 29: [2024,2025], 1: [2026,2025], 7: [2025,2026]
-        };
-        const dedup = (arr) => {
-          const seen = new Set();
-          return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
-        };
+        // Cargar partidos de las ligas activas con sus seasons correctas — pocas llamadas
+        const ACTIVE_LEAGUES = [
+          {id:7, s:2025}, {id:10, s:2026}, {id:6, s:2026},
+          {id:32, s:2025}, {id:34, s:2025}, {id:29, s:2025},
+          {id:1, s:2026}, {id:9, s:2024}, {id:4, s:2024}
+        ];
         const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
-        const targetDate = lg.selectedDate || null;
-        const searchDate = targetDate || todayStr;
+        const dedup2 = (arr) => { const seen = new Set(); return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }); };
 
-        // Buscar día por día en fechas MX (búsqueda en UTC day y UTC day+1 para cubrir zona horaria)
-        const addDaysLocal = (base, n) => {
-          const [y,m,d] = base.split('-').map(Number);
-          const dt = new Date(y, m-1, d+n);
-          return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-        };
+        // Una sola ronda de llamadas: next=20 por liga
+        const res = await Promise.allSettled(ACTIVE_LEAGUES.map(({id,s}) => apiFetch('/fixtures?league='+id+'&next=20&season='+s)));
+        const all = [];
+        res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        const allGames = filterSeniorOnly(dedup2(all));
 
-        let found = false;
-        for (let offset = 0; offset <= 90 && !found; offset++) {
-          const mxDay = addDaysLocal(searchDate, offset);       // día en MX
-          const utcNext = addDaysLocal(mxDay, 1);               // día siguiente en UTC (para capturar partidos nocturnos)
-          const year = parseInt(mxDay.split('-')[0]);
-          // Buscar tanto en el día MX como en el siguiente UTC
-          const calls = [mxDay, utcNext].flatMap(dateStr =>
-            NATL_IDS.flatMap(id => {
-              const seasons = LEAGUE_SEASONS[id] || [year];
-              return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
-            })
-          );
-          const results = await Promise.allSettled(calls);
-          const all = [];
-          results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-          // Filtrar solo los que en MX corresponden a mxDay
-          const games = filterSeniorOnly(dedup(all)).filter(f => toMXDate(f.fixture.date) === mxDay);
-          if (games.length > 0) {
-            setTodayGames(games);
-            setTodayLabel(mxDay === todayStr ? 'hoy' : mxDay);
-            found = true;
-          }
+        // Guardar en cache para el picker
+        setIntlCachedGames(allGames);
+
+        // Agrupar por día MX y mostrar el más cercano a hoy
+        const byDay = {};
+        allGames.forEach(f => { const d = toMXDate(f.fixture.date); if(!byDay[d]) byDay[d]=[]; byDay[d].push(f); });
+        const days = Object.keys(byDay).sort();
+        const nearest = days.find(d => d >= todayStr) || days[0];
+        if (nearest) {
+          setTodayGames(byDay[nearest]);
+          setTodayLabel(nearest === todayStr ? 'hoy' : nearest);
+          setIntlPickerDate(nearest);
+        } else {
+          setTodayGames([]);
         }
-        if (!found) { setTodayGames([]); setTodayLabel(searchDate); }
         setLoadingToday(false);
         return;
       }
