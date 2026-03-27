@@ -713,8 +713,21 @@ export default function App() {
     });
     const availableDays = Object.keys(byDay).sort();
     if (availableDays.length === 0) { setTodayGames([]); return; }
-    // Buscar el día pedido o el más cercano posterior dentro del cache
-    const target = availableDays.find(d => d >= mxDateStr) || availableDays[0];
+    // Si hay partidos exactamente ese día, mostrarlos
+    // Si no, buscar el más cercano (anterior o posterior)
+    let target;
+    if (byDay[mxDateStr]) {
+      target = mxDateStr;
+    } else {
+      // Buscar el día más cercano
+      const after = availableDays.find(d => d > mxDateStr);
+      const before = [...availableDays].reverse().find(d => d < mxDateStr);
+      if (after && before) {
+        target = (Math.abs(new Date(after)-new Date(mxDateStr)) < Math.abs(new Date(before)-new Date(mxDateStr))) ? after : before;
+      } else {
+        target = after || before || availableDays[0];
+      }
+    }
     setTodayGames(byDay[target]);
     setTodayLabel(target === todayStr ? 'hoy' : target);
     setIntlPickerDate(target);
