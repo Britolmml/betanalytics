@@ -646,21 +646,53 @@ export default function App() {
     // Cargar próximos partidos de esta liga
     setLoadingToday(true);
     try {
-      // Caso especial: Selecciones Nacionales
+      // Caso especial: Selecciones Nacionales — carga por fecha seleccionada o busca próximo día con partidos
       if (lg.isIntl) {
         const NATL_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
-        const today = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
-        const res1 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${today}`)));
-        const all = [];
-        res1.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-        if (all.length === 0) {
-          const res2 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=5`)));
-          res2.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-          setTodayLabel('próximos');
-        } else { setTodayLabel('hoy'); }
-        all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-        const seen = new Set();
-        setTodayGames(all.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }));
+        const dedup = (arr) => {
+          const seen = new Set();
+          return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
+        };
+        const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+        // Si hay una fecha seleccionada en el picker, usarla; si no, buscar día a día
+        const targetDate = lg.selectedDate || null;
+        if (targetDate) {
+          const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${targetDate}`)));
+          const all = [];
+          res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+          all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+          setTodayGames(dedup(all));
+          setTodayLabel(targetDate === todayStr ? 'hoy' : targetDate);
+        } else {
+          // Buscar día por día hasta 7 días
+          const getDate = (offsetDays) => {
+            const [y, m, d] = todayStr.split('-').map(Number);
+            const dt = new Date(y, m - 1, d + offsetDays);
+            return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+          };
+          let found = false;
+          for (let offset = 0; offset <= 7; offset++) {
+            const dateStr = getDate(offset);
+            const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${dateStr}`)));
+            const all = [];
+            res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+            if (all.length > 0) {
+              all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+              setTodayGames(dedup(all));
+              setTodayLabel(offset === 0 ? 'hoy' : dateStr);
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            const res2 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=3`)));
+            const all2 = [];
+            res2.forEach(r => { if (r.status==='fulfilled') all2.push(...(r.value?.response||[])); });
+            all2.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+            setTodayGames(dedup(all2));
+            setTodayLabel('próximos');
+          }
+        }
         setLoadingToday(false);
         return;
       }
@@ -1884,16 +1916,36 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* Partidos de hoy */}
             {league && (
               <div style={{marginBottom:20}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
                   <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>
                     📅 {lang==="en"?`Games for ${todayLabel}`:`Partidos de ${todayLabel}`} — {league.name}
                   </div>
-                  {todayGames.length > 1 && (
-                    <button onClick={()=>{setShowJornada(true); analyzeJornada();}}
-                      style={{background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.35)",borderRadius:8,padding:"5px 12px",color:"#a78bfa",cursor:"pointer",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-                      🎰 {lang==="en"?"Parlay of the Round":"Parlay de Jornada"}
-                    </button>
-                  )}
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {/* Calendario solo para Selecciones Nacionales */}
+                    {league?.isIntl && (
+                      <input
+                        type="date"
+                        defaultValue={new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+                        onChange={e => {
+                          const date = e.target.value;
+                          if (date) loadTeams({...league, selectedDate: date});
+                        }}
+                        style={{
+                          background:"rgba(0,212,255,0.07)",
+                          border:"1px solid rgba(0,212,255,0.25)",
+                          borderRadius:8, padding:"4px 10px",
+                          color:"#00d4ff", fontSize:11, cursor:"pointer",
+                          colorScheme:"dark",
+                        }}
+                      />
+                    )}
+                    {todayGames.length > 1 && (
+                      <button onClick={()=>{setShowJornada(true); analyzeJornada();}}
+                        style={{background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.35)",borderRadius:8,padding:"5px 12px",color:"#a78bfa",cursor:"pointer",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                        🎰 {lang==="en"?"Parlay of the Round":"Parlay de Jornada"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {loadingToday && (
                   <div style={{color:"#555",fontSize:12,padding:"8px 0"}}>⏳ {lang==="en"?"Loading games...":"Cargando partidos..."}</div>
