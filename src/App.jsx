@@ -45,6 +45,19 @@ const FEATURED_LEAGUES = [
   { id: 188, name: "A-League",         country: "Australia",      flag: "🇦🇺",  logo: LG(188) },
   { id: 307, name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦",  logo: LG(307) },
   { id: 98,  name: "J1 League",        country: "Japón",          flag: "🇯🇵",  logo: LG(98) },
+  // Selecciones nacionales
+  { id: 4,   name: "Euro 2024",        country: "Europa",         flag: "🏆",   logo: LG(4) },
+  { id: 1,   name: "Eliminatorias Mundial AFC", country: "Asia",  flag: "🌏",   logo: LG(1) },
+  { id: 9,   name: "Copa América",     country: "CONMEBOL",       flag: "🌎",   logo: LG(9) },
+  { id: 6,   name: "Eliminatorias CONMEBOL", country: "Sudamérica", flag: "🌎", logo: LG(6) },
+  { id: 32,  name: "UEFA Nations League", country: "Europa",      flag: "🇪🇺",  logo: LG(32) },
+  { id: 34,  name: "UEFA Euro Qualif.", country: "Europa",        flag: "🇪🇺",  logo: LG(34) },
+  { id: 10,  name: "Eliminatorias CONCACAF", country: "CONCACAF", flag: "🌎",  logo: LG(10) },
+  { id: 29,  name: "Africa Cup",       country: "África",         flag: "🌍",   logo: LG(29) },
+  { id: 5,   name: "UEFA Europa Conf.", country: "Europa",        flag: "🇪🇺",  logo: LG(5) },
+  { id: 848, name: "UEFA Conf. League",country: "Europa",         flag: "🇪🇺",  logo: LG(848) },
+  { id: 531, name: "UEFA Super Cup",   country: "Europa",         flag: "🇪🇺",  logo: LG(531) },
+  { id: 15,  name: "FIFA Club World Cup", country: "Mundial",     flag: "🏆",   logo: LG(15) },
 ];
 const SEASON = 2026;
 const SEASONS_TO_TRY = [2026, 2025, 2024, 2023];
@@ -1515,6 +1528,19 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
     188: "soccer_australia_aleague",          // A-League
     307: "soccer_saudi_professional_league",  // Saudi Pro League
     98:  "soccer_japan_j_league",             // J1 League
+    // Selecciones nacionales / Internacionales
+    4:   "soccer",                            // Euro / Internacionales Europa
+    9:   "soccer",                            // Copa América
+    6:   "soccer",                            // Eliminatorias CONMEBOL
+    32:  "soccer",                            // UEFA Nations League
+    34:  "soccer",                            // UEFA Euro Qualif.
+    10:  "soccer",                            // Eliminatorias CONCACAF
+    29:  "soccer",                            // Africa Cup
+    5:   "soccer",                            // UEFA Conference League
+    848: "soccer",                            // UEFA Conf. League (alt)
+    531: "soccer",                            // UEFA Super Cup
+    15:  "soccer",                            // FIFA Club World Cup
+    1:   "soccer",                            // Eliminatorias AFC
   };
 
   // Ligas de eliminatoria (ida y vuelta, no hay empate en el global)
@@ -2120,16 +2146,16 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
             {/* CTA */}
             {homeTeam && awayTeam && hStats && aStats && (
               <div style={{textAlign:"center",marginBottom:20}}>
-                {/* Cargar momios — REQUERIDO para analizar */}
-                <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
-                  <button onClick={loadOdds} disabled={loadingOdds}
-                    style={{background:Object.keys(odds).length>0?"rgba(0,212,255,0.12)":"rgba(245,158,11,0.1)",border:`1px solid ${Object.keys(odds).length>0?"rgba(0,212,255,0.4)":"rgba(245,158,11,0.3)"}`,borderRadius:10,padding:"8px 20px",color:Object.keys(odds).length>0?"#00d4ff":"#f59e0b",cursor:loadingOdds?"not-allowed":"pointer",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-                    {loadingOdds?`⏳ ${lang==="en"?"Loading odds...":"Cargando momios..."}`:Object.keys(odds).length>0?`✅ ${lang==="en"?"Odds loaded · Reload":"Momios cargados · Recargar"}`:`💹 ${lang==="en"?"Load odds (required for value bets)":"Cargar momios (necesario para detectar value bets)"}`}
-                  </button>
-                </div>
-                {Object.keys(odds).length===0 && !loadingOdds && (
-                  <div style={{textAlign:"center",fontSize:10,color:"#555",marginBottom:8}}>
-                    ⚠️ {lang==="en"?"Without odds, edges and value bets cannot be detected":"Sin momios no se pueden detectar edges ni value bets reales"}
+                {/* Indicador de estado de momios — se cargan automático al pedir predicción */}
+                {loadingOdds && (
+                  <div style={{fontSize:11,color:"#f59e0b",marginBottom:8}}>⏳ {lang==="en"?"Loading odds...":"Cargando momios..."}</div>
+                )}
+                {Object.keys(odds).length>0 && !loadingOdds && (
+                  <div style={{fontSize:10,color:"#00d4ff",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                    ✅ {lang==="en"?"Odds loaded":"Momios cargados"}
+                    <button onClick={loadOdds} disabled={loadingOdds} style={{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:4,padding:"1px 6px",color:"#00d4ff",cursor:"pointer",fontSize:10}}>
+                      🔄
+                    </button>
                   </div>
                 )}
                 <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
