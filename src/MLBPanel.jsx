@@ -146,6 +146,8 @@ export default function MLBPanel({ inline, lang="es" }) {
   const [loadingParlay, setLoadingParlay] = useState(false);
   const [parlayProgress, setParlayProgress] = useState("");
   const [allAnalyses, setAllAnalyses] = useState({});
+  const [pitchers, setPitchers] = useState(null); // { home, away }
+  const [loadingPitchers, setLoadingPitchers] = useState(false);
 
   const seasonMode = getSeasonMode();
   const isCalibration = seasonMode==="calibration";
@@ -204,7 +206,79 @@ export default function MLBPanel({ inline, lang="es" }) {
     .sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5)
     .map(g=>({ date:new Date(g.date).toLocaleDateString(isEN?"en-US":"es-MX",{month:"short",day:"numeric"}), home:g.teams?.home?.name?.split(" ").pop(), away:g.teams?.away?.name?.split(" ").pop(), hScore:g.scores?.home?.total, aScore:g.scores?.away?.total }));
 
-  const fetchOddsForGame = async (game, hStats, aStats, p) => {
+  const fetchPitchers = async (game) => {
+    setLoadingPitchers(true);
+    try {
+      // Get schedule with probable pitchers from MLB Stats API
+      const date = new Date(game.date).toISOString().split("T")[0];
+      const r = await fetch(`/api/mlb-stats?type=schedule&date=${date}`);
+      const data = await r.json();
+      const games = data.dates?.[0]?.games || [];
+
+      // Match game by team names
+      const norm = s => s?.toLowerCase().replace(/[^a-z]/g,"") ?? "";
+      const hn = norm(game.teams?.home?.name);
+      const an = norm(game.teams?.away?.name);
+
+      const mlbGame = games.find(g => {
+        const gh = norm(g.teams?.home?.team?.name);
+        const ga = norm(g.teams?.away?.team?.name);
+        return (gh.includes(hn.slice(-5)) || hn.includes(gh.slice(-5))) &&
+               (ga.includes(an.slice(-5)) || an.includes(ga.slice(-5)));
+      });
+
+      if (!mlbGame) { setLoadingPitchers(false); return; }
+
+      const homePitcherRaw = mlbGame.teams?.home?.probablePitcher;
+      const awayPitcherRaw = mlbGame.teams?.away?.probablePitcher;
+
+      // Fetch pitcher stats in parallel
+      const [hpRes, apRes] = await Promise.allSettled([
+        homePitcherRaw ? fetch(`/api/mlb-stats?type=pitcher_stats&playerId=${homePitcherRaw.id}`).then(r=>r.json()) : Promise.resolve(null),
+        awayPitcherRaw ? fetch(`/api/mlb-stats?type=pitcher_stats&playerId=${awayPitcherRaw.id}`).then(r=>r.json()) : Promise.resolve(null),
+      ]);
+
+      const extractStats = (res) => {
+        const splits = res?.value?.stats?.[0]?.splits;
+        if (!splits?.length) return null;
+        const s = splits[0].stat;
+        return {
+          era: s.era ?? "N/A",
+          whip: s.whip ?? "N/A",
+          k9: s.strikeoutsPer9Inn ?? "N/A",
+          ip: s.inningsPitched ?? "N/A",
+          wins: s.wins ?? 0,
+          losses: s.losses ?? 0,
+          bb9: s.walksPer9Inn ?? "N/A",
+          hr9: s.homeRunsPer9 ?? "N/A",
+        };
+      };
+
+      setPitchers({
+        home: homePitcherRaw ? { name: homePitcherRaw.fullName, id: homePitcherRaw.id, stats: extractStats(hpRes) } : null,
+        away: awayPitcherRaw ? { name: awayPitcherRaw.fullName, id: awayPitcherRaw.id, stats: extractStats(apRes) } : null,
+      });
+
+      // Also try to get confirmed lineups from boxscore
+      try {
+        if (mlbGame.gamePk) {
+          const bsRes = await fetch(`/api/mlb-stats?type=boxscore&gamePk=${mlbGame.gamePk}`);
+          const bs = await bsRes.json();
+          const hLineup = bs.teams?.home?.battingOrder?.slice(0,9).map(id => bs.teams?.home?.players?.[`ID${id}`]?.person?.fullName).filter(Boolean);
+          const aLineup = bs.teams?.away?.battingOrder?.slice(0,9).map(id => bs.teams?.away?.players?.[`ID${id}`]?.person?.fullName).filter(Boolean);
+          if (hLineup?.length || aLineup?.length) {
+            setPitchers(prev => ({
+              ...prev,
+              homeLineup: hLineup,
+              awayLineup: aLineup,
+            }));
+          }
+        }
+      } catch {}
+
+    } catch(e) { console.warn("Pitchers error:", e.message); }
+    finally { setLoadingPitchers(false); }
+  };
     const ro = await fetch(`/api/odds?sport=baseball_mlb&markets=h2h,totals&regions=us`);
     const do_ = await ro.json();
     if (!Array.isArray(do_)) return;
@@ -224,8 +298,10 @@ export default function MLBPanel({ inline, lang="es" }) {
   const selectGame = async (game) => {
     if (selectedGame?.id===game.id) return;
     setSelectedGame(game); setAnalysis(null); setAiErr(""); setPreview(null);
-    setOdds(null); setPoisson(null); setEdges([]); setH2h([]);
+    setOdds(null); setPoisson(null); setEdges([]); setH2h([]); setPitchers(null);
     setLoadingAI(true);
+    // Fetch pitchers in parallel (non-blocking)
+    fetchPitchers(game);
     try {
       const [hR,aR] = await Promise.allSettled([
         mlbFetch(`/games?league=${MLB_LEAGUE_ID}&season=${MLB_SEASON}&team=${game.teams?.home?.id}`),
@@ -252,29 +328,59 @@ export default function MLBPanel({ inline, lang="es" }) {
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
     const home=selectedGame.teams?.home?.name, away=selectedGame.teams?.away?.name;
     const hS=preview.home, aS=preview.away;
+
+    // Real odds in american format — Claude must use EXACTLY these
+    const homeOdds = odds?.h2h?.outcomes?.[0];
+    const awayOdds = odds?.h2h?.outcomes?.[1];
+    const overOdds = odds?.totals?.outcomes?.find(o=>o.name==="Over");
+    const underOdds = odds?.totals?.outcomes?.find(o=>o.name==="Under");
+    const homeAm = homeOdds ? toAm(homeOdds.price) : "N/A";
+    const awayAm = awayOdds ? toAm(awayOdds.price) : "N/A";
+    const overAm = overOdds ? toAm(overOdds.price) : "N/A";
+    const underAm = underOdds ? toAm(underOdds.price) : "N/A";
+    const totalLine = overOdds?.point ?? "N/A";
+
     const pi=poisson?(isEN?`Poisson: ${home} ${poisson.xRunsHome}R | ${away} ${poisson.xRunsAway}R | Total: ${poisson.total} | F5: ${poisson.total5} | P(home): ${poisson.pHome}%`:`Poisson: ${home} ${poisson.xRunsHome}C | ${away} ${poisson.xRunsAway}C | Total: ${poisson.total} | F5: ${poisson.total5} | P(local): ${poisson.pHome}%`):"";
-    const oi=odds?(isEN?`Odds(${odds.bookmaker}): ${odds.h2h?.outcomes?.map(o=>`${o.name} ${o.price?.toFixed(2)}`).join("|")} | Line: ${odds.totals?.outcomes?.find(o=>o.name==="Over")?.point}`:`Momios(${odds.bookmaker}): ${odds.h2h?.outcomes?.map(o=>`${o.name} ${o.price?.toFixed(2)}`).join("|")} | Línea: ${odds.totals?.outcomes?.find(o=>o.name==="Over")?.point}`):"";
+    const oi = odds ? (isEN
+      ? `REAL ODDS (${odds.bookmaker}) — USE EXACTLY THESE: ${home}=${homeAm} | ${away}=${awayAm} | Over ${totalLine}=${overAm} | Under ${totalLine}=${underAm}`
+      : `MOMIOS REALES (${odds.bookmaker}) — USA EXACTAMENTE ESTOS: ${home}=${homeAm} | ${away}=${awayAm} | Over ${totalLine}=${overAm} | Under ${totalLine}=${underAm}`)
+      : (isEN ? "No odds available" : "Sin momios disponibles");
     const vb=edges.filter(e=>e.hasValue).map(e=>`${e.label}:${e.ourProb}% vs ${e.implied}%(edge+${e.edge}%)`).join(",");
     const ud=edges.filter(e=>e.isUnderdog&&e.edge>0).map(e=>`UNDERDOG VALUE: ${e.label} edge+${e.edge}%`).join(",");
     const h2hStr=h2h.length?h2h.map(g=>`${g.home} ${g.hScore}-${g.aScore} ${g.away}`).join("|"):(isEN?"No H2H":"Sin H2H");
     const nrfiStr=isEN?`NRFI hist: Home ${hS?.nrfiPct||"?"}% | Away ${aS?.nrfiPct||"?"}%`:`NRFI hist: Local ${hS?.nrfiPct||"?"}% | Visitante ${aS?.nrfiPct||"?"}%`;
     const cal=isCalibration?(isEN?`\nCALIBRATION: ${hS?.games||0} games only. Max confidence ${maxConf}%.`:`\nCALIBRACIÓN: Solo ${hS?.games||0} partidos. Máx confianza ${maxConf}%.`):"";
 
+    // Pitcher data
+    const hPitcher = pitchers?.home;
+    const aPitcher = pitchers?.away;
+    const pitcherStr = isEN
+      ? `PITCHERS: ${home}=${hPitcher ? `${hPitcher.name} ERA:${hPitcher.stats?.era} WHIP:${hPitcher.stats?.whip} K/9:${hPitcher.stats?.k9} IP:${hPitcher.stats?.ip}` : "TBD"} | ${away}=${aPitcher ? `${aPitcher.name} ERA:${aPitcher.stats?.era} WHIP:${aPitcher.stats?.whip} K/9:${aPitcher.stats?.k9} IP:${aPitcher.stats?.ip}` : "TBD"}`
+      : `PITCHERS: ${home}=${hPitcher ? `${hPitcher.name} ERA:${hPitcher.stats?.era} WHIP:${hPitcher.stats?.whip} K/9:${hPitcher.stats?.k9} IP:${hPitcher.stats?.ip}` : "TBD"} | ${away}=${aPitcher ? `${aPitcher.name} ERA:${aPitcher.stats?.era} WHIP:${aPitcher.stats?.whip} K/9:${aPitcher.stats?.k9} IP:${aPitcher.stats?.ip}` : "TBD"}`;
+
+    const oddsRule = isEN
+      ? `CRITICAL: Use EXACTLY these odds_sugerido values: Moneyline ${home}="${homeAm}", ${away}="${awayAm}". Total Over="${overAm}", Under="${underAm}". NEVER invent odds.`
+      : `CRÍTICO: Usa EXACTAMENTE estos valores en odds_sugerido: Moneyline ${home}="${homeAm}", ${away}="${awayAm}". Total Over="${overAm}", Under="${underAm}". NUNCA inventes momios.`;
+
     const prompt = isEN
       ?`Expert MLB analyst. ${home} vs ${away} ${new Date(selectedGame.date).toLocaleDateString("en-US")}${cal}
+${pitcherStr}
 HOME ${home}: ${hS?.avgRuns||"N/A"}R/g, ${hS?.avgRunsAgainst||"N/A"} allowed, ${hS?.wins||0}W-${(hS?.games||0)-(hS?.wins||0)}L, form:${hS?.results||"N/A"}, ${nrfiStr}
 AWAY ${away}: ${aS?.avgRuns||"N/A"}R/g, ${aS?.avgRunsAgainst||"N/A"} allowed, ${aS?.wins||0}W-${(aS?.games||0)-(aS?.wins||0)}L, form:${aS?.results||"N/A"}
 H2H:${h2hStr} | ${pi} | ${oi}
 ${vb?"VALUE:"+vb:"No value bets"} ${ud?"|"+ud:""}
-RULES: Max confidence ${maxConf}%. Starting pitcher is THE key factor. Flag underdog value. Include F5 and NRFI picks with reasoning.
-JSON only:{"resumen":"3-4 sentences with pitcher impact","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"","odds_sugerido":"","confianza":57,"factores":[""],"insight":"actionable tip"},{"tipo":"Total Runs","pick":"Over/Under X.5","odds_sugerido":"","confianza":54,"factores":[""],"insight":"why this line"},{"tipo":"Run Line","pick":"-1.5 or +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"margin analysis"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"pitcher F5 impact"},{"tipo":"NRFI","pick":"Yes/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"first inning likelihood"},{"tipo":"Underdog Value","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"fade the public reason"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["trend 1","trend 2","trend 3"],"alertas":["alert"],"tendencias":{"carrerasEsperadas":"${poisson?.total||'8.5'}","f5Total":"${poisson?.total5||'4.5'}","favorito":"team","nivelConfianza":"LOW/MEDIUM"}}`
+${oddsRule}
+RULES: Max confidence ${maxConf}%. Starting pitcher ERA/WHIP are THE key factors. Flag underdog value. Include F5 and NRFI picks.
+JSON only:{"resumen":"3-4 sentences analyzing pitcher matchup","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"${home} or ${away}","odds_sugerido":"${homeAm}","confianza":57,"factores":["pitcher ERA"],"insight":"pitcher matchup impact"},{"tipo":"Total Runs","pick":"Over/Under ${totalLine}","odds_sugerido":"${overAm}","confianza":54,"factores":[""],"insight":"why this line"},{"tipo":"Run Line","pick":"-1.5 or +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"margin analysis"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"pitcher first 5 projection"},{"tipo":"NRFI","pick":"Yes/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"first inning likelihood based on pitcher"},{"tipo":"Underdog Value","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"fade the public reason"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["trend 1","trend 2","trend 3"],"alertas":["alert"],"tendencias":{"carrerasEsperadas":"${poisson?.total||'8.5'}","f5Total":"${poisson?.total5||'4.5'}","favorito":"team","nivelConfianza":"LOW/MEDIUM"}}`
       :`Analista MLB experto. ${home} vs ${away} ${new Date(selectedGame.date).toLocaleDateString("es-MX")}${cal}
+${pitcherStr}
 LOCAL ${home}: ${hS?.avgRuns||"N/D"}C/j, ${hS?.avgRunsAgainst||"N/D"} recibidas, ${hS?.wins||0}V-${(hS?.games||0)-(hS?.wins||0)}D, forma:${hS?.results||"N/D"}, ${nrfiStr}
 VISITANTE ${away}: ${aS?.avgRuns||"N/D"}C/j, ${aS?.avgRunsAgainst||"N/D"} recibidas, ${aS?.wins||0}V-${(aS?.games||0)-(aS?.wins||0)}D, forma:${aS?.results||"N/D"}
 H2H:${h2hStr} | ${pi} | ${oi}
 ${vb?"VALUE:"+vb:"Sin value bets"} ${ud?"|"+ud:""}
-REGLAS: Confianza máx ${maxConf}%. Pitcher abridor es EL factor clave. Señala valor en underdogs. Incluye picks de F5 y NRFI con razonamiento.
-Solo JSON:{"resumen":"3-4 oraciones con impacto del pitcher","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"","odds_sugerido":"","confianza":57,"factores":[""],"insight":"tip accionable"},{"tipo":"Total Carreras","pick":"Más/Menos X.5","odds_sugerido":"","confianza":54,"factores":[""],"insight":"por qué esta línea"},{"tipo":"Run Line","pick":"-1.5 o +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"análisis margen"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"impacto pitcher primeras 5"},{"tipo":"NRFI","pick":"Sí/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"probabilidad primera entrada"},{"tipo":"Underdog Value","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"razón para fade al público"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["tendencia 1","tendencia 2","tendencia 3"],"alertas":["alerta"],"tendencias":{"carrerasEsperadas":"${poisson?.total||'8.5'}","f5Total":"${poisson?.total5||'4.5'}","favorito":"equipo","nivelConfianza":"BAJO/MEDIO"}}`;
+${oddsRule}
+REGLAS: Confianza máx ${maxConf}%. ERA/WHIP del pitcher son LOS factores clave. Señala valor en underdogs. Incluye picks de F5 y NRFI.
+Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"${home} o ${away}","odds_sugerido":"${homeAm}","confianza":57,"factores":["ERA del pitcher"],"insight":"impacto del duelo de pitchers"},{"tipo":"Total Carreras","pick":"Más/Menos ${totalLine}","odds_sugerido":"${overAm}","confianza":54,"factores":[""],"insight":"por qué esta línea"},{"tipo":"Run Line","pick":"-1.5 o +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"análisis margen"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"proyección del pitcher primeras 5"},{"tipo":"NRFI","pick":"Sí/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"probabilidad primera entrada basada en pitcher"},{"tipo":"Underdog Value","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"razón para fade al público"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["tendencia 1","tendencia 2","tendencia 3"],"alertas":["alerta"],"tendencias":{"carrerasEsperadas":"${poisson?.total||'8.5'}","f5Total":"${poisson?.total5||'4.5'}","favorito":"equipo","nivelConfianza":"BAJO/MEDIO"}}`;
 
     try {
       const res=await fetch("/api/predict",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,lang})});
@@ -572,6 +678,69 @@ Solo JSON:{"resumen":"3-4 oraciones con impacto del pitcher","prediccionMarcador
                           <div style={{fontSize:10,color:"#444"}}>⚔️ H2H — {isEN?"No history this season":"Sin historial esta temporada"}</div>
                         </div>
                       )}
+
+                      {/* Probable Pitchers */}
+                      <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:12,marginBottom:10}}>
+                        <div style={{fontSize:10,color:"#fb923c",fontWeight:700,letterSpacing:1,marginBottom:8}}>
+                          ⚾ {isEN?"PROBABLE PITCHERS":"PITCHERS PROBABLES"}
+                          {loadingPitchers&&<span style={{fontSize:9,color:"#555",fontWeight:400,marginLeft:6}}>— {isEN?"loading...":"cargando..."}</span>}
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                          {[
+                            {label:isEN?"HOME":"LOCAL",pitcher:pitchers?.home,color:"#fb923c"},
+                            {label:isEN?"AWAY":"VISIT.",pitcher:pitchers?.away,color:"#60a5fa"},
+                          ].map(({label,pitcher,color})=>(
+                            <div key={label} style={{background:"rgba(255,255,255,0.02)",borderRadius:8,padding:"8px 10px",border:`1px solid ${color}18`}}>
+                              <div style={{fontSize:9,color,fontWeight:700,marginBottom:4}}>{label}</div>
+                              {pitcher ? (
+                                <>
+                                  <div style={{fontSize:12,fontWeight:800,color:"#e8eaf0",marginBottom:6}}>{pitcher.name}</div>
+                                  {pitcher.stats ? (
+                                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>
+                                      {[
+                                        {l:"ERA",v:pitcher.stats.era,good:parseFloat(pitcher.stats.era)<3.5},
+                                        {l:"WHIP",v:pitcher.stats.whip,good:parseFloat(pitcher.stats.whip)<1.2},
+                                        {l:"K/9",v:pitcher.stats.k9,good:parseFloat(pitcher.stats.k9)>8},
+                                        {l:"IP",v:pitcher.stats.ip,good:true},
+                                      ].map(({l,v,good})=>(
+                                        <div key={l} style={{background:"rgba(255,255,255,0.03)",borderRadius:4,padding:"3px 6px",textAlign:"center"}}>
+                                          <div style={{fontSize:8,color:"#555"}}>{l}</div>
+                                          <div style={{fontSize:11,fontWeight:700,color:good?"#10b981":"#f59e0b"}}>{v}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : <div style={{fontSize:10,color:"#555"}}>{isEN?"Season stats loading...":"Cargando stats..."}</div>}
+                                </>
+                              ) : (
+                                <div style={{fontSize:11,color:"#555"}}>
+                                  {loadingPitchers ? "..." : isEN?"TBD":"Por confirmar"}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {/* Lineup if available */}
+                        {(pitchers?.homeLineup?.length || pitchers?.awayLineup?.length) && (
+                          <div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                            {[
+                              {label:isEN?"HOME LINEUP":"ALINEACIÓN LOCAL",lineup:pitchers?.homeLineup,color:"#fb923c"},
+                              {label:isEN?"AWAY LINEUP":"ALINEACIÓN VISITANTE",lineup:pitchers?.awayLineup,color:"#60a5fa"},
+                            ].map(({label,lineup,color})=>(
+                              lineup?.length ? (
+                                <div key={label} style={{background:"rgba(255,255,255,0.02)",borderRadius:8,padding:"8px 10px"}}>
+                                  <div style={{fontSize:9,color,fontWeight:700,marginBottom:6}}>{label}</div>
+                                  {lineup.map((p,i)=>(
+                                    <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                                      <span style={{fontSize:9,color:"#444",width:12}}>{i+1}.</span>
+                                      <span style={{fontSize:10,color:"#aaa"}}>{p}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Odds */}
                       {loadingOdds&&<div style={{fontSize:11,color:"#555",marginBottom:8}}>⏳ {isEN?"Loading odds...":"Cargando momios..."}</div>}
