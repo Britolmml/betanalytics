@@ -700,37 +700,43 @@ export default function App() {
   };
 
   // Filtrar partidos intl por fecha sin llamadas extra a la API
-  const filterIntlByDate = (mxDateStr) => {
-    const cached = intlCachedGames;
-    if (!cached || cached.length === 0) return;
+  const filterIntlByDate = async (mxDateStr) => {
     const todayStr = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    // Agrupar todos los partidos del cache por día MX
-    const byDay = {};
-    cached.forEach(f => {
-      const d = toMXDate(f.fixture.date);
-      if (!byDay[d]) byDay[d] = [];
-      byDay[d].push(f);
-    });
-    const availableDays = Object.keys(byDay).sort();
-    if (availableDays.length === 0) { setTodayGames([]); return; }
-    // Si hay partidos exactamente ese día, mostrarlos
-    // Si no, buscar el más cercano (anterior o posterior)
-    let target;
-    if (byDay[mxDateStr]) {
-      target = mxDateStr;
-    } else {
-      // Buscar el día más cercano
-      const after = availableDays.find(d => d > mxDateStr);
-      const before = [...availableDays].reverse().find(d => d < mxDateStr);
-      if (after && before) {
-        target = (Math.abs(new Date(after)-new Date(mxDateStr)) < Math.abs(new Date(before)-new Date(mxDateStr))) ? after : before;
-      } else {
-        target = after || before || availableDays[0];
+    // Primero intentar del cache
+    const cached = intlCachedGames;
+    if (cached && cached.length > 0) {
+      const byDay = {};
+      cached.forEach(f => { const d = toMXDate(f.fixture.date); if(!byDay[d]) byDay[d]=[]; byDay[d].push(f); });
+      if (byDay[mxDateStr]) {
+        setTodayGames(byDay[mxDateStr]);
+        setTodayLabel(mxDateStr === todayStr ? 'hoy' : mxDateStr);
+        setIntlPickerDate(mxDateStr);
+        return;
       }
     }
-    setTodayGames(byDay[target]);
-    setTodayLabel(target === todayStr ? 'hoy' : target);
-    setIntlPickerDate(target);
+    // Si no está en cache, buscar de la API para esa fecha específica
+    if (!league?.leagueId) return;
+    setLoadingToday(true);
+    try {
+      const addD = (base, n) => { const [y,m,d]=base.split('-').map(Number); const dt=new Date(y,m-1,d+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
+      const utcDate = addD(mxDateStr, 1); // día UTC siguiente para capturar partidos nocturnos MX
+      const leaguesToSearch = [{id:league.leagueId, s:league.season}, ...(league.extraLeagues||[])];
+      const calls = leaguesToSearch.flatMap(({id,s}) => [
+        apiFetch('/fixtures?league='+id+'&date='+mxDateStr+'&season='+s),
+        apiFetch('/fixtures?league='+id+'&date='+utcDate+'&season='+s),
+      ]);
+      const results = await Promise.allSettled(calls);
+      const all = [];
+      results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+      const dedup2 = (arr) => { const seen = new Set(); return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }); };
+      const games = filterSeniorOnly(dedup2(all)).filter(f => toMXDate(f.fixture.date) === mxDateStr);
+      // Agregar al cache
+      setIntlCachedGames(prev => { const seen = new Set(prev.map(f=>f.fixture.id)); return [...prev, ...games.filter(f=>!seen.has(f.fixture.id))]; });
+      setTodayGames(games);
+      setTodayLabel(mxDateStr === todayStr ? 'hoy' : mxDateStr);
+      setIntlPickerDate(mxDateStr);
+    } catch(e) { console.warn('filterIntlByDate error:', e.message); }
+    finally { setLoadingToday(false); }
   };
 
   // Load teams for a league — siempre usa el proxy Vercel
