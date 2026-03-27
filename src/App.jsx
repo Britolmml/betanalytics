@@ -660,9 +660,30 @@ export default function App() {
           const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${targetDate}`)));
           const all = [];
           res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-          all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-          setTodayGames(dedup(all));
-          setTodayLabel(targetDate === todayStr ? 'hoy' : targetDate);
+          // Si no hay partidos en la fecha elegida, buscar próximo día con partidos desde esa fecha
+          if (all.length === 0) {
+            const [ty, tm, td] = targetDate.split('-').map(Number);
+            let found2 = false;
+            for (let offset = 1; offset <= 14; offset++) {
+              const dt = new Date(ty, tm - 1, td + offset);
+              const ds = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+              const res3 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${ds}`)));
+              const all3 = [];
+              res3.forEach(r => { if (r.status==='fulfilled') all3.push(...(r.value?.response||[])); });
+              if (all3.length > 0) {
+                all3.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+                setTodayGames(dedup(all3));
+                setTodayLabel(ds);
+                found2 = true;
+                break;
+              }
+            }
+            if (!found2) { setTodayGames([]); setTodayLabel(targetDate); }
+          } else {
+            all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+            setTodayGames(dedup(all));
+            setTodayLabel(targetDate === todayStr ? 'hoy' : targetDate);
+          }
         } else {
           // Buscar día por día hasta 7 días
           const getDate = (offsetDays) => {
@@ -760,7 +781,8 @@ export default function App() {
       if (!found) setTodayGames([]);
     } catch(e) { /* silencioso */ }
     finally { setLoadingToday(false); }
-    // Cargar equipos intentando varias temporadas
+    // Cargar equipos intentando varias temporadas (no aplica para intl)
+    if (lg.isIntl) return;
     setLoadingTeams(true);
     try {
       let list = [];
