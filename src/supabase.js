@@ -353,7 +353,7 @@ export async function getUserPlan(userId) {
 
 export async function checkUsageLimit(userId) {
   try {
-    const res = await fetch(`/api/usage?action=check&userId=${userId}`);
+    const res = await fetch(`/api/football?action=check&userId=${userId}`);
     if (!res.ok) return { allowed: false, used: 0, limit: FREE_LIMIT, plan: "free" };
     return await res.json();
   } catch(e) {
@@ -364,7 +364,7 @@ export async function checkUsageLimit(userId) {
 
 export async function incrementUsage(userId) {
   try {
-    await fetch("/api/usage", {
+    await fetch("/api/football", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "increment", userId }),
