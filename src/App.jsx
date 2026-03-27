@@ -3102,24 +3102,6 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:44,background:"linear-gradient(140deg,#ffffff 20%,#00d4ff 60%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:3,lineHeight:1.0,maxWidth:600}}>
                 {lang==="en" ? "FIND VALUE BETS WITH AI & SHARP MONEY" : "APUESTAS CON VALOR — IA Y DINERO INTELIGENTE"}
               </div>
-              {/* Subtítulo */}
-              <div style={{fontSize:12,color:"rgba(200,238,255,0.6)",letterSpacing:1,maxWidth:480}}>
-                {lang==="en"
-                  ? "Poisson model · Public betting splits · Edges vs market · 10 sportsbooks"
-                  : "Modelo Poisson · Dinero público · Edges vs mercado · 10 casas de apuesta"}
-              </div>
-              {/* CTAs */}
-              <div style={{display:"flex",gap:10,marginTop:6}}>
-                <button onClick={()=>setActiveSport("football")} style={{background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",border:"none",borderRadius:10,padding:"9px 24px",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:15,letterSpacing:2,cursor:"pointer",boxShadow:"0 0 20px rgba(0,212,255,0.3)"}}>
-                  ⚡ {lang==="en"?"PICKS TODAY":"PICKS HOY"}
-                </button>
-                <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:10,padding:"9px 18px",color:"#f87171",fontSize:12,cursor:"pointer",fontWeight:700}}>
-                  🏀 NBA
-                </button>
-                <button onClick={()=>setActiveSport("mlb")} style={{background:"rgba(251,146,60,0.1)",border:"1px solid rgba(251,146,60,0.3)",borderRadius:10,padding:"9px 18px",color:"#fb923c",fontSize:12,cursor:"pointer",fontWeight:700}}>
-                  ⚾ MLB
-                </button>
-              </div>
             </div>
           </div>
 
