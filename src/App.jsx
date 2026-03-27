@@ -490,6 +490,9 @@ export default function App() {
   const [leagueSearch,  setLeagueSearch]  = useState("");
   const [showAllLeagues,setShowAllLeagues]= useState(false);
 
+  // Toggle selecciones nacionales
+  const [showNacionales, setShowNacionales] = useState(false);
+
   const loadNews = async () => {
     setLoadingNews(true);
     try {
@@ -1785,7 +1788,6 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 { label:"🌎 América del Norte", ids:[262,253] },
                 { label:"🌎 Sudamérica", ids:[71,72,128,131,169,265,239,268,300,314,283,332,13,14] },
                 { label:"⭐ Fáciles de predecir", ids:[188,307,98] },
-                { label:"🏆 Selecciones nacionales", ids:[9,6,32,34,10,4,29,5,848,531,15,1] },
               ].map(({label,ids})=>{
                 const ligas = FEATURED_LEAGUES.filter(l=>ids.includes(l.id));
                 return (
@@ -1808,7 +1810,6 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                               boxShadow: active ? "0 0 16px rgba(0,212,255,0.15)" : "none",
                               position:"relative", overflow:"hidden",
                             }}>
-                            {/* League logo */}
                             {l.logo
                               ? <img src={l.logo} alt={l.name}
                                   style={{width:28,height:28,objectFit:"contain",flexShrink:0}}
@@ -1827,6 +1828,63 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   </div>
                 );
               })}
+
+              {/* Botón toggle: Partidos Internacionales */}
+              <div style={{marginBottom:14}}>
+                <button
+                  onClick={()=>setShowNacionales(v=>!v)}
+                  style={{
+                    display:"flex", alignItems:"center", gap:10,
+                    background: showNacionales
+                      ? "linear-gradient(135deg,rgba(168,85,247,0.18),rgba(139,92,246,0.12))"
+                      : "rgba(168,85,247,0.07)",
+                    border: `1px solid ${showNacionales ? "rgba(168,85,247,0.6)" : "rgba(168,85,247,0.25)"}`,
+                    borderRadius:12, padding:"10px 18px",
+                    cursor:"pointer", fontWeight:700, color: showNacionales ? "#c084fc" : "#a78bfa",
+                    fontSize:13, transition:"all 0.2s", width:"100%", justifyContent:"space-between",
+                    boxShadow: showNacionales ? "0 0 18px rgba(168,85,247,0.2)" : "none",
+                  }}>
+                  <span>🌐 {lang==="en" ? "International Matches" : "Partidos Internacionales"}</span>
+                  <span style={{
+                    fontSize:10, color:"inherit", opacity:0.7,
+                    transform: showNacionales ? "rotate(180deg)" : "rotate(0deg)",
+                    transition:"transform 0.2s", display:"inline-block",
+                  }}>▼</span>
+                </button>
+
+                {showNacionales && (
+                  <div style={{marginTop:10, display:"flex", gap:6, flexWrap:"wrap"}}>
+                    {FEATURED_LEAGUES.filter(l=>[9,6,32,34,10,4,29,5,848,531,15,1].includes(l.id)).map(l=>{
+                      const active = league?.id===l.id;
+                      return (
+                        <button key={l.id} onClick={()=>loadTeams(l)}
+                          style={{
+                            background: active
+                              ? "linear-gradient(135deg,rgba(168,85,247,0.25),rgba(139,92,246,0.18))"
+                              : "rgba(168,85,247,0.06)",
+                            border: `1px solid ${active ? "rgba(168,85,247,0.65)" : "rgba(168,85,247,0.18)"}`,
+                            borderRadius:12, padding:"10px 16px",
+                            cursor:"pointer", fontWeight:600,
+                            display:"flex", alignItems:"center", gap:10,
+                            transition:"all 0.15s",
+                            boxShadow: active ? "0 0 16px rgba(168,85,247,0.2)" : "none",
+                          }}>
+                          {l.logo
+                            ? <img src={l.logo} alt={l.name}
+                                style={{width:28,height:28,objectFit:"contain",flexShrink:0}}
+                                onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="inline";}}
+                              />
+                            : null}
+                          <span style={{fontSize:18,lineHeight:1,display:"none"}}>{l.flag}</span>
+                          <div style={{textAlign:"left"}}>
+                            <div style={{fontSize:13, color: active ? "#c084fc" : "#ccc", fontWeight:700}}>{l.name}</div>
+                            <div style={{fontSize:10, color: active ? "rgba(192,132,252,0.7)" : "#555", marginTop:2}}>{l.country}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
             </div>
 
             {/* Partidos de hoy */}
