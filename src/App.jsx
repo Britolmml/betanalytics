@@ -702,18 +702,20 @@ export default function App() {
     const cached = intlCachedGames;
     if (!cached || cached.length === 0) return;
     const todayStr = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    const addD = (base, n) => { const [y,m,d]=base.split('-').map(Number); const dt=new Date(y,m-1,d+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
-    for (let i = 0; i <= 60; i++) {
-      const day = addD(mxDateStr, i);
-      const games = cached.filter(f => toMXDate(f.fixture.date) === day);
-      if (games.length > 0) {
-        setTodayGames(games);
-        setTodayLabel(day === todayStr ? 'hoy' : day);
-        setIntlPickerDate(day);
-        return;
-      }
-    }
-    setTodayGames([]);
+    // Agrupar todos los partidos del cache por día MX
+    const byDay = {};
+    cached.forEach(f => {
+      const d = toMXDate(f.fixture.date);
+      if (!byDay[d]) byDay[d] = [];
+      byDay[d].push(f);
+    });
+    const availableDays = Object.keys(byDay).sort();
+    if (availableDays.length === 0) { setTodayGames([]); return; }
+    // Buscar el día pedido o el más cercano posterior dentro del cache
+    const target = availableDays.find(d => d >= mxDateStr) || availableDays[0];
+    setTodayGames(byDay[target]);
+    setTodayLabel(target === todayStr ? 'hoy' : target);
+    setIntlPickerDate(target);
   };
 
   // Load teams for a league — siempre usa el proxy Vercel
