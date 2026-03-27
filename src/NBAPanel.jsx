@@ -688,7 +688,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
 
       // ── Cargar momios + splits al pedir análisis (no al seleccionar partido) ──
       let currentOdds = nbaOdds, currentEdges = nbaEdges, currentSplits = nbaSplits, currentPoisson = nbaPoisson;
-      if (!currentOdds) {
+      if (!currentOdds || !currentSplits) {
         try {
           setLoadingOdds(true);
           const norm = s => s?.toLowerCase()
@@ -696,7 +696,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
             .replace(/[^a-z]/g,"") ?? "";
           const nh = norm(home), na = norm(away);
           const [oddsRes, splitsRes] = await Promise.allSettled([
-            fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`).then(r=>r.json()),
+            !currentOdds ? fetch(`/api/odds?sport=basketball_nba&markets=h2h,totals&regions=us`).then(r=>r.json()) : Promise.resolve(null),
             fetch(`/api/odds?type=splits&sport=nba`).then(r=>r.json()),
           ]);
           const dataOdds = oddsRes.value;
@@ -724,18 +724,18 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
               const newEdges = bp ? calcNBAEdges(bp, newOdds, home, away) : [];
               setNbaOdds(newOdds); setNbaPoisson(bp); setNbaEdges(newEdges);
               currentOdds = newOdds; currentPoisson = bp; currentEdges = newEdges;
-              // Splits
-              const splitsData = splitsRes.value?.data || [];
-              const ms = splitsData.find(g => {
-                const gh = norm(g.home_team), ga = norm(g.away_team);
-                return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
-                       (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
-              });
-              const sp = ms?.splits?.[0] || null;
-              setNbaSplits(sp);
-              currentSplits = sp;
             }
           }
+          // Splits — siempre matchear independiente de si ya había momios
+          const splitsData = splitsRes.value?.data || [];
+          const ms = splitsData.find(g => {
+            const gh = norm(g.home_team), ga = norm(g.away_team);
+            return (gh.includes(nh) || nh.includes(gh) || gh.slice(-5) === nh.slice(-5)) &&
+                   (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
+          });
+          // Preferir DraftKings splits (más datos), fallback a Circa
+          const dk = ms?.splits?.find(s=>s.book==="dk") || ms?.splits?.[0] || null;
+          if (dk) { setNbaSplits(dk); currentSplits = dk; }
         } catch(e) { console.warn("Odds/splits error:", e.message); }
         finally { setLoadingOdds(false); }
       }
