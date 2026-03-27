@@ -636,6 +636,25 @@ export default function App() {
   };
 
   // Cargar partidos del día de todas las ligas internacionales
+  // Cargar partidos internacionales por fecha específica
+  const INTL_LEAGUE_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
+  const loadIntlByDate = async (dateStr) => {
+    setLoadingToday(true);
+    setTodayGames([]);
+    try {
+      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${dateStr}`)));
+      const all = [];
+      res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+      all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+      const seen = new Set();
+      const unique = all.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
+      setTodayGames(unique);
+      const todayStr = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      setTodayLabel(dateStr === todayStr ? 'hoy' : dateStr);
+    } catch(e) { setTodayGames([]); }
+    finally { setLoadingToday(false); }
+  };
+
   // Load teams for a league — siempre usa el proxy Vercel
   const loadTeams = async (lg) => {
     setLeague(lg); setTeams([]); setHomeTeam(null); setAwayTeam(null);
@@ -1934,7 +1953,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         defaultValue={new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
                         onChange={e => {
                           const date = e.target.value;
-                          if (date) loadTeams({...league, selectedDate: date});
+                          if (date) loadIntlByDate(date);
                         }}
                         style={{
                           background:"rgba(0,212,255,0.07)",
