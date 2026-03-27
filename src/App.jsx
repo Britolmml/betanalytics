@@ -46,6 +46,7 @@ const FEATURED_LEAGUES = [
   { id: 307, name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦",  logo: LG(307) },
   { id: 98,  name: "J1 League",        country: "Japón",          flag: "🇯🇵",  logo: LG(98) },
   // Selecciones nacionales
+  { id: 7,   name: "Amistosos Internacionales", country: "Mundial",   flag: "🤝",   logo: LG(7) },
   { id: 4,   name: "Euro 2024",        country: "Europa",         flag: "🏆",   logo: LG(4) },
   { id: 1,   name: "Eliminatorias Mundial AFC", country: "Asia",  flag: "🌏",   logo: LG(1) },
   { id: 9,   name: "Copa América",     country: "CONMEBOL",       flag: "🌎",   logo: LG(9) },
@@ -490,10 +491,7 @@ export default function App() {
   const [leagueSearch,  setLeagueSearch]  = useState("");
   const [showAllLeagues,setShowAllLeagues]= useState(false);
 
-  // Partidos internacionales del día
-  const [intlGames,      setIntlGames]      = useState([]);
-  const [loadingIntl,    setLoadingIntl]    = useState(false);
-  const [showIntl,       setShowIntl]       = useState(false);
+
 
   const loadNews = async () => {
     setLoadingNews(true);
@@ -638,33 +636,6 @@ export default function App() {
   };
 
   // Cargar partidos del día de todas las ligas internacionales
-  const INTL_IDS = [9, 6, 32, 34, 10, 4, 29, 5, 848, 531, 15, 1];
-  const loadInternacionales = async () => {
-    setShowIntl(true);
-    setLoadingIntl(true);
-    setIntlGames([]);
-    try {
-      const today = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit"
-      }).format(new Date());
-      const results = await Promise.allSettled(
-        [9,6,32,34,10,4,29,5,848,531,15,1].map(id => apiFetch(`/fixtures?league=${id}&date=${today}`))
-      );
-      const all = [];
-      results.forEach(r => { if (r.status === "fulfilled") all.push(...(r.value?.response || [])); });
-      if (all.length === 0) {
-        const results2 = await Promise.allSettled(
-          [9,6,32,34,10,4,29,5,848,531,15,1].map(id => apiFetch(`/fixtures?league=${id}&next=5`))
-        );
-        results2.forEach(r => { if (r.status === "fulfilled") all.push(...(r.value?.response || [])); });
-      }
-      all.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
-      const seen = new Set();
-      setIntlGames(all.filter(f => { if (seen.has(f.fixture.id)) return false; seen.add(f.fixture.id); return true; }));
-    } catch(e) {}
-    finally { setLoadingIntl(false); }
-  };
-
   // Load teams for a league — siempre usa el proxy Vercel
   const loadTeams = async (lg) => {
     setLeague(lg); setTeams([]); setHomeTeam(null); setAwayTeam(null);
@@ -675,6 +646,24 @@ export default function App() {
     // Cargar próximos partidos de esta liga
     setLoadingToday(true);
     try {
+      // Caso especial: Selecciones Nacionales
+      if (lg.isIntl) {
+        const NATL_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+        const res1 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${today}`)));
+        const all = [];
+        res1.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        if (all.length === 0) {
+          const res2 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=5`)));
+          res2.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+          setTodayLabel('próximos');
+        } else { setTodayLabel('hoy'); }
+        all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+        const seen = new Set();
+        setTodayGames(all.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }));
+        setLoadingToday(false);
+        return;
+      }
       const getMXDate = (offsetDays = 0) => {
         const base = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
         const [y, m, d] = base.split("-").map(Number);
@@ -1567,7 +1556,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
     188: "soccer_australia_aleague",          // A-League
     307: "soccer_saudi_professional_league",  // Saudi Pro League
     98:  "soccer_japan_j_league",             // J1 League
-    // Selecciones nacionales / Internacionales
+    // Selecciones nacionales
     4:   "soccer",                            // Euro / Internacionales Europa
     9:   "soccer",                            // Copa América
     6:   "soccer",                            // Eliminatorias CONMEBOL
@@ -1865,110 +1854,32 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 );
               })}
 
-              {/* Botón: Partidos Internacionales del día */}
-              <div style={{marginBottom:14}}>
-                <button
-                  onClick={loadInternacionales}
-                  style={{
-                    display:"flex", alignItems:"center", justifyContent:"space-between", gap:10,
-                    background:"linear-gradient(135deg,rgba(168,85,247,0.12),rgba(139,92,246,0.08))",
-                    border:"1px solid rgba(168,85,247,0.35)",
-                    borderRadius:12, padding:"12px 18px",
-                    cursor:"pointer", fontWeight:700, color:"#c084fc",
-                    fontSize:13, width:"100%", transition:"all 0.2s",
-                  }}>
-                  <span>🌐 {lang==="en" ? "International Matches · Today" : "Partidos Internacionales · Hoy"}</span>
-                  <span style={{fontSize:10,opacity:0.6}}>Ver partidos →</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Panel: Partidos Internacionales */}
-            {showIntl && (
-              <div style={{marginBottom:20}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <div style={{fontSize:10,color:"#c084fc",letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>
-                    🌐 {lang==="en"?"International Matches":"Partidos Internacionales"}
-                  </div>
-                  <button onClick={()=>setShowIntl(false)}
-                    style={{background:"none",border:"1px solid rgba(255,255,255,0.08)",borderRadius:6,padding:"2px 10px",color:"#555",cursor:"pointer",fontSize:11}}>
-                    ✕
+              {/* Botón: Selecciones Nacionales — igual que las demás ligas */}
+              {(()=>{
+                const intlLeague = { id:"intl", name:"Selecciones Nacionales", country:"Internacional", flag:"🌐", logo:null, isIntl:true };
+                const active = league?.id === "intl";
+                return (
+                  <button onClick={()=>loadTeams(intlLeague)}
+                    style={{
+                      background: active
+                        ? "linear-gradient(135deg,rgba(168,85,247,0.22),rgba(139,92,246,0.15))"
+                        : "rgba(255,255,255,0.04)",
+                      border:`1px solid ${active?"rgba(168,85,247,0.55)":"rgba(255,255,255,0.08)"}`,
+                      borderRadius:12, padding:"10px 16px",
+                      cursor:"pointer", fontWeight:600,
+                      display:"flex", alignItems:"center", gap:10,
+                      transition:"all 0.15s",
+                      boxShadow: active?"0 0 16px rgba(168,85,247,0.2)":"none",
+                    }}>
+                    <span style={{fontSize:24}}>🌐</span>
+                    <div style={{textAlign:"left"}}>
+                      <div style={{fontSize:13,color:active?"#c084fc":"#ccc",fontWeight:700}}>Selecciones Nacionales</div>
+                      <div style={{fontSize:10,color:active?"rgba(192,132,252,0.7)":"#555",marginTop:2}}>Internacional</div>
+                    </div>
                   </button>
-                </div>
-                {loadingIntl && (
-                  <div style={{color:"#555",fontSize:12,padding:"12px 0",textAlign:"center"}}>
-                    ⏳ {lang==="en"?"Loading international matches...":"Cargando partidos internacionales..."}
-                  </div>
-                )}
-                {!loadingIntl && intlGames.length === 0 && (
-                  <div style={{color:"#444",fontSize:12,padding:"12px 0",textAlign:"center"}}>
-                    {lang==="en"?"No international matches found for today.":"No hay partidos internacionales para hoy."}
-                  </div>
-                )}
-                {!loadingIntl && intlGames.length > 0 && (
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {intlGames.map((f, i) => {
-                      const st = f.fixture?.status?.short;
-                      const isLive = ["1H","2H","HT","ET","BT","P"].includes(st);
-                      const isDone = ["FT","AET","PEN"].includes(st);
-                      const hScore = f.goals?.home;
-                      const aScore = f.goals?.away;
-                      const kickoff = f.fixture?.date ? new Date(f.fixture.date).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",timeZone:"America/Mexico_City"}) : "";
-                      const statusColor = isLive ? "#00d4ff" : isDone ? "#555" : "#c084fc";
-                      const statusLabel = isLive ? "🔴 EN VIVO" : isDone ? "⏱ FT" : "🕐 " + kickoff;
-                      const dateObj = f.fixture?.date ? new Date(f.fixture.date) : null;
-                      const fechaStr = dateObj ? dateObj.toLocaleDateString("es-MX",{weekday:"short",day:"numeric",month:"short",timeZone:"America/Mexico_City"}) : "";
-                      const leagueName = f.league?.name || "";
-                      return (
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",
-                          background: isDone ? "rgba(255,255,255,0.01)" : "rgba(168,85,247,0.04)",
-                          borderRadius:12,border:"1px solid " + (isLive?"rgba(0,212,255,0.3)":isDone?"rgba(255,255,255,0.04)":"rgba(168,85,247,0.15)"),
-                          opacity: isDone ? 0.55 : 1}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:72,gap:2}}>
-                            <span style={{fontSize:isLive?10:9,fontWeight:700,color:statusColor,background:isLive?"rgba(0,212,255,0.12)":"transparent",padding:isLive?"2px 6px":"0",borderRadius:4}}>{statusLabel}</span>
-                            {!isLive && fechaStr && <span style={{fontSize:9,color:"#333",fontWeight:600}}>{fechaStr}</span>}
-                            <span style={{fontSize:8,color:"#444",textAlign:"center",maxWidth:70,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{leagueName}</span>
-                          </div>
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
-                            <div style={{flex:1,display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end",minWidth:0,overflow:"hidden"}}>
-                              {f.teams?.home?.logo && <img src={f.teams.home.logo} alt="" style={{width:18,height:18,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
-                              <span style={{fontSize:12,color:isDone?"#555":"#d1d5db",fontWeight:700,textAlign:"right",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,flex:1}}>{f.teams?.home?.name}</span>
-                            </div>
-                            <div style={{minWidth:58,flexShrink:0,textAlign:"center",background:"rgba(255,255,255,0.05)",borderRadius:8,padding:"4px 10px",border:`1px solid ${isLive?"rgba(0,212,255,0.3)":"rgba(168,85,247,0.15)"}`}}>
-                              <span style={{fontSize:14,fontWeight:900,color:isDone?"#666":isLive?"#00d4ff":"#e8eaf0",letterSpacing:2}}>
-                                {hScore != null ? hScore+" - "+aScore : "vs"}
-                              </span>
-                            </div>
-                            <div style={{flex:1,display:"flex",alignItems:"center",gap:6,minWidth:0,overflow:"hidden"}}>
-                              {f.teams?.away?.logo && <img src={f.teams.away.logo} alt="" style={{width:18,height:18,objectFit:"contain",flexShrink:0}} onError={e=>e.target.style.display="none"} />}
-                              <span style={{fontSize:12,color:isDone?"#555":"#d1d5db",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0,flex:1}}>{f.teams?.away?.name}</span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={async () => {
-                              const ht = {id: f.teams?.home?.id, name: f.teams?.home?.name};
-                              const at = {id: f.teams?.away?.id, name: f.teams?.away?.name};
-                              const lg = FEATURED_LEAGUES.find(l => l.id === f.league?.id) || {id: f.league?.id, name: f.league?.name, country: f.league?.country, flag:"🌐", logo: f.league?.logo};
-                              setLeague(lg);
-                              setHomeTeam(ht); setAwayTeam(at);
-                              setSelectedFixture(f);
-                              setH2h([]); setOdds({}); setEdges([]);
-                              await Promise.all([
-                                loadMatches(ht, setHomeMatches, "home"),
-                                loadMatches(at, setAwayMatches, "away"),
-                              ]);
-                              loadH2H(f.teams?.home?.id, f.teams?.away?.id);
-                            }}
-                            style={{fontSize:10,color:"#c084fc",background:"rgba(168,85,247,0.1)",border:"1px solid rgba(168,85,247,0.25)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>
-                            🔍 {lang==="en"?"Analyze":"Analizar"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+                );
+              })()}
+            </div>
 
             {/* Partidos de hoy */}
             {league && (
