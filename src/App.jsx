@@ -490,6 +490,7 @@ export default function App() {
   const [loadingLeagues,setLoadingLeagues]= useState(false);
   const [leagueSearch,  setLeagueSearch]  = useState("");
   const [showAllLeagues,setShowAllLeagues]= useState(false);
+  const [intlPickerDate, setIntlPickerDate] = useState('');	// fecha mostrada en el picker de selecciones
 
 
 
@@ -689,6 +690,7 @@ export default function App() {
       if (games.length > 0) {
         setTodayGames(games);
         setTodayLabel(mxDateStr === todayStr ? 'hoy' : mxDateStr);
+        setIntlPickerDate(mxDateStr);
       } else {
         // Buscar hacia adelante
         let found = false;
@@ -698,6 +700,7 @@ export default function App() {
           if (games.length > 0) {
             setTodayGames(games);
             setTodayLabel(next === todayStr ? 'hoy' : next);
+            setIntlPickerDate(next);
             found = true;
             break;
           }
@@ -761,6 +764,7 @@ export default function App() {
           if (games.length > 0) {
             setTodayGames(games);
             setTodayLabel(mxDay === todayStr ? 'hoy' : mxDay);
+            setIntlPickerDate(mxDay);
             found = true;
           }
         }
@@ -1998,10 +2002,10 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     {league?.isIntl && (
                       <input
                         type="date"
-                        defaultValue={new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+                        value={intlPickerDate || (()=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());return d})()}
                         onChange={e => {
                           const date = e.target.value;
-                          if (date) loadIntlByDate(date);
+                          if (date) { setIntlPickerDate(date); loadIntlByDate(date); }
                         }}
                         style={{
                           background:"rgba(0,212,255,0.07)",
