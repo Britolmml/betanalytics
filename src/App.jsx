@@ -710,62 +710,49 @@ export default function App() {
       // Caso especial: Selecciones Nacionales — carga por fecha seleccionada o busca próximo día con partidos
       if (lg.isIntl) {
         const NATL_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
+        // Season map: qué season tiene datos para cada liga
+        const LEAGUE_SEASONS = {
+          9: [2024], 6: [2026,2025], 32: [2024,2025], 34: [2024,2025],
+          10: [2026,2025], 4: [2024], 29: [2024,2025], 1: [2026,2025], 7: [2025,2026]
+        };
         const dedup = (arr) => {
           const seen = new Set();
           return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
         };
         const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
         const targetDate = lg.selectedDate || null;
+        const searchDate = targetDate || todayStr;
 
-        // Traer próximos fixtures — probar 2026 y 2025
-        const [res26, res25] = await Promise.all([
-          Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=20&season=2026`))),
-          Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=20&season=2025`))),
-        ]);
-        const all = [];
-        [...res26, ...res25].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-        all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-        const unique = filterSeniorOnly(dedup(all));
+        // Buscar día por día desde searchDate hasta encontrar partidos (máx 90 días)
+        const addDays = (base, n) => {
+          const [y,m,d] = base.split('-').map(Number);
+          const dt = new Date(Date.UTC(y, m-1, d+n));
+          return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        };
 
-        if (targetDate) {
-          // Filtrar por fecha seleccionada; si vacío, mostrar el día más cercano con partidos
-          const filtered = unique.filter(f => toMXDate(f.fixture?.date) === targetDate);
-          if (filtered.length > 0) {
-            setTodayGames(filterSeniorOnly(filtered));
-            setTodayLabel(targetDate === todayStr ? 'hoy' : targetDate);
-          } else {
-            // Buscar el día más cercano a la fecha seleccionada
-            const target = new Date(targetDate);
-            const closest = unique.filter(f => new Date(f.fixture.date) >= target);
-            if (closest.length > 0) {
-              const nextDate = toMXDate(closest[0].fixture.date);
-              setTodayGames(filterSeniorOnly(closest.filter(f => toMXDate(f.fixture.date) === nextDate)));
-              setTodayLabel(nextDate);
-            } else {
-              setTodayGames(unique.slice(0, 20));
-              setTodayLabel('próximos');
-            }
-          }
-        } else {
-          // Sin fecha: agrupar por día MX y mostrar el más cercano
-          const upcoming = unique.filter(f => !['FT','AET','PEN'].includes(f.fixture?.status?.short));
-          // Agrupar todos por día MX
-          const byDay = {};
-          upcoming.forEach(f => {
-            const day = toMXDate(f.fixture.date);
-            if (!byDay[day]) byDay[day] = [];
-            byDay[day].push(f);
+        let found = false;
+        for (let offset = 0; offset <= 90 && !found; offset++) {
+          const dateStr = addDays(searchDate, offset);
+          const year = parseInt(dateStr.split('-')[0]);
+          // Para cada liga, intentar con sus seasons válidas
+          const calls = NATL_IDS.flatMap(id => {
+            const seasons = LEAGUE_SEASONS[id] || [year];
+            return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
           });
-          const days = Object.keys(byDay).sort();
-          if (days.length > 0) {
-            const nextDate = days[0];
-            setTodayGames(filterSeniorOnly(byDay[nextDate]));
-            setTodayLabel(nextDate === todayStr ? 'hoy' : nextDate);
-          } else {
-            setTodayGames(unique.slice(0, 20));
-            setTodayLabel('próximos');
+          const results = await Promise.allSettled(calls);
+          const all = [];
+          results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+          const games = filterSeniorOnly(dedup(all));
+          if (games.length > 0) {
+            // Agrupar por día MX y tomar solo el día correcto
+            const mxDate = toMXDate(games[0].fixture.date);
+            const sameDay = games.filter(f => toMXDate(f.fixture.date) === mxDate);
+            setTodayGames(sameDay);
+            setTodayLabel(mxDate === todayStr ? 'hoy' : mxDate);
+            found = true;
           }
         }
+        if (!found) { setTodayGames([]); setTodayLabel(searchDate); }
         setLoadingToday(false);
         return;
       }
