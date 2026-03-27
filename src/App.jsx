@@ -1785,6 +1785,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 { label:"🌎 América del Norte", ids:[262,253] },
                 { label:"🌎 Sudamérica", ids:[71,72,128,131,169,265,239,268,300,314,283,332,13,14] },
                 { label:"⭐ Fáciles de predecir", ids:[188,307,98] },
+                { label:"🏆 Selecciones nacionales", ids:[9,6,32,34,10,4,29,5,848,531,15,1] },
               ].map(({label,ids})=>{
                 const ligas = FEATURED_LEAGUES.filter(l=>ids.includes(l.id));
                 return (
