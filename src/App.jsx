@@ -742,13 +742,16 @@ export default function App() {
         const utcToday = new Date().toISOString().split('T')[0];
         const utcTomorrow = addD(utcToday, 1);
 
-        const [r0, r1, r2] = await Promise.allSettled([
-          apiFetch(`/fixtures?league=${leagueId}&next=20&season=${season}`),
-          apiFetch(`/fixtures?league=${leagueId}&date=${utcToday}&season=${season}`),
-          apiFetch(`/fixtures?league=${leagueId}&date=${utcTomorrow}&season=${season}`),
+        // Ligas a buscar: la principal + extras si las hay
+        const leaguesToSearch = [{id:leagueId,s:season}, ...(lg.extraLeagues||[])];
+        const calls = leaguesToSearch.flatMap(({id,s}) => [
+          apiFetch(`/fixtures?league=${id}&next=20&season=${s}`),
+          apiFetch(`/fixtures?league=${id}&date=${utcToday}&season=${s}`),
+          apiFetch(`/fixtures?league=${id}&date=${utcTomorrow}&season=${s}`),
         ]);
+        const results = await Promise.allSettled(calls);
         const all = [];
-        [r0,r1,r2].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
         const allGames = filterSeniorOnly(dedup2(all));
 
         // Guardar cache y agrupar por día MX
@@ -1963,7 +1966,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
 
               {/* Botones: Ligas de Selecciones Nacionales */}
               {[
-                {id:"intl_7",  leagueId:7,  season:2026, name:"Amistosos",     country:"Internacional", flag:"🤝"},
+                {id:"intl_7",  leagueId:7,  season:2026, name:"Amistosos",     country:"Internacional", flag:"🤝", extraLeagues:[{id:10,s:2026},{id:7,s:2025}]},
                 {id:"intl_10", leagueId:10, season:2026, name:"CONCACAF",      country:"Eliminatorias", flag:"🌎"},
                 {id:"intl_6",  leagueId:6,  season:2026, name:"UEFA",          country:"Eliminatorias", flag:"🌍"},
                 {id:"intl_29", leagueId:29, season:2025, name:"CONMEBOL",      country:"Eliminatorias", flag:"🌎"},
@@ -2032,7 +2035,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                   <div style={{color:"#555",fontSize:12,padding:"8px 0"}}>⏳ {lang==="en"?"Loading games...":"Cargando partidos..."}</div>
                 )}
                 {!loadingToday && todayGames.length === 0 && (
-                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>{lang==="en"?"No upcoming games for this league.":"No hay partidos próximos para esta liga."}</div>
+                  <div style={{color:"#444",fontSize:12,padding:"8px 0"}}>{league?.isIntl ? (lang==="en"?"No upcoming games registered for this FIFA window. Next window: June 2026.":"No hay partidos registrados para esta ventana FIFA. Próxima ventana: Junio 2026.") : (lang==="en"?"No upcoming games for this league.":"No hay partidos próximos para esta liga.")}</div>
                 )}
                 {!loadingToday && todayGames.length > 0 && (() => {
                   const pending = todayGames.filter(f => !["FT","AET","PEN","1H","2H","HT","ET","BT","P"].includes(f.fixture?.status?.short) || ["1H","2H","HT","ET","BT","P"].includes(f.fixture?.status?.short));
