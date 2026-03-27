@@ -717,10 +717,13 @@ export default function App() {
         const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
         const targetDate = lg.selectedDate || null;
 
-        // Traer próximos fixtures por cada liga sin filtrar season
-        const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=20`)));
+        // Traer próximos fixtures — probar 2026 y 2025
+        const [res26, res25] = await Promise.all([
+          Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=20&season=2026`))),
+          Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=20&season=2025`))),
+        ]);
         const all = [];
-        res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        [...res26, ...res25].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
         all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
         const unique = filterSeniorOnly(dedup(all));
 
