@@ -289,7 +289,20 @@ export default function MLBPanel({ inline, lang="es" }) {
     const matched = do_.find(g=>{const gh=norm(g.home_team),ga=norm(g.away_team); return(gh.includes(nh.slice(-5))||nh.includes(gh.slice(-5)))&&(ga.includes(na.slice(-5))||na.includes(ga.slice(-5)));});
     if (matched) {
       const bk=matched.bookmakers?.find(b=>b.key==="draftkings")||matched.bookmakers?.[0];
-      const no_={h2h:bk?.markets?.find(m=>m.key==="h2h"),totals:bk?.markets?.find(m=>m.key==="totals"),bookmaker:bk?.title};
+      const h2hMarket=bk?.markets?.find(m=>m.key==="h2h");
+      const totalsMarket=bk?.markets?.find(m=>m.key==="totals");
+
+      // Match outcomes by team name — don't assume index order
+      const outcomes = h2hMarket?.outcomes || [];
+      const homeOutcome = outcomes.find(o => norm(o.name).includes(nh.slice(-5)) || nh.includes(norm(o.name).slice(-5)));
+      const awayOutcome = outcomes.find(o => norm(o.name).includes(na.slice(-5)) || na.includes(norm(o.name).slice(-5)));
+
+      // Rebuild h2h with home first, away second — always consistent
+      const fixedH2h = homeOutcome && awayOutcome
+        ? { ...h2hMarket, outcomes: [homeOutcome, awayOutcome] }
+        : h2hMarket;
+
+      const no_={h2h:fixedH2h, totals:totalsMarket, bookmaker:bk?.title};
       const mt=parseFloat(no_.totals?.outcomes?.find(o=>o.name==="Over")?.point);
       const bp=calcBaseballPoisson(hStats,aStats,mt||null);
       return {odds:no_, poisson:bp||p, edges:calcEdges(bp||p, no_)};
