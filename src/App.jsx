@@ -752,7 +752,9 @@ export default function App() {
         const results = await Promise.allSettled(calls);
         const all = [];
         results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-        const allGames = filterSeniorOnly(dedup2(all));
+        // Filtrar partidos que ya pasaron en zona horaria MX
+        const nowMX = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
+        const allGames = filterSeniorOnly(dedup2(all)).filter(f => new Date(f.fixture.date) > nowMX);
 
         // Guardar cache y agrupar por día MX
         setIntlCachedGames(allGames);
