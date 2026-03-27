@@ -409,11 +409,7 @@ export default function MLBPanel({ inline, lang="es" }) {
       setH2h(calcH2H(hGames, game.teams?.away?.id));
       const p = calcBaseballPoisson(hStats,aStats);
       setPoisson(p);
-      setLoadingOdds(true);
-      try {
-        const result = await fetchOddsForGame(game, hStats, aStats, p);
-        if (result) { setOdds(result.odds); setPoisson(result.poisson); setEdges(result.edges); setSplits(result.splits||null); }
-      } catch{} finally{setLoadingOdds(false);}
+      // Odds, splits y edges se cargan en runAI para ahorrar requests de Owls
     } catch(e){setAiErr("Error: "+e.message);}
     finally{setLoadingAI(false);}
   };
@@ -424,31 +420,51 @@ export default function MLBPanel({ inline, lang="es" }) {
     const home=selectedGame.teams?.home?.name, away=selectedGame.teams?.away?.name;
     const hS=preview.home, aS=preview.away;
 
+    // Cargar momios + splits aquí para no gastar requests de Owls al solo seleccionar partido
+    let currentOdds = odds, currentPoisson = poisson, currentEdges = edges, currentSplits = splits;
+    if (!currentOdds) {
+      try {
+        setLoadingOdds(true);
+        const result = await fetchOddsForGame(selectedGame, hS, aS, poisson);
+        if (result) {
+          currentOdds = result.odds;
+          currentPoisson = result.poisson;
+          currentEdges = result.edges;
+          currentSplits = result.splits || null;
+          setOdds(currentOdds);
+          setPoisson(currentPoisson);
+          setEdges(currentEdges);
+          setSplits(currentSplits);
+        }
+      } catch(e) { console.warn("Odds error:", e.message); }
+      finally { setLoadingOdds(false); }
+    }
+
     // Real odds in american format — Claude must use EXACTLY these
-    const homeOdds = odds?.h2h?.outcomes?.[0];
-    const awayOdds = odds?.h2h?.outcomes?.[1];
-    const overOdds = odds?.totals?.outcomes?.find(o=>o.name==="Over");
-    const underOdds = odds?.totals?.outcomes?.find(o=>o.name==="Under");
+    const homeOdds = currentOdds?.h2h?.outcomes?.[0];
+    const awayOdds = currentOdds?.h2h?.outcomes?.[1];
+    const overOdds = currentOdds?.totals?.outcomes?.find(o=>o.name==="Over");
+    const underOdds = currentOdds?.totals?.outcomes?.find(o=>o.name==="Under");
     const homeAm = homeOdds ? toAm(homeOdds.price) : "N/A";
     const awayAm = awayOdds ? toAm(awayOdds.price) : "N/A";
     const overAm = overOdds ? toAm(overOdds.price) : "N/A";
     const underAm = underOdds ? toAm(underOdds.price) : "N/A";
     const totalLine = overOdds?.point ?? "N/A";
 
-    const pi=poisson?(isEN?`Poisson: ${home} ${poisson.xRunsHome}R | ${away} ${poisson.xRunsAway}R | Total: ${poisson.total} | F5: ${poisson.total5} | P(home): ${poisson.pHome}%`:`Poisson: ${home} ${poisson.xRunsHome}C | ${away} ${poisson.xRunsAway}C | Total: ${poisson.total} | F5: ${poisson.total5} | P(local): ${poisson.pHome}%`):"";
-    const oi = odds ? (isEN
-      ? `REAL ODDS (${odds.bookmaker}) — USE EXACTLY THESE: ${home}=${homeAm} | ${away}=${awayAm} | Over ${totalLine}=${overAm} | Under ${totalLine}=${underAm}`
-      : `MOMIOS REALES (${odds.bookmaker}) — USA EXACTAMENTE ESTOS: ${home}=${homeAm} | ${away}=${awayAm} | Over ${totalLine}=${overAm} | Under ${totalLine}=${underAm}`)
+    const pi=currentPoisson?(isEN?`Poisson: ${home} ${currentPoisson.xRunsHome}R | ${away} ${currentPoisson.xRunsAway}R | Total: ${currentPoisson.total} | F5: ${currentPoisson.total5} | P(home): ${currentPoisson.pHome}%`:`Poisson: ${home} ${currentPoisson.xRunsHome}C | ${away} ${currentPoisson.xRunsAway}C | Total: ${currentPoisson.total} | F5: ${currentPoisson.total5} | P(local): ${currentPoisson.pHome}%`):"";
+    const oi = currentOdds ? (isEN
+      ? `REAL ODDS (${currentOdds.bookmaker}) — USE EXACTLY THESE: ${home}=${homeAm} | ${away}=${awayAm} | Over ${totalLine}=${overAm} | Under ${totalLine}=${underAm}`
+      : `MOMIOS REALES (${currentOdds.bookmaker}) — USA EXACTAMENTE ESTOS: ${home}=${homeAm} | ${away}=${awayAm} | Over ${totalLine}=${overAm} | Under ${totalLine}=${underAm}`)
       : (isEN ? "No odds available" : "Sin momios disponibles");
-    const vb=edges.filter(e=>e.hasValue).map(e=>`${e.label}:${e.ourProb}% vs ${e.implied}%(edge+${e.edge}%)`).join(",");
-    const ud=edges.filter(e=>e.isUnderdog&&e.edge>0).map(e=>`UNDERDOG VALUE: ${e.label} edge+${e.edge}%`).join(",");
+    const vb=(currentEdges||[]).filter(e=>e.hasValue).map(e=>`${e.label}:${e.ourProb}% vs ${e.implied}%(edge+${e.edge}%)`).join(",");
+    const ud=(currentEdges||[]).filter(e=>e.isUnderdog&&e.edge>0).map(e=>`UNDERDOG VALUE: ${e.label} edge+${e.edge}%`).join(",");
     const h2hStr=h2h.length?h2h.map(g=>`${g.home} ${g.hScore}-${g.aScore} ${g.away}`).join("|"):(isEN?"No H2H":"Sin H2H");
     const nrfiStr=isEN?`NRFI hist: Home ${hS?.nrfiPct||"?"}% | Away ${aS?.nrfiPct||"?"}%`:`NRFI hist: Local ${hS?.nrfiPct||"?"}% | Visitante ${aS?.nrfiPct||"?"}%`;
     const cal=isCalibration?(isEN?`\nCALIBRATION: ${hS?.games||0} games only. Max confidence ${maxConf}%.`:`\nCALIBRACIÓN: Solo ${hS?.games||0} partidos. Máx confianza ${maxConf}%.`):"";
 
     // Splits — public betting handle/ticket %
-    const splitsStr = splits ? (() => {
-      const ml = splits.moneyline, tot = splits.total;
+    const splitsStr = currentSplits ? (() => {
+      const ml = currentSplits.moneyline, tot = currentSplits.total;
       const mlStr = ml ? `ML: ${home} Handle=${ml.home_handle_pct}% Tickets=${ml.home_bets_pct}% | ${away} Handle=${ml.away_handle_pct}% Tickets=${ml.away_bets_pct}%` : "";
       const totStr = tot ? `Total: Over Handle=${tot.over_handle_pct}% Tickets=${tot.over_bets_pct}% | Under Handle=${tot.under_handle_pct}% Tickets=${tot.under_bets_pct}%` : "";
       const sharpML = ml && ml.home_handle_pct > ml.home_bets_pct + 15 ? `⚡ Sharp money on ${home}` : ml && ml.away_handle_pct > ml.away_bets_pct + 15 ? `⚡ Sharp money on ${away}` : "";
@@ -475,7 +491,7 @@ PUBLIC BETTING: ${splitsStr}
 ${vb?"VALUE:"+vb:"No value bets"} ${ud?"|"+ud:""}
 ${oddsRule}
 RULES: Max confidence ${maxConf}%. Starting pitcher ERA/WHIP are THE key factors. Flag underdog value. Use public betting splits for fade-the-public picks. Include F5 and NRFI picks.
-JSON only:{"resumen":"3-4 sentences analyzing pitcher matchup","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"${home} or ${away}","odds_sugerido":"${homeAm}","confianza":57,"factores":["pitcher ERA"],"insight":"pitcher matchup impact"},{"tipo":"Total Runs","pick":"Over/Under ${totalLine}","odds_sugerido":"${overAm}","confianza":54,"factores":[""],"insight":"why this line"},{"tipo":"Run Line","pick":"-1.5 or +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"margin analysis"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"pitcher first 5 projection"},{"tipo":"NRFI","pick":"Yes/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"first inning likelihood based on pitcher"},{"tipo":"Fade al público","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"sharp money vs public divergence"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["trend 1","trend 2","trend 3"],"alertas":["alert"],"tendencias":{"carrerasEsperadas":"${poisson?.total||'8.5'}","f5Total":"${poisson?.total5||'4.5'}","favorito":"team","nivelConfianza":"LOW/MEDIUM"}}`
+JSON only:{"resumen":"3-4 sentences analyzing pitcher matchup","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"${home} or ${away}","odds_sugerido":"${homeAm}","confianza":57,"factores":["pitcher ERA"],"insight":"pitcher matchup impact"},{"tipo":"Total Runs","pick":"Over/Under ${totalLine}","odds_sugerido":"${overAm}","confianza":54,"factores":[""],"insight":"why this line"},{"tipo":"Run Line","pick":"-1.5 or +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"margin analysis"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"pitcher first 5 projection"},{"tipo":"NRFI","pick":"Yes/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"first inning likelihood based on pitcher"},{"tipo":"Fade al público","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"sharp money vs public divergence"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["trend 1","trend 2","trend 3"],"alertas":["alert"],"tendencias":{"carrerasEsperadas":"${currentPoisson?.total||'8.5'}","f5Total":"${currentPoisson?.total5||'4.5'}","favorito":"team","nivelConfianza":"LOW/MEDIUM"}}`
       :`Analista MLB experto. ${home} vs ${away} ${new Date(selectedGame.date).toLocaleDateString("es-MX")}${cal}
 ${pitcherStr}
 LOCAL ${home}: ${hS?.avgRuns||"N/D"}C/j, ${hS?.avgRunsAgainst||"N/D"} recibidas, ${hS?.wins||0}V-${(hS?.games||0)-(hS?.wins||0)}D, forma:${hS?.results||"N/D"}, ${nrfiStr}
@@ -485,7 +501,7 @@ DINERO PÚBLICO: ${splitsStr}
 ${vb?"VALUE:"+vb:"Sin value bets"} ${ud?"|"+ud:""}
 ${oddsRule}
 REGLAS: Confianza máx ${maxConf}%. ERA/WHIP del pitcher son LOS factores clave. Señala valor en underdogs. Usa los splits de dinero público para picks de fade al público. Incluye picks de F5 y NRFI.
-Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"${home} o ${away}","odds_sugerido":"${homeAm}","confianza":57,"factores":["ERA del pitcher"],"insight":"impacto del duelo de pitchers"},{"tipo":"Total Carreras","pick":"Más/Menos ${totalLine}","odds_sugerido":"${overAm}","confianza":54,"factores":[""],"insight":"por qué esta línea"},{"tipo":"Run Line","pick":"-1.5 o +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"análisis margen"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"proyección del pitcher primeras 5"},{"tipo":"NRFI","pick":"Sí/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"probabilidad primera entrada basada en pitcher"},{"tipo":"Fade al público","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"divergencia dinero sharp vs público"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["tendencia 1","tendencia 2","tendencia 3"],"alertas":["alerta"],"tendencias":{"carrerasEsperadas":"${poisson?.total||'8.5'}","f5Total":"${poisson?.total5||'4.5'}","favorito":"equipo","nivelConfianza":"BAJO/MEDIO"}}`;
+Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccionMarcador":"X-X","probabilidades":{"local":52,"visitante":48},"apuestasDestacadas":[{"tipo":"Moneyline","pick":"${home} o ${away}","odds_sugerido":"${homeAm}","confianza":57,"factores":["ERA del pitcher"],"insight":"impacto del duelo de pitchers"},{"tipo":"Total Carreras","pick":"Más/Menos ${totalLine}","odds_sugerido":"${overAm}","confianza":54,"factores":[""],"insight":"por qué esta línea"},{"tipo":"Run Line","pick":"-1.5 o +1.5","odds_sugerido":"","confianza":50,"factores":[""],"insight":"análisis margen"},{"tipo":"F5","pick":"Over/Under X.5","odds_sugerido":"","confianza":52,"factores":[""],"insight":"proyección del pitcher primeras 5"},{"tipo":"NRFI","pick":"Sí/No","odds_sugerido":"","confianza":51,"factores":[""],"insight":"probabilidad primera entrada basada en pitcher"},{"tipo":"Fade al público","pick":"","odds_sugerido":"","confianza":53,"factores":[""],"insight":"divergencia dinero sharp vs público"}],"valueBet":{"existe":false,"mercado":"","explicacion":"","edge":""},"tendenciasDetectadas":["tendencia 1","tendencia 2","tendencia 3"],"alertas":["alerta"],"tendencias":{"carrerasEsperadas":"${currentPoisson?.total||'8.5'}","f5Total":"${currentPoisson?.total5||'4.5'}","favorito":"equipo","nivelConfianza":"BAJO/MEDIO"}}`;
 
     try {
       const res=await fetch("/api/predict",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,lang})});
@@ -983,7 +999,7 @@ Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccion
                       🤖 {isEN?"AI PREDICTION — MLB":"PREDICCIÓN IA — MLB"}
                     </button>
                   )}
-                  {loadingAI&&<div style={{textAlign:"center",padding:24,color:"#fb923c",fontSize:13}}>⏳ {isEN?"Analyzing game...":"Analizando partido..."}</div>}
+                  {loadingAI&&<div style={{textAlign:"center",padding:24,color:"#fb923c",fontSize:13}}>⏳ {loadingOdds?(isEN?"Loading odds...":"Cargando momios..."):(isEN?"Analyzing game...":"Analizando partido...")}</div>}
                   {aiErr&&<div style={{color:"#ef4444",fontSize:12,padding:10,background:"rgba(239,68,68,0.08)",borderRadius:8,marginBottom:12}}>{aiErr}</div>}
 
                   {/* Analysis */}
