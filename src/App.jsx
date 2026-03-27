@@ -749,25 +749,23 @@ export default function App() {
         const dedup2 = (arr) => { const seen = new Set(); return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; }); };
         const addD = (base, n) => { const [y,m,d]=base.split('-').map(Number); const dt=new Date(y,m-1,d+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); };
 
-        // Estrategia: buscar por fecha hoy + 7 días (para amistosos activos) + next=20 para el resto
-        const dates = Array.from({length:8}, (_,i) => addD(todayStr, i));
-        const utcDates = dates.map(d => addD(d, 1)); // día UTC siguiente para capturar nocturnos MX
-        const allDates = [...new Set([...dates, ...utcDates])];
+        // Ligas a buscar: la principal + extras definidas en el botón
+        const leaguesToSearch = [{id:lg.leagueId, s:lg.season}, ...(lg.extraLeagues||[])];
+        const utcToday = new Date().toISOString().split('T')[0];
+        const utcTomorrow = addD(utcToday, 1);
+        const utcYesterday = addD(utcToday, -1);
 
-        // Ligas que buscar por fecha (activas ahora)
-        const BY_DATE = [{id:7,s:2025},{id:10,s:2026},{id:6,s:2026},{id:32,s:2025},{id:34,s:2025},{id:29,s:2025},{id:1,s:2026}];
-        // Ligas con partidos futuros lejanos
-        const BY_NEXT = [{id:9,s:2024},{id:4,s:2024},{id:7,s:2026},{id:10,s:2025}];
-
-        const callsByDate = allDates.flatMap(date => BY_DATE.map(({id,s}) => apiFetch('/fixtures?league='+id+'&date='+date+'&season='+s)));
-        const callsByNext = BY_NEXT.map(({id,s}) => apiFetch('/fixtures?league='+id+'&next=20&season='+s));
-
-        const [resDate, resNext] = await Promise.all([
-          Promise.allSettled(callsByDate),
-          Promise.allSettled(callsByNext)
+        // Buscar: next=20 + fecha de hoy/mañana/ayer en UTC para capturar partidos en ventana actual
+        const calls = leaguesToSearch.flatMap(({id,s}) => [
+          apiFetch('/fixtures?league='+id+'&next=20&season='+s),
+          apiFetch('/fixtures?league='+id+'&date='+utcToday+'&season='+s),
+          apiFetch('/fixtures?league='+id+'&date='+utcTomorrow+'&season='+s),
+          apiFetch('/fixtures?league='+id+'&date='+utcYesterday+'&season='+s),
         ]);
+
+        const results = await Promise.allSettled(calls);
         const all = [];
-        [...resDate, ...resNext].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        results.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
         const allGames = filterSeniorOnly(dedup2(all));
 
         // Guardar cache y agrupar por día MX
