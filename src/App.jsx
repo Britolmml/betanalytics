@@ -1454,8 +1454,8 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
             analysis: fullAnalysis,
           }, picks, "football");
           // Incrementar uso del día
-          await incrementUsage(session.user.id);
-          const newUsage = await checkUsageLimit(session.user.id);
+          await incrementUsage(user.id);
+          const newUsage = await checkUsageLimit(user.id);
           setUsageInfo(newUsage);
         }
       } catch(e) { /* silencioso */ }
@@ -1464,6 +1464,10 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
   };
 
   const predictMulti = async () => {
+    if (!user) { setShowAuth(true); return; }
+    const usageM = await checkUsageLimit(user.id);
+    setUsageInfo(usageM);
+    if (!usageM.allowed) { setShowUpgrade(true); return; }
     setLoadingMulti(true); setMultiResult(null); setShowMulti(true);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);
