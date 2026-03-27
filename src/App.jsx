@@ -654,63 +654,48 @@ export default function App() {
           return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
         };
         const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
-        // Si hay una fecha seleccionada en el picker, usarla; si no, buscar día a día
         const targetDate = lg.selectedDate || null;
+
+        // Traer próximos 10 fixtures por cada liga (más confiable que buscar por date)
+        const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=10&season=2026`)));
+        const resOld = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=10&season=2025`)));
+        const all = [];
+        [...res, ...resOld].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
+        const unique = dedup(all);
+
         if (targetDate) {
-          const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${targetDate}`)));
-          const all = [];
-          res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-          // Si no hay partidos en la fecha elegida, buscar próximo día con partidos desde esa fecha
-          if (all.length === 0) {
-            const [ty, tm, td] = targetDate.split('-').map(Number);
-            let found2 = false;
-            for (let offset = 1; offset <= 14; offset++) {
-              const dt = new Date(ty, tm - 1, td + offset);
-              const ds = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-              const res3 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${ds}`)));
-              const all3 = [];
-              res3.forEach(r => { if (r.status==='fulfilled') all3.push(...(r.value?.response||[])); });
-              if (all3.length > 0) {
-                all3.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-                setTodayGames(dedup(all3));
-                setTodayLabel(ds);
-                found2 = true;
-                break;
-              }
-            }
-            if (!found2) { setTodayGames([]); setTodayLabel(targetDate); }
-          } else {
-            all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-            setTodayGames(dedup(all));
+          // Filtrar por fecha seleccionada; si vacío, mostrar el día más cercano con partidos
+          const filtered = unique.filter(f => f.fixture?.date?.startsWith(targetDate));
+          if (filtered.length > 0) {
+            setTodayGames(filtered);
             setTodayLabel(targetDate === todayStr ? 'hoy' : targetDate);
+          } else {
+            // Buscar el día más cercano a la fecha seleccionada
+            const target = new Date(targetDate);
+            const closest = unique.filter(f => new Date(f.fixture.date) >= target);
+            if (closest.length > 0) {
+              const nextDate = closest[0].fixture.date.split('T')[0];
+              setTodayGames(closest.filter(f => f.fixture.date.startsWith(nextDate)));
+              setTodayLabel(nextDate);
+            } else {
+              setTodayGames(unique.slice(0, 20));
+              setTodayLabel('próximos');
+            }
           }
         } else {
-          // Buscar día por día hasta 7 días
-          const getDate = (offsetDays) => {
-            const [y, m, d] = todayStr.split('-').map(Number);
-            const dt = new Date(y, m - 1, d + offsetDays);
-            return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-          };
-          let found = false;
-          for (let offset = 0; offset <= 7; offset++) {
-            const dateStr = getDate(offset);
-            const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${dateStr}`)));
-            const all = [];
-            res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-            if (all.length > 0) {
-              all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-              setTodayGames(dedup(all));
-              setTodayLabel(offset === 0 ? 'hoy' : dateStr);
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            const res2 = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=3`)));
-            const all2 = [];
-            res2.forEach(r => { if (r.status==='fulfilled') all2.push(...(r.value?.response||[])); });
-            all2.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-            setTodayGames(dedup(all2));
+          // Sin fecha: mostrar el día más cercano con partidos
+          const upcoming = unique.filter(f => {
+            const st = f.fixture?.status?.short;
+            return !['FT','AET','PEN'].includes(st);
+          });
+          if (upcoming.length > 0) {
+            const nextDate = upcoming[0].fixture.date.split('T')[0];
+            const sameDay = upcoming.filter(f => f.fixture.date.startsWith(nextDate));
+            setTodayGames(sameDay);
+            setTodayLabel(nextDate === todayStr ? 'hoy' : nextDate);
+          } else {
+            setTodayGames(unique.slice(0, 20));
             setTodayLabel('próximos');
           }
         }
