@@ -639,6 +639,7 @@ export default function App() {
   // Cargar partidos del día de todas las ligas internacionales
   // Cargar partidos internacionales por fecha específica
   const INTL_LEAGUE_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
+  const LEAGUE_SEASONS = {9:[2024],6:[2026,2025],32:[2024,2025],34:[2024,2025],10:[2026,2025],4:[2024],29:[2024,2025],1:[2026,2025],7:[2025,2026]};
   const toMXDate = (isoStr) => {
     if (!isoStr) return '';
     return new Intl.DateTimeFormat('en-CA', {
@@ -668,14 +669,13 @@ export default function App() {
       const dt = new Date(y, m-1, d+n);
       return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
     };
-    const LEAGUE_SEASONS = {9:[2024],6:[2026,2025],32:[2024,2025],34:[2024,2025],10:[2026,2025],4:[2024],29:[2024,2025],1:[2026,2025],7:[2025,2026]};
     const fetchForMXDay = async (mxDay) => {
       // Buscar en el día MX y en el siguiente UTC (para capturar partidos nocturnos)
       const utcNext = addDaysLocal(mxDay, 1);
       const year = parseInt(mxDay.split('-')[0]);
       const calls = [mxDay, utcNext].flatMap(dateStr =>
         INTL_LEAGUE_IDS.flatMap(id => {
-          const seasons = LEAGUE_SEASONS[id] || [year];
+          const seasons = LEAGUE_SEASONS[id] || [year, year-1];
           return seasons.map(s => apiFetch('/fixtures?league='+id+'&date='+dateStr+'&season='+s));
         })
       );
@@ -725,10 +725,7 @@ export default function App() {
       if (lg.isIntl) {
         const NATL_IDS = [9, 6, 32, 34, 10, 4, 29, 1, 7];
         // Season map: qué season tiene datos para cada liga
-        const LEAGUE_SEASONS = {
-          9: [2024], 6: [2026,2025], 32: [2024,2025], 34: [2024,2025],
-          10: [2026,2025], 4: [2024], 29: [2024,2025], 1: [2026,2025], 7: [2025,2026]
-        };
+
         const dedup = (arr) => {
           const seen = new Set();
           return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
