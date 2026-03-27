@@ -3086,27 +3086,37 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {activeSport === null && (
         <div style={{minHeight:"calc(100vh - 62px)",background:"#060d18",position:"relative",overflow:"hidden"}}>
 
-          {/* ── 1. HERO con mensaje claro ── */}
-          <div style={{position:"relative",height:360,overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-            <img src="/fondo.jpg" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%",opacity:0.65}} />
-            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 65% 100% at 50% 55%, transparent 25%, rgba(6,13,24,0.6) 65%, rgba(6,13,24,0.95) 100%)"}}/>
-            <div style={{position:"absolute",bottom:0,left:0,right:0,height:160,background:"linear-gradient(to bottom,transparent,#060d18)"}}/>
-            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3}}>
-                <span style={{width:5,height:5,borderRadius:"50%",background:"#00d4ff",display:"inline-block",boxShadow:"0 0 6px #00d4ff"}}/>
-                {lang==="en" ? "REAL-TIME ANALYSIS · LIVE ODDS · SHARP MONEY" : "ANÁLISIS EN TIEMPO REAL · MOMIOS LIVE · DINERO SHARP"}
+          {/* ── 1. HERO ── */}
+          <div style={{position:"relative",height:340,overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <img src="/fondo.jpg" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%",opacity:0.75}} />
+            {/* Overlay solo en el centro donde va el texto — deja los laterales con atletas visibles */}
+            <div style={{position:"absolute",inset:0,background:"linear-gradient(to right, rgba(6,13,24,0.5) 0%, rgba(6,13,24,0.75) 30%, rgba(6,13,24,0.75) 70%, rgba(6,13,24,0.5) 100%)"}}/>
+            <div style={{position:"absolute",bottom:0,left:0,right:0,height:120,background:"linear-gradient(to bottom,transparent,#060d18)"}}/>
+            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+              {/* Badge */}
+              <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(0,212,255,0.08)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:30,padding:"4px 14px",fontSize:9,color:"#00d4ff",fontWeight:800,letterSpacing:2}}>
+                <span style={{width:4,height:4,borderRadius:"50%",background:"#00d4ff",display:"inline-block",boxShadow:"0 0 5px #00d4ff"}}/>
+                {lang==="en" ? "LIVE ODDS · SHARP MONEY · AI ANALYSIS" : "MOMIOS LIVE · DINERO SHARP · IA"}
               </div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:58,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:3,lineHeight:0.95}}>
-                {lang==="en" ? "FIND VALUE BETS USING AI & SHARP MONEY" : "ENCUENTRA APUESTAS CON VALOR USANDO IA Y DINERO INTELIGENTE"}
+              {/* Título — corto y en dos líneas */}
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:44,background:"linear-gradient(140deg,#ffffff 20%,#00d4ff 60%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:3,lineHeight:1.0,maxWidth:600}}>
+                {lang==="en" ? "FIND VALUE BETS WITH AI & SHARP MONEY" : "APUESTAS CON VALOR — IA Y DINERO INTELIGENTE"}
               </div>
-              <div style={{display:"flex",gap:12,marginTop:8}}>
-                <button onClick={()=>setActiveSport("football")} style={{background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",border:"none",borderRadius:12,padding:"10px 28px",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:16,letterSpacing:2,cursor:"pointer",boxShadow:"0 0 24px rgba(0,212,255,0.3)"}}>
-                  ⚡ {lang==="en"?"SEE TODAY'S PICKS":"VER PICKS DE HOY"}
+              {/* Subtítulo */}
+              <div style={{fontSize:12,color:"rgba(200,238,255,0.6)",letterSpacing:1,maxWidth:480}}>
+                {lang==="en"
+                  ? "Poisson model · Public betting splits · Edges vs market · 10 sportsbooks"
+                  : "Modelo Poisson · Dinero público · Edges vs mercado · 10 casas de apuesta"}
+              </div>
+              {/* CTAs */}
+              <div style={{display:"flex",gap:10,marginTop:6}}>
+                <button onClick={()=>setActiveSport("football")} style={{background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",border:"none",borderRadius:10,padding:"9px 24px",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:15,letterSpacing:2,cursor:"pointer",boxShadow:"0 0 20px rgba(0,212,255,0.3)"}}>
+                  ⚡ {lang==="en"?"PICKS TODAY":"PICKS HOY"}
                 </button>
-                <button onClick={()=>setActiveSport("nba")} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 24px",color:"#e2f4ff",fontSize:13,cursor:"pointer",fontWeight:700}}>
+                <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}} style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:10,padding:"9px 18px",color:"#f87171",fontSize:12,cursor:"pointer",fontWeight:700}}>
                   🏀 NBA
                 </button>
-                <button onClick={()=>setActiveSport("mlb")} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 24px",color:"#e2f4ff",fontSize:13,cursor:"pointer",fontWeight:700}}>
+                <button onClick={()=>setActiveSport("mlb")} style={{background:"rgba(251,146,60,0.1)",border:"1px solid rgba(251,146,60,0.3)",borderRadius:10,padding:"9px 18px",color:"#fb923c",fontSize:12,cursor:"pointer",fontWeight:700}}>
                   ⚾ MLB
                 </button>
               </div>
