@@ -641,16 +641,43 @@ export default function App() {
   const loadIntlByDate = async (dateStr) => {
     setLoadingToday(true);
     setTodayGames([]);
-    try {
-      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${dateStr}`)));
+    const todayStr = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const dedup = (arr) => {
+      const seen = new Set();
+      return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
+    };
+    const fetchDate = async (d) => {
+      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${d}`)));
       const all = [];
       res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
-      all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
-      const seen = new Set();
-      const unique = all.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
-      setTodayGames(unique);
-      const todayStr = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-      setTodayLabel(dateStr === todayStr ? 'hoy' : dateStr);
+      return dedup(all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date)));
+    };
+    const addDays = (base, n) => {
+      const [y,m,d] = base.split('-').map(Number);
+      const dt = new Date(y, m-1, d+n);
+      return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    };
+    try {
+      // Intentar la fecha pedida
+      let games = await fetchDate(dateStr);
+      if (games.length > 0) {
+        setTodayGames(games);
+        setTodayLabel(dateStr === todayStr ? 'hoy' : dateStr);
+      } else {
+        // Buscar hacia adelante día por día hasta 30 días
+        let found = false;
+        for (let i = 1; i <= 30; i++) {
+          const next = addDays(dateStr, i);
+          games = await fetchDate(next);
+          if (games.length > 0) {
+            setTodayGames(games);
+            setTodayLabel(next === todayStr ? 'hoy' : next);
+            found = true;
+            break;
+          }
+        }
+        if (!found) setTodayGames([]);
+      }
     } catch(e) { setTodayGames([]); }
     finally { setLoadingToday(false); }
   };
