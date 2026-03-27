@@ -312,7 +312,7 @@ export default function MLBPanel({ inline, lang="es" }) {
     // Fetch odds y splits en paralelo
     const [oddsRes, splitsRes] = await Promise.allSettled([
       fetch(`/api/odds?sport=baseball_mlb&markets=h2h,totals&regions=us`).then(r=>r.json()),
-      fetch(`/api/owls?type=splits&sport=mlb`).then(r=>r.json()),
+      fetch(`/api/odds?type=splits&sport=mlb`).then(r=>r.json()),
     ]);
 
     const do_ = oddsRes.value;
