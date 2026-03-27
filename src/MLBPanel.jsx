@@ -209,23 +209,47 @@ export default function MLBPanel({ inline, lang="es" }) {
   const fetchPitchers = async (game) => {
     setLoadingPitchers(true);
     try {
-      // Get schedule with probable pitchers from MLB Stats API
-      const date = new Date(game.date).toISOString().split("T")[0];
-      const r = await fetch(`/api/mlb-stats?type=schedule&date=${date}`);
-      const data = await r.json();
-      const games = data.dates?.[0]?.games || [];
+      // Use the selected date (Mexico City timezone) — same as what the user sees
+      const date = selectedDate;
+      // Also try next day in case game is late night UTC
+      const nextDate = new Date(date+"T12:00:00");
+      const nextDateStr = new Date(nextDate.getTime()+86400000).toISOString().split("T")[0];
 
-      // Match game by team names
+      const [r1, r2] = await Promise.allSettled([
+        fetch(`/api/mlb-stats?type=schedule&date=${date}`).then(r=>r.json()),
+        fetch(`/api/mlb-stats?type=schedule&date=${nextDateStr}`).then(r=>r.json()),
+      ]);
+
+      const allGames = [
+        ...(r1.value?.dates?.[0]?.games || []),
+        ...(r2.value?.dates?.[0]?.games || []),
+      ];
+
+      // Match by team names AND by game date matching the selected date
       const norm = s => s?.toLowerCase().replace(/[^a-z]/g,"") ?? "";
       const hn = norm(game.teams?.home?.name);
       const an = norm(game.teams?.away?.name);
+      const gameTimeMX = new Date(game.date).toLocaleDateString("en-CA", {timeZone:"America/Mexico_City"});
 
-      const mlbGame = games.find(g => {
+      // First try: exact team + date match
+      let mlbGame = allGames.find(g => {
         const gh = norm(g.teams?.home?.team?.name);
         const ga = norm(g.teams?.away?.team?.name);
-        return (gh.includes(hn.slice(-5)) || hn.includes(gh.slice(-5))) &&
-               (ga.includes(an.slice(-5)) || an.includes(ga.slice(-5)));
+        const gDate = g.officialDate; // MLB uses officialDate for the local game date
+        const teamsMatch = (gh.includes(hn.slice(-5)) || hn.includes(gh.slice(-5))) &&
+                           (ga.includes(an.slice(-5)) || an.includes(ga.slice(-5)));
+        return teamsMatch && (gDate === date || gDate === gameTimeMX);
       });
+
+      // Fallback: just team names (no date filter)
+      if (!mlbGame) {
+        mlbGame = allGames.find(g => {
+          const gh = norm(g.teams?.home?.team?.name);
+          const ga = norm(g.teams?.away?.team?.name);
+          return (gh.includes(hn.slice(-5)) || hn.includes(gh.slice(-5))) &&
+                 (ga.includes(an.slice(-5)) || an.includes(ga.slice(-5)));
+        });
+      }
 
       if (!mlbGame) { setLoadingPitchers(false); return; }
 
