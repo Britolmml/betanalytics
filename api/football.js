@@ -18,7 +18,8 @@ async function handleUsage(req, res) {
   if (!sb) return res.status(500).json({ error: "Supabase no configurado" });
   const { action, userId } = req.method === "POST" ? req.body : req.query;
   if (!userId) return res.status(400).json({ error: "userId requerido" });
-  const today = new Date().toISOString().split("T")[0];
+  // Usar fecha en zona horaria México para consistencia con el frontend
+  const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   try {
     if (action === "check") {
       const { data: pd } = await sb.from("user_plans").select("plan").eq("user_id", userId).maybeSingle();
