@@ -656,11 +656,10 @@ export default function App() {
         const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Mexico_City', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
         const targetDate = lg.selectedDate || null;
 
-        // Traer próximos 10 fixtures por cada liga (más confiable que buscar por date)
-        const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=10&season=2026`)));
-        const resOld = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=10&season=2025`)));
+        // Traer próximos fixtures por cada liga sin filtrar season
+        const res = await Promise.allSettled(NATL_IDS.map(id => apiFetch(`/fixtures?league=${id}&next=20`)));
         const all = [];
-        [...res, ...resOld].forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
+        res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
         all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date));
         const unique = dedup(all);
 
