@@ -2,10 +2,15 @@
   "rewrites": [
     { "source": "/api/football", "destination": "/api/football" },
     { "source": "/api/basketball", "destination": "/api/basketball" },
+    { "source": "/api/baseball", "destination": "/api/baseball" },
     { "source": "/api/predict", "destination": "/api/predict" },
     { "source": "/api/odds", "destination": "/api/odds" },
     { "source": "/api/jornada", "destination": "/api/jornada" },
-    { "source": "/api/create-checkout", "destination": "/api/create-checkout" }
+    { "source": "/api/webhook", "destination": "/api/webhook" },
+    { "source": "/api/create-checkout", "destination": "/api/create-checkout" },
+    { "source": "/api/nba-injuries", "destination": "/api/nba-injuries" },
+    { "source": "/api/mlb-stats", "destination": "/api/mlb-stats" },
+    { "source": "/api/news", "destination": "/api/news" }
   ],
   "headers": [
     {
@@ -13,8 +18,16 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://js.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com; connect-src 'self' https://api.stripe.com; img-src 'self' data: https://*.stripe.com"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://client.crisp.chat; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://media.api-sports.io https://*.api-sports.io https://cdn.nba.com https://a.espncdn.com https://www.mlbstatic.com https://content.mlb.com https://lh3.googleusercontent.com https://upload.wikimedia.org; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://js.stripe.com https://api.stripe.com wss://*.supabase.co https://client.crisp.chat wss://client.relay.crisp.chat https://api.owlsinsight.com https://statsapi.mlb.com; frame-src https://js.stripe.com; worker-src blob:;"
         }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" }
       ]
     }
   ]
