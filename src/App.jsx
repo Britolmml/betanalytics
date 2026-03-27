@@ -1887,6 +1887,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     })}
                   </div>
                 )}
+              </div>
             </div>
 
             {/* Partidos de hoy */}
