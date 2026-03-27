@@ -795,11 +795,10 @@ Projected total: ${totalLine} pts
 ${home} projected: ${hLine} | ${away} projected: ${aLine}
 ${nbaOdds ? `REFERENCE ODDS (${nbaOdds.bookmaker || "DraftKings"} — may differ from your sportsbook):
   Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
-  const dec = o.price;
-  const am = dec >= 2 ? "+" + Math.round((dec-1)*100) : "-" + Math.round(100/(dec-1));
-  return o.name + " " + am + " (dec:" + dec + ")";
+  const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1));
+  return o.name + " " + am;
 }).join(" | ") || "N/A") + `
-  Total: ` + (nbaOdds.totals?.outcomes?.map(o => o.name + " " + o.point + " @ " + (o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)))).join(" | ") || "N/A") + `
+  Total: ` + (nbaOdds.totals?.outcomes?.map(o => { const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)); return o.name + " " + o.point + " @ " + am; }).join(" | ") || "N/A") + `
 CRITICAL: Use EXACTLY these total lines in your picks. DO NOT invent lines.` : "Odds not available"}
 
 ════ NBA POISSON MODEL ════
@@ -814,6 +813,17 @@ H2H last games: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "+g.hPts
 ════ CALCULATED EDGES (Poisson vs NBA Market) ════
 ` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"no value"}`).join("\n") : "No odds loaded — load odds to detect edges") + `
 IMPORTANT: Base highlighted bets ONLY on positive edges. If no edges, state there is no value.
+
+════ PUBLIC BETTING SPLITS (Owls Insight) ════
+` + (nbaSplits ? (() => {
+  const ml = nbaSplits.moneyline, tot = nbaSplits.total;
+  const mlStr = ml ? `Moneyline: ${home} Handle=${ml.home_handle_pct}% Tickets=${ml.home_bets_pct}% | ${away} Handle=${ml.away_handle_pct}% Tickets=${ml.away_bets_pct}%` : "";
+  const totStr = tot ? `Total: Over Handle=${tot.over_handle_pct}% Tickets=${tot.over_bets_pct}% | Under Handle=${tot.under_handle_pct}% Tickets=${tot.under_bets_pct}%` : "";
+  const sharpML = ml && ml.home_handle_pct > ml.home_bets_pct + 15 ? `⚡ Sharp money on ${home} — fade public on ${away}` : ml && ml.away_handle_pct > ml.away_bets_pct + 15 ? `⚡ Sharp money on ${away} — fade public on ${home}` : "No significant sharp/public divergence on moneyline";
+  const sharpTot = tot && tot.over_handle_pct > tot.over_bets_pct + 15 ? "⚡ Sharp on Over — consider Over" : tot && tot.under_handle_pct > tot.under_bets_pct + 15 ? "⚡ Sharp on Under — consider Under" : "No significant sharp/public divergence on total";
+  return [mlStr, totStr, sharpML, sharpTot].filter(Boolean).join("\n");
+})() : "Public betting splits not available — no fade-the-public analysis possible") + `
+FADE THE PUBLIC RULE: When handle% >> tickets%, sharp bettors are driving the handle. When handle% < tickets%, many small bettors on one side — prime fade opportunity.
 
 ════ INJURIES & OUT ════
 ${safeInjuries.length > 0
@@ -890,11 +900,10 @@ Total proyectado: ${totalLine} pts
 ${home} proyectado: ${hLine} | ${away} proyectado: ${aLine}
 ${nbaOdds ? `MOMIOS REFERENCIA (${nbaOdds.bookmaker || "DraftKings"} — pueden diferir de tu casa de apuestas):
   Moneyline: ` + (nbaOdds.h2h?.outcomes?.map(o => {
-  const dec = o.price;
-  const am = dec >= 2 ? "+" + Math.round((dec-1)*100) : "-" + Math.round(100/(dec-1));
-  return o.name + " " + am + " (dec:" + dec + ")";
+  const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1));
+  return o.name + " " + am;
 }).join(" | ") || "N/D") + `
-  Total: ` + (nbaOdds.totals?.outcomes?.map(o => o.name + " " + o.point + " @ " + (o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)))).join(" | ") || "N/D") + `
+  Total: ` + (nbaOdds.totals?.outcomes?.map(o => { const am = Math.abs(o.price) > 10 ? (o.price > 0 ? `+${o.price}` : `${o.price}`) : o.price >= 2 ? "+" + Math.round((o.price-1)*100) : "-" + Math.round(100/(o.price-1)); return o.name + " " + o.point + " @ " + am; }).join(" | ") || "N/D") + `
 CRÍTICO: Usa EXACTAMENTE estas líneas de totales en tus picks. NO inventes líneas.` : "Momios no disponibles"}
 
 ════ MODELO POISSON NBA ════
@@ -909,6 +918,17 @@ H2H últimos partidos: ` + (nbaH2H.length ? nbaH2H.map(g=>g.date+": "+g.home+" "
 ════ EDGES CALCULADOS (Poisson vs Mercado NBA) ════
 ` + (nbaEdges.length>0 ? nbaEdges.map(e=>`${e.market} ${e.label}: Poisson=${e.ourProb}% Implied=${e.impliedProb}% Edge=${e.edge>0?"+":""}${e.edge}% ${e.american} Kelly=${e.kelly}% ${e.hasValue?"⭐ VALUE":"sin valor"}`).join("\n") : "Sin momios cargados — carga momios para detectar edges") + `
 IMPORTANTE: Basa las apuestas destacadas SOLO en los edges positivos. Si no hay edges, di que no hay value.
+
+════ DINERO PÚBLICO Y APUESTAS (Owls Insight) ════
+` + (nbaSplits ? (() => {
+  const ml = nbaSplits.moneyline, tot = nbaSplits.total;
+  const mlStr = ml ? `Moneyline: ${home} Handle=${ml.home_handle_pct}% Tickets=${ml.home_bets_pct}% | ${away} Handle=${ml.away_handle_pct}% Tickets=${ml.away_bets_pct}%` : "";
+  const totStr = tot ? `Total: Over Handle=${tot.over_handle_pct}% Tickets=${tot.over_bets_pct}% | Under Handle=${tot.under_handle_pct}% Tickets=${tot.under_bets_pct}%` : "";
+  const sharpML = ml && ml.home_handle_pct > ml.home_bets_pct + 15 ? `⚡ Dinero sharp en ${home} — fade público en ${away}` : ml && ml.away_handle_pct > ml.away_bets_pct + 15 ? `⚡ Dinero sharp en ${away} — fade público en ${home}` : "Sin divergencia sharp/público significativa en moneyline";
+  const sharpTot = tot && tot.over_handle_pct > tot.over_bets_pct + 15 ? "⚡ Sharp en Over — considera Over" : tot && tot.under_handle_pct > tot.under_bets_pct + 15 ? "⚡ Sharp en Under — considera Under" : "Sin divergencia sharp/público significativa en total";
+  return [mlStr, totStr, sharpML, sharpTot].filter(Boolean).join("\n");
+})() : "Splits de dinero público no disponibles — no se puede hacer análisis fade al público") + `
+REGLA FADE AL PÚBLICO: Cuando Handle% >> Tickets%, los apostadores con dinero grande (sharps) mueven la línea. Cuando Handle% < Tickets%, muchos apostadores pequeños en un lado — oportunidad de fade.
 
 ════ BAJAS Y LESIONES ════
 ${safeInjuries.length > 0
