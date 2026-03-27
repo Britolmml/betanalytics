@@ -295,19 +295,36 @@ function calcEdges(poissonResult, gameOdds, homeTeamName = "", awayTeamName = ""
   const totalsM = gameOdds.find(m => m.key === "totals");
   const edges = [];
 
-  const addEdge = (market, pick, ourProb, decimal, label) => {
-    if (!decimal || decimal <= 1 || !ourProb) return;
-    const impliedProb = 1 / decimal;
+  const toImplied = (price) => {
+    if (!price) return null;
+    if (Math.abs(price) > 10) return price > 0 ? 100/(price+100) : Math.abs(price)/(Math.abs(price)+100);
+    return price > 1 ? 1/price : null;
+  };
+  const toDecEquiv = (price) => {
+    if (Math.abs(price) > 10) return price > 0 ? (price/100)+1 : (100/Math.abs(price))+1;
+    return price;
+  };
+  const toAmStr = (price) => {
+    if (Math.abs(price) > 10) return price > 0 ? `+${price}` : `${price}`;
+    if (price >= 2) return "+" + Math.round((price-1)*100);
+    return "-" + Math.round(100/(price-1));
+  };
+
+  const addEdge = (market, pick, ourProb, price, label) => {
+    if (!price || !ourProb) return;
+    const impliedProb = toImplied(price);
+    if (!impliedProb) return;
+    const decEquiv = toDecEquiv(price);
     const edge = ourProb - impliedProb;
-    const kelly = edge > 0 ? (edge / (decimal - 1)) * 100 : 0;
+    const kelly = edge > 0 ? (edge / (decEquiv - 1)) * 100 : 0;
     const cappedEdge = Math.max(-20, Math.min(12, Math.round(edge * 100)));
     edges.push({
       market, pick, label,
       ourProb: Math.round(ourProb * 100),
       impliedProb: Math.round(impliedProb * 100),
       edge: cappedEdge,
-      decimal,
-      american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
+      decimal: decEquiv,
+      american: toAmStr(price),
       kelly: Math.min(10, Math.round(kelly * 10) / 10),
       hasValue: edge > 0.03 && edge <= 0.12,
     });
@@ -315,7 +332,6 @@ function calcEdges(poissonResult, gameOdds, homeTeamName = "", awayTeamName = ""
 
   if (h2hM) {
     const outcomes = h2hM.outcomes || [];
-    // Match by team name if provided, otherwise fallback to non-Draw filter
     const homeO = homeTeamName
       ? outcomes.find(o => fuzzyMatch(o.name, homeTeamName))
       : outcomes.find(o => o.name && !o.name.includes("Draw"));
@@ -2435,7 +2451,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                         {l:`Under ${totalLine}`,v:underOdd,highlight:false},
                       ].map(({l,v,highlight})=>v?(
                         <div key={l} style={{textAlign:"center",padding:"10px 6px",background:highlight?"rgba(245,158,11,0.1)":"rgba(255,255,255,0.03)",borderRadius:8,border:highlight?"1px solid rgba(245,158,11,0.3)":"1px solid transparent"}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:highlight?"#f59e0b":"#bbb",lineHeight:1}}>{v>=2 ? "+"+(Math.round((v-1)*100)) : "-"+(Math.round(100/(v-1)))}</div>
+                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,color:highlight?"#f59e0b":"#bbb",lineHeight:1}}>{Math.abs(v)>10 ? (v>0?`+${v}`:`${v}`) : v>=2 ? "+"+(Math.round((v-1)*100)) : "-"+(Math.round(100/(v-1)))}</div>
                           <div style={{fontSize:9,color:"#555",marginTop:2}}>{l}</div>
                         </div>
                       ):null)}

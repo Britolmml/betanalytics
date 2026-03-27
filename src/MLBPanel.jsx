@@ -46,13 +46,46 @@ function calcBaseballPoisson(hStats, aStats, marketTotal = null) {
 function calcEdges(poisson, odds) {
   if (!poisson || !odds) return [];
   const edges = [];
-  const add = (market, pick, ourProb, decimal, label) => {
-    if (!decimal || decimal <= 1) return;
-    const implied = 1/decimal;
-    const edge = ourProb/100 - implied;
-    const isUnderdog = decimal >= 2.5;
-    edges.push({ market, pick, ourProb, decimal, label, edge: Math.min(12,Math.max(-15,Math.round(edge*100))), hasValue: edge>0.03&&edge<=0.12, implied: Math.round(implied*100), isUnderdog });
+
+  // Convert any price to implied probability (handles both american and decimal)
+  const toImplied = (price) => {
+    if (!price) return null;
+    if (Math.abs(price) > 10) {
+      // American format
+      return price > 0 ? 100/(price+100) : Math.abs(price)/(Math.abs(price)+100);
+    }
+    // Decimal format
+    return price > 1 ? 1/price : null;
   };
+
+  const toDecimalEquiv = (price) => {
+    // For Kelly calculation — convert american to decimal equivalent
+    if (Math.abs(price) > 10) {
+      return price > 0 ? (price/100)+1 : (100/Math.abs(price))+1;
+    }
+    return price; // already decimal
+  };
+
+  const isUnderdog = (price) => {
+    if (Math.abs(price) > 10) return price > 0; // positive american = underdog
+    return price >= 2.5; // decimal >= 2.5 = underdog
+  };
+
+  const add = (market, pick, ourProb, price, label) => {
+    if (!price) return;
+    const implied = toImplied(price);
+    if (!implied) return;
+    const decEquiv = toDecimalEquiv(price);
+    const edge = ourProb/100 - implied;
+    const kelly = edge > 0 ? Math.min(10, Math.round((edge/(decEquiv-1))*1000)/10) : 0;
+    edges.push({ market, pick, ourProb, decimal: decEquiv, price, label,
+      edge: Math.min(12,Math.max(-15,Math.round(edge*100))),
+      hasValue: edge>0.03&&edge<=0.12,
+      implied: Math.round(implied*100),
+      isUnderdog: isUnderdog(price),
+      kelly });
+  };
+
   const h2h = odds.h2h?.outcomes||[];
   const totals = odds.totals?.outcomes||[];
   if (h2h[0]) add("Moneyline", h2h[0].name, poisson.pHome, h2h[0].price, h2h[0].name);
@@ -67,7 +100,7 @@ function calcEdges(poisson, odds) {
     if (poisson.calcOverF5) {
       const f5line = parseFloat((line*0.55).toFixed(1));
       const pF5 = poisson.calcOverF5(f5line);
-      add("F5",`Over F5 ${f5line}`,pF5,overO.price*0.95,`F5 Over ${f5line}`);
+      add("F5",`Over F5 ${f5line}`,pF5,overO.price,`F5 Over ${f5line}`);
     }
   }
   return edges;
@@ -320,7 +353,17 @@ export default function MLBPanel({ inline, lang="es" }) {
 
     const matched = do_.find(g=>{const gh=norm(g.home_team),ga=norm(g.away_team); return(gh.includes(nh.slice(-5))||nh.includes(gh.slice(-5)))&&(ga.includes(na.slice(-5))||na.includes(ga.slice(-5)));});
     if (matched) {
-      const bk=matched.bookmakers?.find(b=>b.key==="draftkings")||matched.bookmakers?.[0];
+      // Filter bookmakers with corrupt lines (FanDuel sometimes has -100000 or +7500 stale lines)
+      const isValidPrice = (price) => price && Math.abs(price) < 5000;
+      const validBks = matched.bookmakers?.filter(b => {
+        const h2h = b.markets?.find(m=>m.key==="h2h");
+        return h2h?.outcomes?.every(o => isValidPrice(o.price));
+      });
+      const bk = validBks?.find(b=>b.key==="pinnacle") ||
+                 validBks?.find(b=>b.key==="draftkings") ||
+                 validBks?.find(b=>b.key==="circa") ||
+                 validBks?.find(b=>b.key==="fanduel") ||
+                 validBks?.[0] || matched.bookmakers?.[0];
       const h2hMarket=bk?.markets?.find(m=>m.key==="h2h");
       const totalsMarket=bk?.markets?.find(m=>m.key==="totals");
 
@@ -477,7 +520,15 @@ Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccion
     setLoadingParlay(false);
   };
 
-  const toAm = dec => dec>=2?`+${Math.round((dec-1)*100)}`:`-${Math.round(100/(dec-1))}`;
+  // Owls devuelve americano (-165, +149), The Odds API decimal (1.61, 2.49)
+  // Si abs(price) > 10 → ya es americano, mostrarlo directo
+  const toAm = v => {
+    if (!v && v !== 0) return "N/A";
+    if (Math.abs(v) > 10) return v > 0 ? `+${v}` : `${v}`; // ya es americano
+    if (v >= 2) return `+${Math.round((v-1)*100)}`; // decimal positivo
+    if (v > 1) return `-${Math.round(100/(v-1))}`; // decimal negativo
+    return `${v}`;
+  };
 
   return (
     <div style={{minHeight:inline?"auto":"100vh",background:inline?"transparent":"#060d18",color:"#e2f4ff",fontFamily:"'DM Sans','Segoe UI',sans-serif"}}>

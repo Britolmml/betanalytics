@@ -146,10 +146,14 @@ function calcNBAPoisson(hStats, aStats, marketTotal = null) {
 }
 
 // Formato americano de cuotas
-function toAmerican(decimal) {
-  if (!decimal || decimal <= 1) return "N/D";
-  if (decimal >= 2) return "+" + Math.round((decimal - 1) * 100);
-  return "-" + Math.round(100 / (decimal - 1));
+function toAmerican(price) {
+  if (!price && price !== 0) return "N/D";
+  // If abs > 10, already american format (Owls Insight)
+  if (Math.abs(price) > 10) return price > 0 ? `+${price}` : `${price}`;
+  // Decimal format (The Odds API fallback)
+  if (price >= 2) return "+" + Math.round((price - 1) * 100);
+  if (price > 1) return "-" + Math.round(100 / (price - 1));
+  return `${price}`;
 }
 
 /* ─── sub-components ─────────────────────────────────────── */
@@ -335,26 +339,43 @@ function calcNBAEdges(nbaPoisson, nbaOdds, homeTeamName = "", awayTeamName = "")
   const edges = [];
   const norm = s => s?.toLowerCase().replace(/[^a-z]/g,"") ?? "";
 
-  const addEdge = (market, pick, ourProb, decimal, label) => {
-    if (!decimal || decimal <= 1 || !ourProb) return;
-    const impliedProb = 1 / decimal;
+  // Handle both american (Owls) and decimal (The Odds API) formats
+  const toImplied = (price) => {
+    if (!price) return null;
+    if (Math.abs(price) > 10) return price > 0 ? 100/(price+100) : Math.abs(price)/(Math.abs(price)+100);
+    return price > 1 ? 1/price : null;
+  };
+  const toDecEquiv = (price) => {
+    if (Math.abs(price) > 10) return price > 0 ? (price/100)+1 : (100/Math.abs(price))+1;
+    return price;
+  };
+  const toAmStr = (price) => {
+    if (Math.abs(price) > 10) return price > 0 ? `+${price}` : `${price}`;
+    if (price >= 2) return "+" + Math.round((price-1)*100);
+    return "-" + Math.round(100/(price-1));
+  };
+
+  const addEdge = (market, pick, ourProb, price, label) => {
+    if (!price || !ourProb) return;
+    const impliedProb = toImplied(price);
+    if (!impliedProb) return;
+    const decEquiv = toDecEquiv(price);
     const edge = ourProb - impliedProb;
     const cappedEdge = Math.min(12, Math.max(-20, Math.round(edge * 100)));
-    const kelly = edge > 0 ? Math.min(10, Math.round((edge / (decimal - 1)) * 1000) / 10) : 0;
+    const kelly = edge > 0 ? Math.min(10, Math.round((edge / (decEquiv - 1)) * 1000) / 10) : 0;
     if (Math.abs(cappedEdge) > 15) return;
     edges.push({
       market, pick, label,
       ourProb: Math.round(ourProb * 100),
       impliedProb: Math.round(impliedProb * 100),
       edge: cappedEdge,
-      decimal,
-      american: decimal >= 2 ? "+" + Math.round((decimal-1)*100) : "-" + Math.round(100/(decimal-1)),
+      decimal: decEquiv,
+      american: toAmStr(price),
       kelly,
       hasValue: edge > 0.03 && edge <= 0.10,
     });
   };
 
-  // Moneyline — match by team name, not index
   const outcomes = nbaOdds.h2h?.outcomes || [];
   const nh = norm(homeTeamName), na = norm(awayTeamName);
   const homeO = nh
@@ -367,7 +388,6 @@ function calcNBAEdges(nbaPoisson, nbaOdds, homeTeamName = "", awayTeamName = "")
   if (homeO) addEdge("Moneyline", "home", nbaPoisson.pHome/100, homeO.price, homeO.name);
   if (awayO) addEdge("Moneyline", "away", nbaPoisson.pAway/100, awayO.price, awayO.name);
 
-  // Totals
   const totals = nbaOdds.totals?.outcomes || [];
   const overO = totals.find(o=>o.name==="Over");
   const underO = totals.find(o=>o.name==="Under");
@@ -554,10 +574,15 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
                    (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
           });
           if (matchedGame) {
-            const bk = matchedGame.bookmakers?.find(b=>b.key==="draftkings") ||
-                       matchedGame.bookmakers?.find(b=>b.key==="fanduel") ||
-                       matchedGame.bookmakers?.find(b=>b.key==="pinnacle") ||
-                       matchedGame.bookmakers?.[0];
+            const isValidPrice = (p) => p && Math.abs(p) < 5000;
+            const validBks = matchedGame.bookmakers?.filter(b => {
+              const h2h = b.markets?.find(m=>m.key==="h2h");
+              return h2h?.outcomes?.every(o => isValidPrice(o.price));
+            });
+            const bk = validBks?.find(b=>b.key==="pinnacle") ||
+                       validBks?.find(b=>b.key==="draftkings") ||
+                       validBks?.find(b=>b.key==="fanduel") ||
+                       validBks?.[0] || matchedGame.bookmakers?.[0];
             const h2hM = bk?.markets?.find(m=>m.key==="h2h");
             const totalsM = bk?.markets?.find(m=>m.key==="totals");
             const newOdds = { h2h: h2hM, totals: totalsM, raw: matchedGame, bookmaker: bk?.title };
@@ -669,10 +694,15 @@ export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
                  (ga.includes(na) || na.includes(ga) || ga.slice(-5) === na.slice(-5));
         });
         if (game) {
-          const bk = game.bookmakers?.find(b=>b.key==="draftkings") ||
-                     game.bookmakers?.find(b=>b.key==="fanduel") ||
-                     game.bookmakers?.find(b=>b.key==="pinnacle") ||
-                     game.bookmakers?.[0];
+          const isValidPrice = (p) => p && Math.abs(p) < 5000;
+          const validBks2 = game.bookmakers?.filter(b => {
+            const h2h = b.markets?.find(m=>m.key==="h2h");
+            return h2h?.outcomes?.every(o => isValidPrice(o.price));
+          });
+          const bk = validBks2?.find(b=>b.key==="pinnacle") ||
+                     validBks2?.find(b=>b.key==="draftkings") ||
+                     validBks2?.find(b=>b.key==="fanduel") ||
+                     validBks2?.[0] || game.bookmakers?.[0];
           const h2hM = bk?.markets?.find(m=>m.key==="h2h");
           const totalsM = bk?.markets?.find(m=>m.key==="totals");
           const newOdds = { h2h: h2hM, totals: totalsM, raw: game, bookmaker: bk?.title };
