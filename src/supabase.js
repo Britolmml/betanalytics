@@ -352,21 +352,27 @@ export async function getUserPlan(userId) {
 }
 
 export async function checkUsageLimit(userId) {
-  if (!supabase) return { allowed: true, used: 0, limit: FREE_LIMIT, plan: "free" };
+  if (!supabase) return { allowed: false, used: 0, limit: FREE_LIMIT, plan: "free" };
   try {
     const plan = await getUserPlan(userId);
     const limit = plan === "elite" ? ELITE_LIMIT : plan === "pro" ? PRO_LIMIT : FREE_LIMIT;
     const today = new Date().toISOString().split("T")[0];
-    const { data } = await supabase
+    // Usar maybeSingle() en lugar de single() para evitar error cuando no hay registro
+    const { data, error } = await supabase
       .from("user_usage")
       .select("count")
       .eq("user_id", userId)
       .eq("date", today)
-      .single();
+      .maybeSingle();
+    if (error) {
+      console.warn("checkUsageLimit error:", error.message);
+      return { allowed: false, used: 0, limit, plan };
+    }
     const used = data?.count || 0;
     return { allowed: used < limit, used, limit, plan };
-  } catch {
-    return { allowed: true, used: 0, limit: FREE_LIMIT, plan: "free" };
+  } catch(e) {
+    console.warn("checkUsageLimit catch:", e.message);
+    return { allowed: false, used: 0, limit: FREE_LIMIT, plan: "free" };
   }
 }
 
