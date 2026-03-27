@@ -3085,154 +3085,101 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       {activeSport === null && (
         <div style={{minHeight:"calc(100vh - 62px)",background:"#060d18",position:"relative",overflow:"hidden"}}>
 
-          {/* ── HERO con imagen propia ── */}
-          <div style={{position:"relative",height:420,overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-
-            {/* Tu imagen de fondo con los 3 atletas */}
-            <img
-              src="/fondo.jpg"
-              alt=""
-              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%",opacity:0.78}}
-            />
-            {/* Oscurece laterales, preserva atletas al centro */}
-            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 65% 100% at 50% 55%, transparent 25%, rgba(6,13,24,0.55) 65%, rgba(6,13,24,0.92) 100%)"}}/>
-            {/* Fade inferior para transición suave a sección de cards */}
-            <div style={{position:"absolute",bottom:0,left:0,right:0,height:180,background:"linear-gradient(to bottom,transparent,#060d18)"}}/>
-            {/* Tinte cián tech sobre el fondo azul de la imagen */}
-            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 55% at 50% 25%,rgba(0,212,255,0.07) 0%,transparent 60%)"}}/>
-
-            {/* Título hero central — todo centrado en bloque único */}
-            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3,marginBottom:16}}>
-                <span style={{width:5,height:5,borderRadius:"50%",background:"#00d4ff",display:"inline-block"}}/>
-                {lang==="en" ? "REAL-TIME ANALYSIS" : "ANÁLISIS EN TIEMPO REAL"}
+          {/* ── 1. HERO con mensaje claro ── */}
+          <div style={{position:"relative",height:360,overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <img src="/fondo.jpg" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 15%",opacity:0.65}} />
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 65% 100% at 50% 55%, transparent 25%, rgba(6,13,24,0.6) 65%, rgba(6,13,24,0.95) 100%)"}}/>
+            <div style={{position:"absolute",bottom:0,left:0,right:0,height:160,background:"linear-gradient(to bottom,transparent,#060d18)"}}/>
+            <div style={{position:"relative",zIndex:5,textAlign:"center",padding:"0 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.22)",borderRadius:30,padding:"5px 18px",fontSize:10,color:"#00d4ff",fontWeight:800,letterSpacing:3}}>
+                <span style={{width:5,height:5,borderRadius:"50%",background:"#00d4ff",display:"inline-block",boxShadow:"0 0 6px #00d4ff"}}/>
+                {lang==="en" ? "REAL-TIME ANALYSIS · LIVE ODDS · SHARP MONEY" : "ANÁLISIS EN TIEMPO REAL · MOMIOS LIVE · DINERO SHARP"}
               </div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:82,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:5,lineHeight:0.88,marginBottom:16}}>BETANALYTICS</div>
-              <div style={{display:"inline-block",background:"rgba(6,13,24,0.55)",backdropFilter:"blur(8px)",borderRadius:8,padding:"6px 18px",fontSize:11,color:"rgba(200,238,255,0.75)",letterSpacing:4,textTransform:"uppercase"}}>
-                {lang==="en" ? "STATISTICS · AI PREDICTIONS · SCHEDULES" : "ESTADÍSTICAS · PREDICCIONES IA · JORNADAS"}
+              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:58,background:"linear-gradient(140deg,#ffffff 8%,#00d4ff 52%,#22c55e 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:3,lineHeight:0.95}}>
+                {lang==="en" ? "FIND VALUE BETS USING AI & SHARP MONEY" : "ENCUENTRA APUESTAS CON VALOR USANDO IA Y DINERO INTELIGENTE"}
+              </div>
+              <div style={{display:"flex",gap:12,marginTop:8}}>
+                <button onClick={()=>setActiveSport("football")} style={{background:"linear-gradient(135deg,#00d4ff,#0ea5e9)",border:"none",borderRadius:12,padding:"10px 28px",color:"#fff",fontFamily:"'Bebas Neue',cursive",fontSize:16,letterSpacing:2,cursor:"pointer",boxShadow:"0 0 24px rgba(0,212,255,0.3)"}}>
+                  ⚡ {lang==="en"?"SEE TODAY'S PICKS":"VER PICKS DE HOY"}
+                </button>
+                <button onClick={()=>setActiveSport("nba")} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 24px",color:"#e2f4ff",fontSize:13,cursor:"pointer",fontWeight:700}}>
+                  🏀 NBA
+                </button>
+                <button onClick={()=>setActiveSport("mlb")} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 24px",color:"#e2f4ff",fontSize:13,cursor:"pointer",fontWeight:700}}>
+                  ⚾ MLB
+                </button>
               </div>
             </div>
           </div>
 
-          {/* ── Cards de deporte ── */}
-          <div style={{maxWidth:900,margin:"-8px auto 0",padding:"0 24px 40px",position:"relative",zIndex:2}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:40}}>
+          <div style={{maxWidth:960,margin:"0 auto",padding:"0 24px 60px",position:"relative",zIndex:2}}>
 
-              {/* Fútbol */}
-              <button onClick={()=>setActiveSport("football")}
-                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(34,197,94,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,16,10,0.98),rgba(6,22,13,0.96))"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(0,212,255,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(0,212,255,0.14)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(0,212,255,0.22)";e.currentTarget.style.boxShadow="none";}}>
-                <img src="https://images.unsplash.com/photo-1551958219-acbc595d6c14?w=600&q=70&fit=crop" alt=""
-                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(0,212,255,0.11),transparent 70%)"}}/>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(34,197,94,0.8),rgba(0,212,255,0.4),transparent)"}}/>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
-                  <span style={{fontSize:40}}>⚽</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#4ade80",letterSpacing:4}}>{lang==="en"?"SOCCER":"FÚTBOL"}</div>
-                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>{lang==="en"?"Leagues · Schedule · AI":"Ligas · Jornadas · IA"}</div>
-                  <div style={{marginTop:7,background:"rgba(34,197,94,0.07)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#4ade80",fontWeight:700,letterSpacing:1}}>{lang==="en"?"ENTER →":"ENTRAR →"}</div>
+            {/* ── 2. DIFERENCIADORES ── */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:40}}>
+              {[
+                {icon:"📊",title:lang==="en"?"Public vs Sharp Money":"Dinero público vs sharp",desc:lang==="en"?"See where smart money goes":"Ve dónde va el dinero inteligente",color:"#00d4ff"},
+                {icon:"🤖",title:lang==="en"?"AI + Poisson Model":"IA + Modelo Poisson",desc:lang==="en"?"Statistical predictions":"Predicciones estadísticas",color:"#a78bfa"},
+                {icon:"📈",title:lang==="en"?"Auto Value Bets":"Value bets automáticas",desc:lang==="en"?"Edge detection vs market":"Detección de edge vs mercado",color:"#10b981"},
+                {icon:"⚡",title:lang==="en"?"Live Odds · 10 Books":"Momios live · 10 casas",desc:lang==="en"?"Pinnacle, DK, FD + more":"Pinnacle, DK, FD y más",color:"#f59e0b"},
+              ].map(({icon,title,desc,color})=>(
+                <div key={title} style={{background:"rgba(255,255,255,0.02)",border:`1px solid ${color}22`,borderRadius:14,padding:"16px 14px",textAlign:"center"}}>
+                  <div style={{fontSize:28,marginBottom:8}}>{icon}</div>
+                  <div style={{fontSize:12,fontWeight:800,color,marginBottom:4}}>{title}</div>
+                  <div style={{fontSize:10,color:"#555",lineHeight:1.4}}>{desc}</div>
                 </div>
-              </button>
-
-              {/* NBA */}
-              <button onClick={()=>{setActiveSport("nba");setShowNBA(true);}}
-                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(239,68,68,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(16,4,4,0.98),rgba(22,6,6,0.96))"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(239,68,68,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(239,68,68,0.14)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(239,68,68,0.22)";e.currentTarget.style.boxShadow="none";}}>
-                <img src="https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?w=600&q=70&fit=crop" alt=""
-                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(239,68,68,0.11),transparent 70%)"}}/>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(239,68,68,0.8),rgba(0,212,255,0.4),transparent)"}}/>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
-                  <span style={{fontSize:40}}>🏀</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#f87171",letterSpacing:4}}>NBA</div>
-                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>{lang==="en"?"Games · Stats · Picks":"Partidos · Stats · Picks"}</div>
-                  <div style={{marginTop:7,background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#f87171",fontWeight:700,letterSpacing:1}}>{lang==="en"?"ENTER →":"ENTRAR →"}</div>
-                </div>
-              </button>
-
-              {/* MLB Card */}
-              <button onClick={()=>setActiveSport("mlb")}
-                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(251,146,60,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(16,8,4,0.98),rgba(22,10,6,0.96))"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(251,146,60,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(251,146,60,0.14)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(251,146,60,0.22)";e.currentTarget.style.boxShadow="none";}}>
-                <img src="https://images.unsplash.com/photo-1540747913346-19212a4b423f?w=600&q=70&fit=crop" alt=""
-                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(251,146,60,0.11),transparent 70%)"}}/>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(251,146,60,0.4),rgba(251,146,60,0.8),rgba(251,146,60,0.4),transparent)"}}/>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
-                  <span style={{fontSize:40}}>⚾</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#fb923c",letterSpacing:4}}>MLB</div>
-                  <div style={{fontSize:11,color:"rgba(251,146,60,0.45)",letterSpacing:1}}>{lang==="en"?"Games · Stats · Picks":"Partidos · Stats · Picks"}</div>
-                  <div style={{marginTop:7,background:"rgba(251,146,60,0.07)",border:"1px solid rgba(251,146,60,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#fb923c",fontWeight:700,letterSpacing:1}}>{lang==="en"?"ENTER →":"ENTRAR →"}</div>
-                </div>
-              </button>
-
-              {/* NFL Card */}
-              <button onClick={()=>setActiveSport("nfl")}
-                style={{position:"relative",overflow:"hidden",borderRadius:18,border:"1px solid rgba(0,212,255,0.22)",padding:0,cursor:"pointer",height:190,display:"block",transition:"transform 0.2s,border-color 0.2s,box-shadow 0.2s",background:"linear-gradient(145deg,rgba(4,12,16,0.98),rgba(6,16,22,0.96))"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.borderColor="rgba(34,197,94,0.52)";e.currentTarget.style.boxShadow="0 14px 44px rgba(34,197,94,0.14)";}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="rgba(34,197,94,0.22)";e.currentTarget.style.boxShadow="none";}}>
-                <img src="https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=600&q=70&fit=crop" alt=""
-                  style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0.09}} onError={e=>e.target.style.display="none"}/>
-                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 85% 65% at 50% 0%,rgba(34,197,94,0.11),transparent 70%)"}}/>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.4),rgba(0,212,255,0.8),rgba(0,212,255,0.4),transparent)"}}/>
-                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
-                  <span style={{fontSize:40}}>🏈</span>
-                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:27,color:"#00d4ff",letterSpacing:4}}>NFL</div>
-                  <div style={{fontSize:11,color:"rgba(0,212,255,0.45)",letterSpacing:1}}>{lang==="en"?"Coming Soon · Sep 2026":"Próximamente · Sep 2026"}</div>
-                  <div style={{marginTop:7,background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.28)",borderRadius:20,padding:"5px 22px",fontSize:11,color:"#00d4ff",fontWeight:700,letterSpacing:1}}>{lang==="en"?"WHAT'S THERE? →":"¿QUÉ HAY? →"}</div>
-                </div>
-              </button>
+              ))}
             </div>
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:3,height:20,background:"linear-gradient(#00d4ff,#22c55e)",borderRadius:2}}/>
-                  <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>📰 {lang==="en"?"Today's News":"Noticias del día"}</span>
-                </div>
-                <button onClick={loadNews} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,212,255,0.05)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 14px",color:"rgba(0,212,255,0.6)",cursor:"pointer",fontSize:11,fontWeight:600}}>
-                  {loadingNews ? "⏳ Cargando..." : "🔄 Actualizar"}
-                </button>
+
+            {/* ── 3. TARJETAS DE DEPORTES MEJORADAS ── */}
+            <div style={{marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                <div style={{width:3,height:20,background:"linear-gradient(#00d4ff,#22c55e)",borderRadius:2}}/>
+                <span style={{fontSize:12,color:"#c8eeff",letterSpacing:3,textTransform:"uppercase",fontWeight:800}}>⚡ {lang==="en"?"Sports · Picks Today":"Deportes · Picks de hoy"}</span>
               </div>
-
-              {loadingNews && (
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-                  {[0,1,2,3,4,5].map(i=>(
-                    <div key={i} style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,padding:"18px 16px",height:90,animation:"pulse 1.5s ease-in-out infinite"}}/>
-                  ))}
-                </div>
-              )}
-
-              {!loadingNews && news.length === 0 && (
-                <div style={{textAlign:"center",padding:"40px 0",color:"#2a2a3a",fontSize:13}}>
-                  No se pudieron cargar las estadísticas
-                </div>
-              )}
-
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-                {news.map((n,i)=>{
-                  const isNBA = n.deporte==="NBA";
-                  const accent = isNBA?"#f87171":"#4ade80";
-                  const icons=["📊","⚡","🎯","🔥","📈","💡"];
-                  return (
-                    <div key={i} style={{background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:14,padding:"16px",position:"relative",overflow:"hidden",transition:"border 0.2s"}}
-                      onMouseEnter={e=>e.currentTarget.style.border="1px solid rgba(0,212,255,0.2)"}
-                      onMouseLeave={e=>e.currentTarget.style.border="1px solid rgba(0,212,255,0.09)"}>
-                      {/* Acento lateral */}
-                      <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:accent,borderRadius:"14px 0 0 14px"}}/>
-                      <div style={{position:"absolute",top:10,right:12,fontSize:24,opacity:0.07}}>{icons[i%icons.length]}</div>
-                      <div style={{marginBottom:6,paddingLeft:8}}>
-                        <span style={{fontSize:9,fontWeight:800,padding:"2px 8px",borderRadius:20,background:isNBA?"rgba(239,68,68,0.12)":"rgba(34,197,94,0.12)",color:accent,letterSpacing:1}}>{n.deporte}</span>
-                      </div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#c8eeff",marginBottom:5,lineHeight:1.4,paddingLeft:8}}>{n.titulo}</div>
-                      <div style={{fontSize:11,color:"rgba(0,212,255,0.4)",lineHeight:1.6,paddingLeft:8}}>{n.dato}</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14}}>
+                {[
+                  {sport:"football",emoji:"⚽",name:lang==="en"?"SOCCER":"FÚTBOL",color:"#4ade80",borderColor:"rgba(34,197,94,0.3)",desc:lang==="en"?"Leagues · AI · H2H":"Ligas · IA · H2H",action:()=>setActiveSport("football")},
+                  {sport:"nba",emoji:"🏀",name:"NBA",color:"#f87171",borderColor:"rgba(239,68,68,0.3)",desc:lang==="en"?"Picks · Splits · Props":"Picks · Splits · Props",action:()=>{setActiveSport("nba");setShowNBA(true);}},
+                  {sport:"mlb",emoji:"⚾",name:"MLB",color:"#fb923c",borderColor:"rgba(251,146,60,0.3)",desc:lang==="en"?"Pitchers · Value · NRFI":"Pitchers · Value · NRFI",action:()=>setActiveSport("mlb")},
+                  {sport:"nfl",emoji:"🏈",name:"NFL",color:"#00d4ff",borderColor:"rgba(0,212,255,0.3)",desc:lang==="en"?"Sep 2026 · Coming Soon":"Sep 2026 · Próximamente",action:()=>setActiveSport("nfl")},
+                ].map(({emoji,name,color,borderColor,desc,action})=>(
+                  <button key={name} onClick={action}
+                    style={{position:"relative",overflow:"hidden",borderRadius:16,border:`1px solid ${borderColor}`,padding:"20px 12px",cursor:"pointer",background:"rgba(255,255,255,0.02)",textAlign:"center",transition:"all 0.2s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.transform="translateY(-3px)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.02)";e.currentTarget.style.transform="translateY(0)";}}>
+                    <div style={{fontSize:36,marginBottom:8}}>{emoji}</div>
+                    <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color,letterSpacing:3,marginBottom:4}}>{name}</div>
+                    <div style={{fontSize:10,color:"#555",marginBottom:12}}>{desc}</div>
+                    <div style={{background:`${color}15`,border:`1px solid ${color}40`,borderRadius:20,padding:"4px 14px",fontSize:11,color,fontWeight:700}}>
+                      {lang==="en"?"ANALYZE →":"ANALIZAR →"}
                     </div>
-                  );
-                })}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* ── 4. CREDIBILIDAD — Preview datos ── */}
+            <div style={{marginTop:40,background:"rgba(0,212,255,0.03)",border:"1px solid rgba(0,212,255,0.1)",borderRadius:16,padding:"20px 24px"}}>
+              <div style={{fontSize:10,color:"#00d4ff",letterSpacing:3,textTransform:"uppercase",fontWeight:800,marginBottom:16}}>
+                📊 {lang==="en"?"How it works — real data":"Cómo funciona — datos reales"}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+                {[
+                  {title:lang==="en"?"1. Select a game":"1. Selecciona un partido",desc:lang==="en"?"Choose any league or sport. We load stats, H2H, injuries automatically.":"Elige cualquier liga o deporte. Cargamos stats, H2H, bajas automáticamente.",icon:"🎯"},
+                  {title:lang==="en"?"2. AI loads live odds":"2. La IA carga momios en vivo",desc:lang==="en"?"Pinnacle, DraftKings, Circa + public betting splits (Handle %, sharp money).":"Pinnacle, DraftKings, Circa + dinero público (Handle %, sharp money).",icon:"💰"},
+                  {title:lang==="en"?"3. Get value bets":"3. Recibe value bets",desc:lang==="en"?"Poisson model vs market odds detects edges. AI explains why.":"Modelo Poisson vs momios detecta edges. La IA explica el razonamiento.",icon:"⭐"},
+                ].map(({title,desc,icon})=>(
+                  <div key={title} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                    <div style={{fontSize:24,flexShrink:0}}>{icon}</div>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:800,color:"#e2f4ff",marginBottom:4}}>{title}</div>
+                      <div style={{fontSize:11,color:"#555",lineHeight:1.5}}>{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       )}
