@@ -364,10 +364,6 @@ export async function checkUsageLimit(userId) {
 
 export async function incrementUsage(userId) {
   try {
-    await fetch("/api/football", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "increment", userId }),
-    });
+    await fetch(`/api/football?action=increment&userId=${userId}`);
   } catch(e) { console.warn("incrementUsage error:", e.message); }
 }
