@@ -4,7 +4,7 @@ import HistorialPanel from "./HistorialPanel";
 import AuthModal from "./AuthModal";
 import LangSwitcher from "./LangSwitcher";
 import { detectLanguage, t } from "./i18n";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase, savePrediction, saveAllPicks, saveBestPick, getPredictions, updateResult, autoResolveFootball, checkUsageLimit, incrementUsage } from "./supabase";
 
 // API-Football logo CDN
@@ -432,6 +432,7 @@ export default function App() {
   const [awayMatches,   setAwayMatches]   = useState([]);
   const [loadingM,      setLoadingM]      = useState(false);
   const [analysis,      setAnalysis]      = useState(null);
+  const analysisRef = useRef(null);
   const [loadingAI,     setLoadingAI]     = useState(false);
   const [aiErr,         setAiErr]         = useState("");
   const [loadingMulti,  setLoadingMulti]  = useState(false);
@@ -1560,6 +1561,7 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         homePlayers, awayPlayers,
       };
       setAnalysis(fullAnalysis);
+      setTimeout(() => analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
       setView("analysis");
       // Auto-save BEST pick to Supabase if user is logged in
       try {
@@ -2360,7 +2362,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         {view==="analysis" && analysis && (()=>{
           const p=analysis.probabilidades||{};
           return (
-            <div>
+            <div ref={analysisRef}>
               {/* Banner */}
               <div style={{...C.cardG,textAlign:"center",marginBottom:16,padding:"24px 16px"}}>
                 <div style={{fontSize:9,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{league?.flag} {league?.name} · Predicción IA</div>

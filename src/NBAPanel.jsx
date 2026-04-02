@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { saveBestPick, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -411,6 +411,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es", user })
   const [selectedGame, setSelectedGame] = useState(null);
   const [preview, setPreview] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const analysisRef = useRef(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiErr, setAiErr] = useState("");
   const [loadingMulti, setLoadingMulti] = useState(false);
@@ -1000,6 +1001,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
       if (data.error) throw new Error(data.error);
       const parsed = JSON.parse(data.result);
       setAnalysis(parsed);
+      setTimeout(() => analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
       setAllAnalyses(prev => ({ ...prev, [String(selectedGame.id)]: { game: selectedGame, analysis: parsed } }));
       await guardarPrediccion(parsed);
     } catch (e) {
@@ -1392,7 +1394,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                     {loadingAI && <div style={{ textAlign: "center", padding: 24, color: "#f87171", fontSize: 13 }}>⚙️ {lang==="en"?"Analyzing game...":"Analizando partido..."}</div>}
                     {aiErr && <div style={{ color: "#ef4444", fontSize: 12 }}>{aiErr}</div>}
                     {analysis && (
-                      <div>
+                      <div ref={analysisRef}>
                         <p style={{ color: "#aaa", fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>{analysis.resumen}</p>
 
                         {/* Momios en formato americano */}
