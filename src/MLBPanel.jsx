@@ -1025,38 +1025,6 @@ Solo JSON:{"resumen":"3-4 oraciones analizando el duelo de pitchers","prediccion
                       <div style={{fontSize:13,color:"#cce8f4",lineHeight:1.7,marginBottom:14,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10}}>{analysis.resumen}</div>
 
                       {/* Odds in analysis */}
-                      {odds&&(()=>{
-                        const h2hO=odds.h2h?.outcomes||[];
-                        const overO=odds.totals?.outcomes?.find(o=>o.name==="Over");
-                        const underO=odds.totals?.outcomes?.find(o=>o.name==="Under");
-                        return(
-                          <div style={{background:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:12}}>
-                            <div style={{fontSize:9,color:"#f59e0b",fontWeight:700,letterSpacing:1,marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                              <span>💹 {isEN?"Reference odds":"Momios referencia"} — {odds.bookmaker||"DraftKings"}</span>
-                              <span style={{fontSize:9,color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:4,padding:"2px 6px"}}>⚠️ {isEN?"Compare before betting":"Compara antes de apostar"}</span>
-                            </div>
-                            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-                              {[
-                                {l:isEN?"HOME":"LOCAL",name:selectedGame?.teams?.home?.name?.split(" ").pop(),v:h2hO[0]?.price},
-                                {l:isEN?"AWAY":"VISIT.",name:selectedGame?.teams?.away?.name?.split(" ").pop(),v:h2hO[1]?.price},
-                                {l:`OVER ${overO?.point??""}`,name:"Over",v:overO?.price},
-                                {l:`UNDER ${underO?.point??""}`,name:"Under",v:underO?.price},
-                              ].map(({l,name,v})=>{
-                                if(!v)return null;
-                                const am=v>=2?"+"+Math.round((v-1)*100):"-"+Math.round(100/(v-1));
-                                return(
-                                  <div key={l} style={{textAlign:"center",padding:"8px 4px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
-                                    <div style={{fontSize:8,color:"#666",marginBottom:2,fontWeight:700}}>{l}</div>
-                                    <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#f59e0b",lineHeight:1}}>{am}</div>
-                                    <div style={{fontSize:9,color:"#555",marginTop:2}}>{name}</div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-
                       {/* Poisson in analysis */}
                       {poisson&&(
                         <div style={{background:"rgba(251,146,60,0.06)",border:"1px solid rgba(251,146,60,0.2)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>

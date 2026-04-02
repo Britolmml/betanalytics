@@ -1986,37 +1986,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 );
               })}
 
-              {/* Botones: Ligas de Selecciones Nacionales */}
-              {[
-                {id:"intl_7",  leagueId:7,  season:2026, name:"Amistosos",  country:"Internacional", flag:"🤝", extraLeagues:[{id:10,s:2026},{id:7,s:2025}]},
-                {id:"intl_10", leagueId:10, season:2026, name:"CONCACAF",   country:"Eliminatorias", flag:"🌎"},
-                {id:"intl_6",  leagueId:6,  season:2026, name:"UEFA",       country:"Eliminatorias", flag:"🌍"},
-                {id:"intl_29", leagueId:29, season:2025, name:"CONMEBOL",   country:"Eliminatorias", flag:"🌎"},
-                {id:"intl_32", leagueId:32, season:2025, name:"AFC",        country:"Eliminatorias", flag:"🌏"},
-                {id:"intl_34", leagueId:34, season:2025, name:"CAF",        country:"Eliminatorias", flag:"🌍"},
-              ].map(lg => {
-                const active = league?.id === lg.id;
-                return (
-                  <button key={lg.id} onClick={()=>loadTeams({...lg, isIntl:true})}
-                    style={{
-                      background: active
-                        ? "linear-gradient(135deg,rgba(168,85,247,0.22),rgba(139,92,246,0.15))"
-                        : "rgba(255,255,255,0.04)",
-                      border:`1px solid ${active?"rgba(168,85,247,0.55)":"rgba(255,255,255,0.08)"}`,
-                      borderRadius:12, padding:"10px 16px",
-                      cursor:"pointer", fontWeight:600,
-                      display:"flex", alignItems:"center", gap:10,
-                      transition:"all 0.15s",
-                      boxShadow: active?"0 0 16px rgba(168,85,247,0.2)":"none",
-                    }}>
-                    <span style={{fontSize:24}}>{lg.flag}</span>
-                    <div style={{textAlign:"left"}}>
-                      <div style={{fontSize:13,color:active?"#c084fc":"#ccc",fontWeight:700}}>{lg.name}</div>
-                      <div style={{fontSize:10,color:active?"rgba(192,132,252,0.7)":"#555",marginTop:2}}>{lg.country}</div>
-                    </div>
-                  </button>
-                );
-              })}
+              {/* Selecciones Nacionales temporalmente deshabilitadas */}
             </div>
 
             {/* Partidos de hoy */}
