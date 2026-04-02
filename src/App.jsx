@@ -433,6 +433,7 @@ export default function App() {
   const [loadingM,      setLoadingM]      = useState(false);
   const [analysis,      setAnalysis]      = useState(null);
   const analysisRef = useRef(null);
+  const predictRef = useRef(null);
   const [loadingAI,     setLoadingAI]     = useState(false);
   const [aiErr,         setAiErr]         = useState("");
   const [loadingMulti,  setLoadingMulti]  = useState(false);
@@ -2081,6 +2082,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             setSelectedFixture(f);
                             setH2h([]);
                             setOdds({}); setEdges([]);
+                            setTimeout(() => predictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
                             // Cargar partidos de ambos equipos en paralelo
                             await Promise.all([
                               loadMatches(ht, setHomeMatches, "home"),
@@ -2341,7 +2343,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                     </button>
                   </div>
                 )}
-                <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
+                <div ref={predictRef} style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
                   <button onClick={predict} disabled={loadingAI}
                     style={{background:loadingAI?"rgba(0,212,255,0.28)":"linear-gradient(135deg,#00d4ff,#0ea5e9)",
                             border:"none",borderRadius:14,padding:"16px 36px",color:"#fff",

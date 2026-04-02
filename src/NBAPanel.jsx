@@ -412,6 +412,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es", user })
   const [preview, setPreview] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const analysisRef = useRef(null);
+  const predictRef = useRef(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiErr, setAiErr] = useState("");
   const [loadingMulti, setLoadingMulti] = useState(false);
@@ -513,6 +514,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es", user })
   const selectGame = async (game) => {
     if (selectedGame?.id === game.id) return;
     setSelectedGame(game);
+    setTimeout(() => predictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
     setAnalysis(null); setAiErr(""); setPreview(null);
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setSaved(false); setSaveErr("");
@@ -1374,7 +1376,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                         </div>
                       )}
                     </div>
-                    <div style={{display:"flex",gap:8}}>
+                    <div ref={predictRef} style={{display:"flex",gap:8}}>
                       <button onClick={runAI} disabled={loadingAI||loadingInjuries} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:(loadingAI||loadingInjuries)?"rgba(239,68,68,0.3)":"linear-gradient(90deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:12,cursor:(loadingAI||loadingInjuries)?"not-allowed":"pointer"}}>
                         {loadingInjuries?(lang==="en"?"⏳ Loading injuries...":"⏳ Cargando bajas..."):loadingAI?(lang==="en"?"⏳ ANALYZING...":"⏳ ANALIZANDO..."):(lang==="en"?"🤖 AI PREDICTION":"🤖 PREDICCIÓN IA")}
                       </button>
