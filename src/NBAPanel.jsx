@@ -402,7 +402,7 @@ function calcNBAEdges(nbaPoisson, nbaOdds, homeTeamName = "", awayTeamName = "")
   return edges.sort((a,b) => b.edge - a.edge);
 }
 
-export default function NBAPanel({ onClose, inline = false, lang = "es" }) {
+export default function NBAPanel({ onClose, inline = false, lang = "es", user }) {
   const [games, setGames] = useState([]);
   const [standings, setStandings] = useState({ east: [], west: [] });
   const [loading, setLoading] = useState(false);
