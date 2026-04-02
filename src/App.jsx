@@ -2082,7 +2082,6 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             setSelectedFixture(f);
                             setH2h([]);
                             setOdds({}); setEdges([]);
-                            setTimeout(() => predictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
                             // Cargar partidos de ambos equipos en paralelo
                             await Promise.all([
                               loadMatches(ht, setHomeMatches, "home"),
@@ -2090,6 +2089,8 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                             ]);
                             // H2H con IDs directos del fixture
                             loadH2H(f.teams?.home?.id, f.teams?.away?.id);
+                            // Scroll al botón de analizar después de cargar
+                            setTimeout(() => predictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
                             // Momios se cargan al pedir predicción IA para ahorrar requests de Owls
                           }}
                           style={{fontSize:10,color:"#60a5fa",background:"rgba(96,165,250,0.1)",border:"1px solid rgba(96,165,250,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontWeight:700,flexShrink:0}}>

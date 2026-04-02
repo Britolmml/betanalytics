@@ -514,7 +514,6 @@ export default function NBAPanel({ onClose, inline = false, lang = "es", user })
   const selectGame = async (game) => {
     if (selectedGame?.id === game.id) return;
     setSelectedGame(game);
-    setTimeout(() => predictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
     setAnalysis(null); setAiErr(""); setPreview(null);
     setPlayers({ home: [], away: [] }); setPlayerTab("home");
     setSaved(false); setSaveErr("");
@@ -597,6 +596,7 @@ export default function NBAPanel({ onClose, inline = false, lang = "es", user })
       setAiErr("Error cargando stats: " + e.message);
     } finally {
       setLoadingAI(false);
+      setTimeout(() => predictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
     }
   };
 
