@@ -1,7 +1,9 @@
 // api/odds.js — Owls Insight (primary) + api-sports (fallback)
 // type=splits → Handle%/Ticket% | type=props → player props | default → odds
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'https://betanalyticsIA.com';
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
 

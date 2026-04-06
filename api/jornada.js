@@ -1,16 +1,20 @@
 // Vercel serverless — analiza todos los partidos de una jornada con Claude AI
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'https://betanalyticsIA.com';
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido" });
 
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!ANTHROPIC_KEY) return res.status(500).json({ error: "ANTHROPIC_API_KEY no configurada" });
-
   const { matches, league } = req.body;
   if (!matches?.length) return res.status(400).json({ error: "No se enviaron partidos" });
+  // Limit match count to avoid runaway costs
+  if (matches.length > 50) return res.status(400).json({ error: "Demasiados partidos (máx 50)" });
+
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_KEY) return res.status(500).json({ error: "ANTHROPIC_API_KEY no configurada" });
 
   const matchList = matches.map((m, i) =>
     `${i+1}. ${m.home} vs ${m.away} | Local forma: ${m.homeForm} | Visitante forma: ${m.awayForm} | Local goles prom: ${m.homeGoals} | Visitante goles prom: ${m.awayGoals}`

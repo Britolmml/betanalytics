@@ -6,15 +6,20 @@ const PRICE_IDS = {
   elite: 'price_1TDv9FEX3Ie35WIWvAb6epg4',
 };
 
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'https://betanalyticsIA.com';
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  // Validate userId to prevent unauthorized usage tracking manipulation
   const { plan, userId, email } = req.body;
+  if (!userId || typeof userId !== "string" || userId.length === 0) {
+    return res.status(400).json({ error: "userId es requerido" });
+  }
 
   const priceId = PRICE_IDS[plan];
   if (!priceId) return res.status(400).json({ error: "Plan inválido" });

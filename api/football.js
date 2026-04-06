@@ -31,16 +31,33 @@ async function handleUsage(req, res) {
     if (action === "increment") {
       const { data: ex } = await sb.from("user_usage").select("id, count").eq("user_id", userId).eq("date", today).maybeSingle();
       if (ex) await sb.from("user_usage").update({ count: ex.count + 1 }).eq("id", ex.id);
-      else await sb.from("user_usage").insert({ user_id: userId, date: today, count: 1 });
+      else {
+        // Use upsert with onConflict to reduce race condition window on concurrent inserts
+        await sb.from("user_usage").upsert(
+          { user_id: userId, date: today, count: 1 },
+          { onConflict: "user_id,date" }
+        );
+      }
       return res.status(200).json({ ok: true });
     }
     return res.status(400).json({ error: "action inválida" });
   } catch(e) { return res.status(500).json({ error: e.message }); }
 }
 
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'https://betanalyticsIA.com';
+
+// Whitelist of allowed API path prefixes to prevent open proxy abuse
+const ALLOWED_PATHS = ["/fixtures", "/teams", "/leagues", "/standings", "/statistics", "/players"];
+
+// Sanitize upstream error messages before exposing to client
+const ERROR_MAP = {
+  token: "Error de autenticación con la API de fútbol",
+  requests: "Límite de requests alcanzado en la API de fútbol",
+};
+
 export default async function handler(req, res) {
-  // CORS — permite llamadas desde tu frontend
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // CORS — restringido al frontend autorizado
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -55,6 +72,10 @@ export default async function handler(req, res) {
   const { path, ...queryParams } = req.query;
 
   if (!path) return res.status(400).json({ error: "Falta el parámetro ?path=" });
+
+  // Validate path is whitelisted to prevent open proxy abuse
+  const isAllowed = ALLOWED_PATHS.some(p => path.startsWith(p));
+  if (!isAllowed) return res.status(403).json({ error: "Endpoint no permitido" });
 
   // Construye query string con el resto de parámetros
   const qs = new URLSearchParams(queryParams).toString();
@@ -77,9 +98,11 @@ export default async function handler(req, res) {
 
     const data = await apiRes.json();
 
-    // Si la API devuelve errores de autenticación, los mostramos claros
-    if (data?.errors?.token || data?.errors?.requests) {
-      return res.status(401).json({ error: Object.values(data.errors)[0] });
+    // Si la API devuelve errores, usar mensajes genéricos (no exponer detalles internos)
+    if (data?.errors) {
+      const errorKey = Object.keys(data.errors).find(k => ERROR_MAP[k]);
+      const msg = errorKey ? ERROR_MAP[errorKey] : "Error al consultar la API de fútbol";
+      return res.status(401).json({ error: msg });
     }
 
     return res.status(200).json(data);

@@ -126,6 +126,8 @@ function calcStats(matches, teamName) {
 }
 
 function genFake(teamName, count=8) {
+  // NOTE: These are simulated historical stats — predictions based on fake data are not reliable.
+  // Label results clearly so users know they are approximations.
   const opp = ["Valencia","Betis","Getafe","Villarreal","Osasuna","Celta","Mallorca","Girona"];
   return Array.from({length:count},(_,i)=>{
     const hg=Math.floor(Math.random()*4), ag=Math.floor(Math.random()*4);
@@ -289,11 +291,16 @@ const fuzzyMatch = (a, b) => {
   const ca = clean(a), cb = clean(b);
 
   if (na === nb || ca === cb) return true;
-  // Alias map check
-  if (TEAM_ALIASES[na] === nb || TEAM_ALIASES[nb] === na) return true;
-  if (TEAM_ALIASES[ca] === cb || TEAM_ALIASES[cb] === ca) return true;
-  // Contains check
-  if (ca.includes(cb) || cb.includes(ca)) return true;
+  // Alias map check — use cleaned versions of aliases for consistent lookup
+  for (const [k, v] of Object.entries(TEAM_ALIASES)) {
+    const ck = clean(k), cv = clean(v);
+    if (na === ck && nb === cv) return true;
+    if (na === cv && nb === ck) return true;
+    if (ca === ck && cb === cv) return true;
+    if (ca === cv && cb === ck) return true;
+  }
+  // Contains check (avoid false positives on very short strings)
+  if (ca.length >= 3 && cb.length >= 3 && (ca.includes(cb) || cb.includes(ca))) return true;
   // First word match (at least 4 chars)
   const wa = ca.slice(0,5), wb = cb.slice(0,5);
   return wa === wb && wa.length >= 4;
@@ -443,6 +450,7 @@ export default function App() {
   const [standings,     setStandings]     = useState([]);
   const [loadingStand,  setLoadingStand]  = useState(false);
   const [h2h,           setH2h]           = useState([]);
+  const [isFakeData,    setIsFakeData]    = useState(false); // Flag when API data is simulated
   const [poisson,       setPoisson]       = useState(null);
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [edges,         setEdges]         = useState([]);
@@ -925,8 +933,8 @@ export default function App() {
       }));
 
       const mapped = mappedWithStats.filter(m => m.home && m.away);
-      if (mapped.length) setter(mapped);
-      else setter(genFake(team.name));
+      if (mapped.length) { setter(mapped); setIsFakeData(false); }
+      else { setter(genFake(team.name)); setIsFakeData(true); }
 
       // Cargar próximos partidos
       try {
