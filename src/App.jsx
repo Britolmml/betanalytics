@@ -63,6 +63,31 @@ const FEATURED_LEAGUES = [
 const SEASON = 2026;
 const SEASONS_TO_TRY = [2026, 2025, 2024, 2023];
 
+// Ligas de año calendario (season = año actual) vs año europeo (2025-2026 → season=2025)
+const CALENDAR_YEAR_LEAGUES = new Set([
+  262, // Liga MX (Clausura/Apertura)
+  253, // MLS
+  71,  // Brasileirao
+  72,  // Brasileirao B
+  128, // Liga Profesional Argentina
+  131, // Primera Nacional Argentina
+  239, // Primera A Colombia
+  281, // Liga 1 Peru
+  265, // Primera Division Chile
+  268, // Primera Division Uruguay
+  344, // Primera Division Bolivia
+  242, // Liga Pro Ecuador
+  250, // Div. Profesional Paraguay
+  299, // Primera Division Venezuela
+  188, // A-League Australia
+]);
+
+function getSeason(leagueId) {
+  // En abril 2026: ligas calendario ya estan en 2026, europeas todavia en 2025
+  if (CALENDAR_YEAR_LEAGUES.has(leagueId)) return 2026;
+  return 2025;
+}
+
 // Intenta obtener fixtures con el plan gratuito (sin parámetro "last")
 async function fetchFixturesFree(apiFetch, teamId) {
   const allPlayed = [];
@@ -674,7 +699,7 @@ export default function App() {
       return arr.filter(f => { if(seen.has(f.fixture.id))return false; seen.add(f.fixture.id); return true; });
     };
     const fetchDate = async (d) => {
-      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${d}&season=${d.startsWith("2026") ? 2026 : 2025}`)));
+      const res = await Promise.allSettled(INTL_LEAGUE_IDS.map(id => apiFetch(`/fixtures?league=${id}&date=${d}&season=${getSeason(id)}`)));
       const all = [];
       res.forEach(r => { if (r.status==='fulfilled') all.push(...(r.value?.response||[])); });
       return dedup(all.sort((a,b) => new Date(a.fixture.date)-new Date(b.fixture.date)));
