@@ -1033,7 +1033,7 @@ export default function App() {
     setLoadingM(false);
   };
 
-  // AI prediction — con datos enriquecidos
+  // Analisis estadistico — modelo Poisson local (sin Claude API)
   const predict = async () => {
     // Verificar límite de uso
     if (!user) {
@@ -1514,55 +1514,56 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 {"resumen":"Análisis detallado de 3-4 oraciones explicando el razonamiento principal y por qué se eligieron estas picks","prediccionMarcador":"X-X","probabilidades":{"local":45,"empate":28,"visitante":27},"valueBet":{"existe":true,"mercado":"...","explicacion":"Por qué hay valor aquí vs el mercado"},"apuestasDestacadas":[{"tipo":"Resultado","pick":"...","odds_sugerido":"1.80","confianza":63,"factores":["factor1","factor2"]},{"tipo":"Total goles","pick":"Más/Menos 2.5","odds_sugerido":"1.90","confianza":61,"factores":["..."]},{"tipo":"BTTS","pick":"Sí/No","odds_sugerido":"1.75","confianza":59,"factores":["..."]},{"tipo":"Corners","pick":"Más/Menos 9.5","odds_sugerido":"1.85","confianza":55,"factores":["..."]},{"tipo":"Tarjetas","pick":"Más/Menos 3.5","odds_sugerido":"1.80","confianza":54,"factores":["..."]}],"recomendaciones":[{"mercado":"...","seleccion":"...","confianza":64,"razonamiento":"Explicación detallada del por qué"}],"alertas":["Alerta concreta basada en datos reales, no genérica"],"tendencias":{"golesEsperados":2.4,"cornersEsperados":10,"tarjetasEsperadas":4},"contextoExtra":{"posicionLocal":"...","posicionVisitante":"...","impactoBajas":"...","jugadorClave":"...","nivelConfianzaGeneral":"MEDIO/BAJO","razonNivelConfianza":"..."},"jugadoresDestacados":{"local":[{"nombre":"...","rol":"Goleador/Asistente","dato":"5G 3A"}],"visitante":[{"nombre":"...","rol":"...","dato":"..."}]},"h2hResumen":{"dominador":"...","tendenciaGoles":"over/under","bttsH2H":true,"alertaH2H":"..."},"momiosAnalisis":{"valueBetsDetectados":[{"mercado":"...","cuotaReal":"1.90","probImplicita":"52%","probCalculada":"62%","valorEdge":"10%"}],"erroresLinea":[{"descripcion":"...","mercado1":"...","mercado2":"...","contradiccion":"..."}],"recomendacionMomios":"..."},"tendenciasDetectadas":["Tendencia concreta 1 basada en datos","Tendencia concreta 2","Tendencia concreta 3"]}}`;
 
     try {
-      const res = await fetch("/api/predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, lang }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      // Parser robusto — maneja respuestas malformadas de la IA
-      let parsed;
+      // Recopilar datos completos de odds para enviar al backend
+      let rawOddsData = null;
+      const fixtureId = selectedFixture?.fixture?.id;
       try {
-        const raw = data.result || data.content?.[0]?.text || "";
-
-        // 1. Quitar bloques markdown
-        let clean = raw.replace(/```[\w]*\n?/g, "").replace(/```/g, "").trim();
-
-        // 2. Extraer solo el JSON entre { y }
-        const start = clean.indexOf("{");
-        const end   = clean.lastIndexOf("}");
-        if (start >= 0 && end > start) clean = clean.slice(start, end + 1);
-
-        // 3. Intentar parse directo primero
-        try {
-          parsed = JSON.parse(clean);
-        } catch {
-          // 4. Limpiezas para JSON malformado — sin template literals anidados
-          let fixed = clean
-            .replace(/[\r\n]+/g, " ")
-            .replace(/,\s*,/g, ",")
-            .replace(/,\s*([}\]])/g, "$1")
-            .replace(/[\x00-\x1F\x7F]/g, " ");
-          try {
-            parsed = JSON.parse(fixed);
-          } catch {
-            // 5. Fallback mínimo
-            parsed = {
-              resumen: "Análisis completado — hubo un problema al procesar la respuesta. Intenta de nuevo.",
-              prediccionMarcador: "1-1",
-              probabilidades: { local: 40, empate: 30, visitante: 30 },
-              apuestasDestacadas: [],
-              alertas: ["Regenera el análisis para ver las apuestas recomendadas"],
-              nivelConfianza: "BAJO",
+        const sport = LEAGUE_SPORT_MAP[league?.id];
+        if (sport && currentOddsMap) {
+          // Build a full game object with bookmakers for the backend
+          const key1 = `${homeTeam.name}|${awayTeam.name}`;
+          const key2 = `${awayTeam.name}|${homeTeam.name}`;
+          let markets = currentOddsMap[key1] || currentOddsMap[key2] || currentOddsMap["__fixture__"];
+          if (markets?.length > 0) {
+            rawOddsData = {
+              bookmakers: [{ name: "api-sports", bets: [] }],
             };
+            if (h2hM) {
+              rawOddsData.bookmakers[0].bets.push({
+                name: "Match Winner",
+                values: h2hM.outcomes.map(o => ({ value: o.name, odd: String(o.price) })),
+              });
+            }
+            if (totalsM) {
+              rawOddsData.bookmakers[0].bets.push({
+                name: "Goals Over/Under",
+                values: totalsM.outcomes.map(o => ({ value: `${o.name === "Over" ? "Over" : "Under"} ${o.point}`, odd: String(o.price) })),
+              });
+            }
           }
         }
-      } catch(jsonErr) {
-        throw new Error("Error procesando respuesta IA: " + jsonErr.message);
-      }
+      } catch(e) { /* odds not critical */ }
+
+      // Call the statistical model
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          homeTeam: homeTeam.name,
+          awayTeam: awayTeam.name,
+          homeStats: hS,
+          awayStats: aS,
+          h2hData: currentH2H || [],
+          oddsData: rawOddsData,
+          splitsData: footballSplits,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
       const fullAnalysis = {
-        ...parsed,
+        ...data,
         hStats: hS, aStats: aS,
         homeInjuries, awayInjuries,
         homeStanding, awayStanding,
@@ -1576,21 +1577,51 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
       try {
         const { data: { session } } = await supabase?.auth.getSession() || {};
         if (session?.user) {
-          const picks = parsed.apuestasDestacadas || [];
+          const picks = data.apuestasDestacadas || [];
           await saveBestPick(session.user.id, {
             league: league?.name,
             homeTeam: homeTeam?.name,
             awayTeam: awayTeam?.name,
-            score: parsed.prediccionMarcador,
+            score: data.prediccionMarcador,
             fixtureId: selectedFixture?.fixture?.id || null,
             gameDate: selectedFixture?.fixture?.date?.split("T")[0] || null,
             analysis: fullAnalysis,
           }, picks, "football");
-          // Uso ya incrementado al inicio del análisis
         }
       } catch(e) { /* silencioso */ }
     } catch(e) { setAiErr("Error: "+e.message); }
     finally { setLoadingAI(false); }
+  };
+
+  // Analysis — legacy prompt builder (kept for reference)
+  const oddsBlockLegacy = () => {
+    if (!currentOddsMap) return "Momios no disponibles";
+    const key1 = `${homeTeam.name}|${awayTeam.name}`;
+    const key2 = `${awayTeam.name}|${homeTeam.name}`;
+    const gameOdds = currentOddsMap[key1] || currentOddsMap[key2] || [];
+    if (!gameOdds.length) return "Sin momios disponibles";
+    const toAmLegacy = p => {
+      if (!p) return "N/D";
+      if (Math.abs(p) > 10) return p > 0 ? `+${p}` : `${p}`;
+      if (p >= 2) return `+${Math.round((p-1)*100)}`;
+      return `-${Math.round(100/(p-1))}`;
+    };
+    let result = "";
+    const h2hM = gameOdds.find(m=>m.key==="h2h");
+    const totalsM = gameOdds.find(m=>m.key==="totals");
+    if (h2hM) {
+      const outcomes = h2hM.outcomes || [];
+      const home = outcomes.find(o=>fuzzyMatch(o.name, homeTeam.name));
+      const away = outcomes.find(o=>fuzzyMatch(o.name, awayTeam.name));
+      const draw = outcomes.find(o=>o.name==="Draw");
+      result += `Resultado 1X2: ${homeTeam.name}=${toAmLegacy(home?.price)} | Empate=${toAmLegacy(draw?.price)} | ${awayTeam.name}=${toAmLegacy(away?.price)}`;
+    }
+    if (totalsM) {
+      const over = totalsM.outcomes?.find(o=>o.name==="Over");
+      const under = totalsM.outcomes?.find(o=>o.name==="Under");
+      if (over) result += ` | Total goles Over ${over.point}=${toAmLegacy(over.price)} Under=${toAmLegacy(under?.price)}`;
+    }
+    return result || "Sin momios disponibles";
   };
 
   const predictMulti = async () => {
