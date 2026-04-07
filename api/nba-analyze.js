@@ -68,7 +68,7 @@ function calcNBAPoisson(hStats, aStats, marketTotal = null) {
 
   return {
     xPtsHome: +xPtsHome.toFixed(1),
-    xPtsAway: +xAway.toFixed(1),
+    xPtsAway: +xPtsAway.toFixed(1),
     total: +total.toFixed(1),
     spread: +spread.toFixed(1),
     hOff: +(hOff * 100).toFixed(0),
