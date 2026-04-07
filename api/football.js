@@ -98,11 +98,10 @@ export default async function handler(req, res) {
 
     const data = await apiRes.json();
 
-    // Si la API devuelve errores, usar mensajes genéricos (no exponer detalles internos)
-    if (data?.errors) {
+    // Si la API devuelve errores conocidos, usar mensajes genéricos
+    if (data?.errors && Object.keys(data.errors).length > 0) {
       const errorKey = Object.keys(data.errors).find(k => ERROR_MAP[k]);
-      const msg = errorKey ? ERROR_MAP[errorKey] : "Error al consultar la API de fútbol";
-      return res.status(401).json({ error: msg });
+      if (errorKey) return res.status(401).json({ error: ERROR_MAP[errorKey] });
     }
 
     return res.status(200).json(data);
