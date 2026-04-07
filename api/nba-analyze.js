@@ -119,23 +119,26 @@ function parseNBAOdds(oddsData) {
 // ── Edge calculation ──
 function calcNBAEdges(poisson, parsedOdds, homeName, awayName) {
   if (!poisson || !parsedOdds) return [];
+  const stdDevSpread = 11.5;
   const edges = [];
 
   const addEdge = (market, pick, ourProb, price) => {
-    if (!price || !ourProb) return;
-    const implied = price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100);
+    if (!ourProb) return;
+    const p = parseFloat(price);
+    if (!p && p !== 0) return;
+    const implied = p > 0 ? 100 / (p + 100) : Math.abs(p) / (Math.abs(p) + 100);
     const edge = ourProb - implied;
-    const dec = price > 0 ? (price / 100 + 1) : (100 / Math.abs(price) + 1);
+    const dec = p > 0 ? (p / 100 + 1) : (100 / Math.abs(p) + 1);
     const kelly = edge > 0 ? Math.max(0, Math.min(15, parseFloat(((edge / (dec - 1)) * 100).toFixed(1)))) : 0;
     edges.push({
       market, pick,
-      ourProb: +(ourProb * 100).toFixed(1),
+      ourProb: +((Math.round(ourProb * 1000) / 1000) * 100).toFixed(1),
       impliedProb: +(implied * 100).toFixed(1),
       edge: +(edge * 100).toFixed(1),
       kelly,
       decimal: +dec.toFixed(2),
       american: toAm(price),
-      hasValue: edge > 0.03,
+      hasValue: edge > 0.02,
       isUnderdog: dec >= 2.0,
     });
   };
