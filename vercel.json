@@ -3,12 +3,10 @@
     { "source": "/api/football", "destination": "/api/football" },
     { "source": "/api/basketball", "destination": "/api/basketball" },
     { "source": "/api/baseball", "destination": "/api/baseball" },
-    { "source": "/api/predict", "destination": "/api/predict" },
     { "source": "/api/odds", "destination": "/api/odds" },
     { "source": "/api/jornada", "destination": "/api/jornada" },
     { "source": "/api/webhook", "destination": "/api/webhook" },
     { "source": "/api/create-checkout", "destination": "/api/create-checkout" },
-    { "source": "/api/nba-injuries", "destination": "/api/nba-injuries" },
     { "source": "/api/mlb-stats", "destination": "/api/mlb-stats" },
     { "source": "/api/news", "destination": "/api/news" }
   ],
