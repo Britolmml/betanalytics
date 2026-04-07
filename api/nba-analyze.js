@@ -121,7 +121,7 @@ function calcNBAEdges(poisson, parsedOdds, homeName, awayName) {
 
   // Moneyline edges
   const mlAway = parsedOdds.mlOutcomes.find(o => homeName.includes(o.name?.split(' ')[0]));
-  const mlHome = parsedOdds.mlOutcomes.find(o => homeName && (o.name.includes("away") || !o.name.includes("away"));
+  const mlHome = parsedOdds.mlOutcomes.find(o => homeName && (o.name.includes("away") || !o.name.includes("away")));
 
   if (parsedOdds.mlOutcomes.length >= 2) {
     addEdge("Moneyline", homeName, poisson.pHome/100, parsedOdds.mlOutcomes[0]?.price);
@@ -222,49 +222,64 @@ function buildNBAPicks(poisson, edges, homeName, awayName, injuries, topPlayers,
     ...(topPlayers?.away || []).map(p => ({ ...p, team: awayName })),
   ];
 
+  // Extract player name from { name: "Fname Lname", player: { firstname, lastname } }
+  const getPlayerName = (p) => {
+    if (p.name) return p.name;
+    if (p.player) return `${p.player.first_name || p.player.firstname || ''} ${p.player.last_name || p.player.lastname || ''}`.trim();
+    return "Jugador";
+  };
+
   // Filter out injured players
   const injuredNames = new Set((injuries || []).map(i => i.name?.toLowerCase()));
-  const availablePlayers = allPlayers.filter(p => !injuredNames.has(p.player?.name?.toLowerCase()));
+  const availablePlayers = allPlayers.filter(p => !injuredNames.has(getPlayerName(p).toLowerCase()));
 
-  // Points props
+  // Points props — handle both avg (pre-computed) and raw totals
+  const getAvg = (p, field) => {
+    const val = parseFloat(p[field]);
+    if (p.games && val < 50) return val; // already avg
+    return val / p.games;
+  };
+
   const topScorers = availablePlayers
-    .sort((a, b) => (b.pts || 0) - (a.pts || 0))
+    .sort((a, b) => getAvg(b, 'pts') - getAvg(a, 'pts'))
     .slice(0, 2);
 
-  for (const player of topScorers) {
-    if (player.pts && player.games > 0) {
-      const avgPts = (player.pts / player.games).toFixed(1);
-      const overLine = Math.round(player.pts / player.games);
+  for (const pl of topScorers) {
+    if (pl.pts && pl.games > 0) {
+      const avgPts = getAvg(pl, 'pts').toFixed(1);
+      const overLine = Math.round(getAvg(pl, 'pts'));
+      const displayName = getPlayerName(pl);
       picks.push({
         tipo: "Jugador Puntos",
-        pick: `Over ${overLine} pts — ${player.player?.first_name} ${player.player?.last_name}`,
-        confianza: Math.min(65, 50 + (player.pts / player.games > 20 ? 10 : 5)),
+        pick: `Over ${overLine} pts — ${displayName}`,
+        confianza: Math.min(65, 50 + (getAvg(pl, 'pts') > 20 ? 10 : 5)),
         odds_sugerido: "1.90",
         categoria: "jugador",
-        jugador: `${player.player?.first_name} ${player.player?.last_name}`,
-        factores: [`Promedio: ${avgPts} pts en ${player.games} partidos`],
+        jugador: displayName,
+        factores: [`Promedio: ${avgPts} pts en ${pl.games} partidos`],
       });
     }
   }
 
   // Triple double detection
   const tdCandidates = availablePlayers.filter(p => {
-    const pts = p.pts / (p.games || 1);
-    const reb = p.reb / (p.games || 1);
-    const ast = p.ast / (p.games || 1);
+    const pts = getAvg(p, 'pts');
+    const reb = getAvg(p, 'reb');
+    const ast = getAvg(p, 'ast');
     return pts >= 15 && reb >= 7 && ast >= 7;
   });
 
   if (tdCandidates.length > 0) {
     const td = tdCandidates[0];
+    const tdName = getPlayerName(td);
     picks.push({
       tipo: "Triple Doble",
-      pick: `${td.player?.first_name} ${td.player?.last_name} — Si/No`,
+      pick: `${tdName} — Si/No`,
       confianza: 55,
       odds_sugerido: "2.50",
       categoria: "jugador",
-      jugador: `${td.player?.first_name} ${td.player?.last_name}`,
-      factores: [`Promedio: ${((td.pts||0)/(td.games||1)).toFixed(1)}pts ${((td.reb||0)/(td.games||1)).toFixed(1)}reb ${((td.ast||0)/(td.games||1)).toFixed(1)}ast`],
+      jugador: tdName,
+      factores: [`Promedio: ${getAvg(td,'pts').toFixed(1)}pts ${getAvg(td,'reb').toFixed(1)}reb ${getAvg(td,'ast').toFixed(1)}ast`],
     });
   }
 

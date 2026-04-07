@@ -1006,7 +1006,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           oddsData: nbaOdds,
           splitsData: currentSplits,
           injuries: safeInjuries,
-          topPlayers: { home: hTopPlayers, away: aTopPlayers },
+          topPlayers: { home: players.home, away: players.away },
         }),
       });
       const data = await res.json();
