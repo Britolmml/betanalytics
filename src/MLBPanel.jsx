@@ -460,7 +460,7 @@ export default function MLBPanel({ inline, lang="es", user }) {
     const totalLine = overOdds?.point ?? "N/A";
 
     try {
-      const res = await fetch("/api/mlb-analyze", {
+      const res = await fetch("/api/mlb-stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
