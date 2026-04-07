@@ -994,14 +994,24 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           razonConfianza:""
         });
 
-      const res = await fetch("/api/predict", {
+      const res = await fetch("/api/nba-analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, lang }),
+        body: JSON.stringify({
+          homeTeam: home,
+          awayTeam: away,
+          homeStats: hStats,
+          awayStats: aStats,
+          h2hData: nbaH2H,
+          oddsData: nbaOdds,
+          splitsData: footballSplits,
+          injuries: safeInjuries,
+          topPlayers: { home: hTopPlayers, away: aTopPlayers },
+        }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      const parsed = JSON.parse(data.result);
+      const parsed = data;
       setAnalysis(parsed);
       setTimeout(() => analysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
       setAllAnalyses(prev => ({ ...prev, [String(selectedGame.id)]: { game: selectedGame, analysis: parsed } }));
