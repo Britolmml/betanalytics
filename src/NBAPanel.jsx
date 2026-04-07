@@ -994,7 +994,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           razonConfianza:""
         });
 
-      const res = await fetch("/api/basketball", {
+      const res = await fetch("/api/nba-analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
