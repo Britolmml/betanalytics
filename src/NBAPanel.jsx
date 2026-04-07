@@ -1004,7 +1004,7 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
           awayStats: aStats,
           h2hData: nbaH2H,
           oddsData: nbaOdds,
-          splitsData: footballSplits,
+          splitsData: currentSplits,
           injuries: safeInjuries,
           topPlayers: { home: hTopPlayers, away: aTopPlayers },
         }),
