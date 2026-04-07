@@ -47,7 +47,7 @@ async function handleUsage(req, res) {
 const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'https://betanalyticsIA.com';
 
 // Whitelist of allowed API path prefixes to prevent open proxy abuse
-const ALLOWED_PATHS = ["/fixtures", "/teams", "/leagues", "/standings", "/statistics", "/players"];
+const ALLOWED_PATHS = ["/fixtures", "/teams", "/leagues", "/standings", "/statistics", "/players", "/injuries"];
 
 // Sanitize upstream error messages before exposing to client
 const ERROR_MAP = {
