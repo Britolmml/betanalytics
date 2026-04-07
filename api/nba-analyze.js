@@ -123,7 +123,26 @@ function calcNBAPoisson(hStats, aStats, marketTotal = null, injuries = null, top
 
 // ── Parse NBA odds ──
 function parseNBAOdds(oddsData) {
-  if (!oddsData || !Array.isArray(oddsData)) return null;
+  if (!oddsData) return null;
+
+  // Frontend sends { h2h: { key:"h2h", outcomes:[...] }, totals: { key:"totals", outcomes:[...] } }
+  if (!Array.isArray(oddsData)) {
+    const mlMarket = oddsData.h2h || null;
+    const totalsObj = oddsData.totals || null;
+    const totals = totalsObj?.outcomes || [];
+    const overOutcome = totals.find(o => o.name === "Over");
+    const marketTotal = overOutcome?.point ? parseFloat(overOutcome.point) : null;
+    const underOutcome = totals.find(o => o.name === "Under");
+
+    return {
+      marketTotal, marketSpread: null,
+      mlOutcomes: mlMarket?.outcomes || [],
+      spreads: [], totals,
+      overOutcome, underOutcome,
+    };
+  }
+
+  // Array format (raw from odds API)
   const mlMarket = oddsData.find(m => m.key === "h2h");
   const spreads = oddsData.find(m => m.key === "spreads")?.outcomes || [];
   const totals = oddsData.find(m => m.key === "totals")?.outcomes || [];
@@ -245,9 +264,12 @@ function buildNBAPicks(poisson, edges, homeName, awayName, injuries, topPlayers,
   const h2hRecent = (h2h || []).filter(g => g.hPts != null).slice(0, 3);
   const trends = [];
   if (h2hRecent.length > 0) {
-    const hWins = h2hRecent.filter(g => g.hPts > g.aPts).length;
-    const team = hWins >= 2 ? homeName : (h2hRecent.length - hWins) >= 2 ? awayName : null;
-    if (team) trends.push(`${team} domina H2H reciente (${team === homeName ? hWins : h2hRecent.length - hWins}-${team === homeName ? h2hRecent.length - hWins : hWins})`);
+    // H2H: determine winner by name, not home/away position
+    const hWinCount = h2hRecent.filter(g => {
+      return (g.hPts > g.aPts && g.home === homeName) || (g.aPts > g.hPts && g.away === homeName);
+    }).length;
+    const team = hWinCount >= 2 ? homeName : (h2hRecent.length - hWinCount) >= 2 ? awayName : null;
+    if (team) trends.push(`${team} domina H2H reciente (${team === homeName ? hWinCount : h2hRecent.length - hWinCount}-${team === homeName ? h2hRecent.length - hWinCount : hWinCount})`);
     const avgH2HTotal = h2hRecent.reduce((s, g) => s + g.hPts + g.aPts, 0) / h2hRecent.length;
     if (avgH2HTotal > 230) trends.push(`H2H alta puntuacion: promedio ${avgH2HTotal.toFixed(0)} pts`);
     else if (avgH2HTotal < 210) trends.push(`H2H baja puntuacion: promedio ${avgH2HTotal.toFixed(0)} pts`);
@@ -643,11 +665,16 @@ export default async function handler(req, res) {
   if (poisson.pAway >= 60) tendenciasDetectadas.push(`${awayTeam} favorito a pesar de jugar fuera`);
   if (Math.abs(poisson.spread) <= 3) tendenciasDetectadas.push("Partido parejo — spread < 3 en modelo");
   if (h2hData && h2hData.length > 0) {
-    const hWins = h2hData.filter(g => (g.hPts > g.aPts)).length;
+    // H2H: determine winner by team name, not by home/away position
+    const hWinCount = h2hData.filter(g => {
+      const homeTeamWon = g.hPts > g.aPts;
+      const winnerName = homeTeamWon ? g.home : g.away;
+      return winnerName === homeTeam;
+    }).length;
     const recent = h2hData.slice(0, 3);
     const avgH2HTotal = recent.reduce((s, g) => s + (g.hPts || 0) + (g.aPts || 0), 0) / recent.length;
-    if (hWins >= 2) tendenciasDetectadas.push(`${homeTeam} domina H2H (${hWins}-${3-hWins} ultimos)`);
-    else if (3 - hWins >= 2) tendenciasDetectadas.push(`${awayTeam} domina H2H (${3-hWins}-${hWins} ultimos)`);
+    if (hWinCount >= 2) tendenciasDetectadas.push(`${homeTeam} domina H2H (${hWinCount}-${recent.length - hWinCount} ultimos)`);
+    else if (recent.length - hWinCount >= 2) tendenciasDetectadas.push(`${awayTeam} domina H2H (${recent.length - hWinCount}-${hWinCount} ultimos)`);
     if (avgH2HTotal > 230) tendenciasDetectadas.push(`H2H historico de alta puntuacion (~${avgH2HTotal.toFixed(0)} pts)`);
     else if (avgH2HTotal < 215) tendenciasDetectadas.push(`H2H historico de baja puntuacion (~${avgH2HTotal.toFixed(0)} pts)`);
   }
