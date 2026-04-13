@@ -2930,8 +2930,113 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 </div>
               </div>
 
-              {/* H2H Analysis */}
-              {analysis.h2hResumen && (
+              {/* Full Probability Grid (Over/Under all lines) */}
+              {analysis.poissonDetalle && (
+                <div className="card-animate" style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#f97316",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>📊 {lang==="en"?"Goal Probabilities — All Lines":"Probabilidades de Goles — Todas las Lineas"}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+                    {[
+                      {l:"Over 1.5",v:analysis.poissonDetalle.pOver15,line:1.5},
+                      {l:"Over 2.5",v:analysis.poissonDetalle.pOver25,line:2.5},
+                      {l:"Over 3.5",v:analysis.poissonDetalle.pOver35,line:3.5},
+                      {l:"Over 4.5",v:analysis.poissonDetalle.pOver45,line:4.5},
+                    ].filter(x=>x.v!=null).map(({l,v,line})=>{
+                      const c=v>=60?"#22c55e":v>=45?"#f59e0b":"#ef4444";
+                      return (
+                      <div key={l} style={{textAlign:"center",padding:"10px 6px",background:"rgba(255,255,255,0.03)",borderRadius:10,border:`1px solid ${c}22`}}>
+                        <div className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:c,lineHeight:1}}>{v}<span style={{fontSize:12,opacity:0.5}}>%</span></div>
+                        <div style={{fontSize:9,color:"#555",marginTop:4}}>{l}</div>
+                        <div style={{fontSize:8,color:"#333",marginTop:2}}>Under: {100-v}%</div>
+                        <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:6,overflow:"hidden"}}>
+                          <div className="stat-bar-fill" style={{width:`${v}%`,height:"100%",background:c,borderRadius:2}}/>
+                        </div>
+                      </div>
+                    );})}
+                  </div>
+                  {analysis.poissonDetalle.pBTTS != null && (
+                    <div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      <div style={{textAlign:"center",padding:"10px",background:"rgba(0,212,255,0.05)",borderRadius:10,border:"1px solid rgba(0,212,255,0.15)"}}>
+                        <div style={{fontSize:9,color:"#00d4ff",letterSpacing:1,fontWeight:700,marginBottom:4}}>BTTS SI</div>
+                        <div className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"#00d4ff"}}>{analysis.poissonDetalle.pBTTS}%</div>
+                      </div>
+                      <div style={{textAlign:"center",padding:"10px",background:"rgba(239,68,68,0.05)",borderRadius:10,border:"1px solid rgba(239,68,68,0.15)"}}>
+                        <div style={{fontSize:9,color:"#ef4444",letterSpacing:1,fontWeight:700,marginBottom:4}}>BTTS NO</div>
+                        <div className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:"#ef4444"}}>{100-analysis.poissonDetalle.pBTTS}%</div>
+                      </div>
+                    </div>
+                  )}
+                  <div style={{marginTop:10,textAlign:"center",fontSize:10,color:"#555"}}>
+                    Goles esperados total: <span className="num-mono" style={{color:"#f97316",fontWeight:800,fontSize:13}}>{analysis.poissonDetalle.expectedGoals}</span>
+                    <span style={{margin:"0 8px"}}>|</span>
+                    xG {homeTeam?.name?.split(" ").slice(-1)[0]}: <span className="num-mono" style={{color:"#00d4ff",fontWeight:700}}>{analysis.poissonDetalle.xgHome}</span>
+                    <span style={{margin:"0 8px"}}>|</span>
+                    xG {awayTeam?.name?.split(" ").slice(-1)[0]}: <span className="num-mono" style={{color:"#3b82f6",fontWeight:700}}>{analysis.poissonDetalle.xgAway}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Shot Stats & Advanced Metrics */}
+              {analysis.statsDetalle && (analysis.statsDetalle.home.avgShotsOn || analysis.statsDetalle.away.avgShotsOn) && (
+                <div className="card-animate" style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#67a6ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🎯 {lang==="en"?"Shot Statistics":"Estadisticas de Tiros"}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 110px 1fr",gap:4,alignItems:"center"}}>
+                    {[
+                      {l:lang==="en"?"Shots on target":"Tiros a puerta",h:analysis.statsDetalle.home.avgShotsOn,a:analysis.statsDetalle.away.avgShotsOn},
+                      {l:lang==="en"?"Total shots":"Tiros totales",h:analysis.statsDetalle.home.avgShotsTotal,a:analysis.statsDetalle.away.avgShotsTotal},
+                      {l:"Clean Sheets",h:analysis.statsDetalle.home.cleanSheets,a:analysis.statsDetalle.away.cleanSheets,s:"/5"},
+                      {l:lang==="en"?"Wins":"Victorias",h:analysis.statsDetalle.home.wins,a:analysis.statsDetalle.away.wins,s:"/5"},
+                      {l:lang==="en"?"Draws":"Empates",h:analysis.statsDetalle.home.draws,a:analysis.statsDetalle.away.draws,s:"/5"},
+                      {l:lang==="en"?"Losses":"Derrotas",h:analysis.statsDetalle.home.losses,a:analysis.statsDetalle.away.losses,s:"/5"},
+                    ].filter(x=>x.h!=null||x.a!=null).map(({l,h,a,s=""})=>(
+                      [
+                        <div key={l+"h"} style={{textAlign:"right",fontFamily:"'Bebas Neue',cursive",fontSize:20,color:h>a?"#00d4ff":h<a?"#ef4444":"#666"}}>{h ?? "—"}{h!=null?s:""}</div>,
+                        <div key={l+"lb"} style={{textAlign:"center",fontSize:10,color:"#444",padding:"4px 0"}}>{l}</div>,
+                        <div key={l+"a"} style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:a>h?"#f59e0b":a<h?"#ef4444":"#666"}}>{a ?? "—"}{a!=null?s:""}</div>
+                      ]
+                    ))}
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:8,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+                    <span style={{fontFamily:"'Bebas Neue',cursive",color:"#00d4ff",fontSize:12}}>{homeTeam?.name}</span>
+                    <span style={{fontFamily:"'Bebas Neue',cursive",color:"#f59e0b",fontSize:12}}>{awayTeam?.name}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* H2H Detailed with match results */}
+              {h2h?.length > 0 && (
+                <div className="card-animate" style={{...C.card,marginBottom:14}}>
+                  <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>⚔️ {lang==="en"?"Head to Head — Recent Matches":"Duelos Directos H2H — Partidos Recientes"}</div>
+                  {analysis.h2hResumen && (
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+                      {analysis.h2hResumen.victorias && (
+                        <div style={{display:"flex",gap:4}}>
+                          <span style={{background:"rgba(0,212,255,0.12)",border:"1px solid rgba(0,212,255,0.25)",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#00d4ff",fontWeight:700}}>{homeTeam?.name?.split(" ").slice(-1)[0]} {analysis.h2hResumen.victorias.local}V</span>
+                          <span style={{background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.25)",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#f59e0b",fontWeight:700}}>{analysis.h2hResumen.victorias.empates}E</span>
+                          <span style={{background:"rgba(59,130,246,0.12)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:6,padding:"3px 10px",fontSize:11,color:"#3b82f6",fontWeight:700}}>{awayTeam?.name?.split(" ").slice(-1)[0]} {analysis.h2hResumen.victorias.visitante}V</span>
+                        </div>
+                      )}
+                      {analysis.h2hResumen.promedioGoles && <span style={{fontSize:10,color:"#888",padding:"4px 10px",background:"rgba(255,255,255,0.04)",borderRadius:6}}>Prom: {analysis.h2hResumen.promedioGoles} goles</span>}
+                      {analysis.h2hResumen.over25Rate != null && <span style={{fontSize:10,color:"#888",padding:"4px 10px",background:"rgba(255,255,255,0.04)",borderRadius:6}}>Over 2.5: {analysis.h2hResumen.over25Rate}%</span>}
+                      {analysis.h2hResumen.bttsRate != null && <span style={{fontSize:10,color:"#888",padding:"4px 10px",background:"rgba(255,255,255,0.04)",borderRadius:6}}>BTTS: {analysis.h2hResumen.bttsRate}%</span>}
+                    </div>
+                  )}
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {h2h.map((m,i)=>{
+                      const hW=m.homeGoals>m.awayGoals, aW=m.awayGoals>m.homeGoals, draw=m.homeGoals===m.awayGoals;
+                      return (
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"rgba(255,255,255,0.02)",borderRadius:8,borderLeft:`3px solid ${hW?"#00d4ff":aW?"#3b82f6":"#f59e0b"}`}}>
+                        <span style={{fontSize:10,color:"#444",minWidth:70}}>{m.date}</span>
+                        <span style={{fontSize:12,fontWeight:hW?700:400,color:hW?"#00d4ff":"#888",flex:1,textAlign:"right"}}>{m.home}</span>
+                        <span className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:18,color:draw?"#f59e0b":"#e8eaf0",minWidth:50,textAlign:"center"}}>{m.homeGoals} - {m.awayGoals}</span>
+                        <span style={{fontSize:12,fontWeight:aW?700:400,color:aW?"#3b82f6":"#888",flex:1}}>{m.away}</span>
+                      </div>
+                    );})}
+                  </div>
+                </div>
+              )}
+
+              {/* H2H Analysis (from Claude) */}
+              {analysis.h2hResumen && !h2h?.length && (
                 <div style={{...C.card,marginBottom:14}}>
                   <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>⚔️ {lang==="en"?"Head to Head":"Duelos Directos H2H"}</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:8}}>

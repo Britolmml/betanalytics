@@ -651,7 +651,71 @@ export default async function handler(req, res) {
   const valueBets = detectValueBets(edges);
   const alerts = generateAlerts(poisson, homeStats, awayStats, h2h);
 
-  // Build full response matching the Claude API format
+  // ── Confidence level ──
+  const bestPick = picks[0];
+  const bestEdge = edges.find(e => e.hasValue);
+  let nivelConfianza = "BAJO";
+  let razonConfianza = "Datos insuficientes o partido muy equilibrado";
+  if (bestPick?.confianza >= 68 && bestEdge) {
+    nivelConfianza = "ALTO";
+    razonConfianza = `Edge detectado de +${bestEdge.edge}% en ${bestEdge.market}. Poisson y mercado alineados.`;
+  } else if (bestPick?.confianza >= 58) {
+    nivelConfianza = "MEDIO";
+    razonConfianza = `Modelo favorece una tendencia pero sin edge claro vs casas.`;
+  }
+
+  // ── H2H detailed summary ──
+  const h2hResumen = h2h ? {
+    dominador: h2h.dominator || null,
+    tendenciaGoles: h2h.avgTotal >= 3 ? "over" : h2h.avgTotal <= 2 ? "under" : "neutral",
+    bttsH2H: h2h.bttsRate >= 50,
+    alertaH2H: h2h.dominator
+      ? `${h2h.dominator} domina con ${h2h.homeWinPct}% de victorias en ${h2h.matches} duelos. Promedio ${h2h.avgTotal} goles. BTTS en ${h2h.bttsRate}%.`
+      : `Sin dominador claro en ${h2h.matches} duelos. Promedio ${h2h.avgTotal} goles.`,
+    victorias: { local: h2h.homeWins, empates: h2h.draws, visitante: h2h.awayWins },
+    promedioGoles: h2h.avgTotal,
+    bttsRate: h2h.bttsRate,
+    over25Rate: h2h.over25Rate,
+  } : null;
+
+  // ── Momios analysis ──
+  const valueBetsList = edges.filter(e => e.hasValue).map(e => ({
+    mercado: e.market,
+    pick: e.pick,
+    cuotaReal: e.decimal?.toFixed(2),
+    probImplicita: e.impliedProb + '%',
+    probCalculada: e.ourProb + '%',
+    valorEdge: '+' + e.edge + '%',
+    kelly: e.kelly + '%',
+  }));
+
+  const erroresLinea = [];
+  // Detect contradictions between markets
+  if (poisson.pBTTS >= 65 && poisson.pOver25 < 50) {
+    erroresLinea.push({ descripcion: `BTTS alto (${poisson.pBTTS}%) pero Over 2.5 bajo (${poisson.pOver25}%). Contradiccion de modelos.`, mercado: 'BTTS vs Total' });
+  }
+  const edgesContra = edges.filter(e => e.edge < -8);
+  edgesContra.forEach(e => {
+    erroresLinea.push({ descripcion: `${e.market} ${e.pick}: mercado sobrevalora (edge ${e.edge}%). Considerar lado opuesto.`, mercado: e.market, contradiccion: `Poisson ${e.ourProb}% vs Mercado ${e.impliedProb}%` });
+  });
+
+  // ── Tendencias detectadas ──
+  const tendenciasDetectadas = [];
+  if (homeStats.wins >= 4) tendenciasDetectadas.push(`${homeTeam} en racha de ${homeStats.wins}/5 victorias recientes`);
+  if (awayStats.wins >= 4) tendenciasDetectadas.push(`${awayTeam} en racha de ${awayStats.wins}/5 victorias recientes`);
+  if (homeStats.losses >= 3) tendenciasDetectadas.push(`${homeTeam} en crisis: ${homeStats.losses}/5 derrotas recientes`);
+  if (awayStats.losses >= 3) tendenciasDetectadas.push(`${awayTeam} en crisis: ${awayStats.losses}/5 derrotas recientes`);
+  if (homeStats.over25 >= 4) tendenciasDetectadas.push(`${homeTeam}: Over 2.5 en ${homeStats.over25}/5 partidos`);
+  if (awayStats.over25 >= 4) tendenciasDetectadas.push(`${awayTeam}: Over 2.5 en ${awayStats.over25}/5 partidos`);
+  if (homeStats.btts >= 4) tendenciasDetectadas.push(`${homeTeam}: BTTS en ${homeStats.btts}/5 partidos`);
+  if (awayStats.btts >= 4) tendenciasDetectadas.push(`${awayTeam}: BTTS en ${awayStats.btts}/5 partidos`);
+  if (homeStats.cleanSheets >= 3) tendenciasDetectadas.push(`${homeTeam}: ${homeStats.cleanSheets}/5 clean sheets — defensa solida`);
+  if (awayStats.cleanSheets >= 3) tendenciasDetectadas.push(`${awayTeam}: ${awayStats.cleanSheets}/5 clean sheets — defensa solida`);
+  if (h2h?.over25Rate >= 70) tendenciasDetectadas.push(`H2H: Over 2.5 en ${h2h.over25Rate}% de duelos directos`);
+  if (h2h?.bttsRate >= 70) tendenciasDetectadas.push(`H2H: Ambos anotan en ${h2h.bttsRate}% de duelos directos`);
+  if (poisson.pDraw >= 30) tendenciasDetectadas.push(`Alta probabilidad de empate (${poisson.pDraw}%) — considerar doble oportunidad`);
+
+  // Build full response
   const response = {
     resumen: summary,
     prediccionMarcador: poisson.topScores[0]?.score || '1-1',
@@ -662,11 +726,11 @@ export default async function handler(req, res) {
     },
     valueBet: valueBets,
     apuestasDestacadas: picks,
-    recomendaciones: picks.slice(0, 3).map(p => ({
+    recomendaciones: picks.slice(0, 5).map(p => ({
       mercado: p.tipo,
       seleccion: p.pick,
       confianza: p.confianza,
-      razonamiento: `Basado en xG: ${poisson.xgHome}-${poisson.xgAway}, Poisson ${p.ourProb || poisson.pHome}%, Edge: ${p.edge || 0}%`,
+      razonamiento: p.factores?.join('. ') || `xG: ${poisson.xgHome}-${poisson.xgAway}. Edge: ${edges.find(e => e.market === p.tipo)?.edge || 0}%`,
     })),
     alertas: alerts,
     tendencias: {
@@ -682,10 +746,65 @@ export default async function handler(req, res) {
       h2hDominator: h2h?.dominator || null,
       h2hAvgGoals: h2h?.avgTotal || null,
       bttsH2H: h2h?.bttsRate >= 50 || false,
+      nivelConfianzaGeneral: nivelConfianza,
+      razonNivelConfianza: razonConfianza,
+      impactoBajas: null,
+      jugadorClave: null,
     },
-    edgesDetalle: edges.slice(0, 5),
+    // NEW: Full Poisson probability grid
+    poissonDetalle: {
+      pHome: poisson.pHome,
+      pDraw: poisson.pDraw,
+      pAway: poisson.pAway,
+      pBTTS: poisson.pBTTS,
+      pOver15: poisson.pOver15,
+      pOver25: poisson.pOver25,
+      pOver35: poisson.pOver35,
+      pOver45: poisson.pOver45,
+      expectedGoals: poisson.expectedGoals,
+      xgHome: poisson.xgHome,
+      xgAway: poisson.xgAway,
+      homeAttack: poisson.homeAttack,
+      awayAttack: poisson.awayAttack,
+      homeDefense: poisson.homeDefense,
+      awayDefense: poisson.awayDefense,
+      topScores: poisson.topScores,
+    },
+    // NEW: Shot stats
+    statsDetalle: {
+      home: {
+        avgScored: homeStats.avgScored, avgConceded: homeStats.avgConceded,
+        avgCorners: homeStats.avgCorners, avgCards: homeStats.avgCards,
+        avgShotsOn: homeStats.avgShotsOn || null, avgShotsTotal: homeStats.avgShotsTotal || null,
+        btts: homeStats.btts, over25: homeStats.over25, cleanSheets: homeStats.cleanSheets,
+        wins: homeStats.wins, draws: homeStats.draws, losses: homeStats.losses,
+        form: homeStats.results?.join('-') || '',
+      },
+      away: {
+        avgScored: awayStats.avgScored, avgConceded: awayStats.avgConceded,
+        avgCorners: awayStats.avgCorners, avgCards: awayStats.avgCards,
+        avgShotsOn: awayStats.avgShotsOn || null, avgShotsTotal: awayStats.avgShotsTotal || null,
+        btts: awayStats.btts, over25: awayStats.over25, cleanSheets: awayStats.cleanSheets,
+        wins: awayStats.wins, draws: awayStats.draws, losses: awayStats.losses,
+        form: awayStats.results?.join('-') || '',
+      },
+    },
+    // NEW: All edges (not just top 5)
+    edgesDetalle: edges.slice(0, 10),
+    // NEW: H2H detailed
+    h2hResumen,
+    // NEW: Momios analysis
+    momiosAnalisis: {
+      valueBetsDetectados: valueBetsList,
+      erroresLinea,
+      recomendacionMomios: valueBetsList.length > 0
+        ? `${valueBetsList.length} value bet(s) encontrado(s). Mejor edge: ${valueBetsList[0]?.mercado} ${valueBetsList[0]?.pick} con ${valueBetsList[0]?.valorEdge}.`
+        : 'Mercado bien calibrado — sin edges significativos. Precaucion con apuestas grandes.',
+    },
+    // NEW: Tendencias
+    tendenciasDetectadas,
     _model: 'poisson-kelly',
-    _version: '1.0',
+    _version: '2.0',
   };
 
   return res.status(200).json(response);
