@@ -1561,43 +1561,24 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
         }
       } catch(e) { /* odds not critical */ }
 
-      // Call Claude AI analysis first, fallback to statistical model
-      let data;
-      try {
-        const aiRes = await fetch("/api/ai-analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            homeTeam: homeTeam.name,
-            awayTeam: awayTeam.name,
-            homeStats: hS,
-            awayStats: aS,
-          }),
-        });
-        const aiData = await aiRes.json();
-        if (aiData.error && aiData.fallback) throw new Error("AI unavailable");
-        if (aiData.error) throw new Error(aiData.error);
-        data = aiData;
-      } catch (aiErr) {
-        console.warn("AI analysis unavailable, using statistical model:", aiErr.message);
-        // Fallback to Poisson statistical model
-        const fallbackRes = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            homeTeam: homeTeam.name,
-            awayTeam: awayTeam.name,
-            homeStats: hS,
-            awayStats: aS,
-            h2hData: currentH2H || [],
-            oddsData: rawOddsData,
-            splitsData: footballSplits,
-          }),
-        });
-        data = await fallbackRes.json();
-        if (data.error) throw new Error(data.error);
-      }
+      // Call analyze endpoint — sends prompt for Claude AI, falls back to Poisson internally
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          homeTeam: homeTeam.name,
+          awayTeam: awayTeam.name,
+          homeStats: hS,
+          awayStats: aS,
+          h2hData: currentH2H || [],
+          oddsData: rawOddsData,
+          splitsData: footballSplits,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
 
       const fullAnalysis = {
         ...data,

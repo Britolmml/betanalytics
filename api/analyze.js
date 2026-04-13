@@ -554,6 +554,53 @@ function generateAlerts(poisson, homeStats, awayStats, h2h) {
   return alerts;
 }
 
+// ── Claude AI analysis ────────────────────────────────────────
+async function callClaudeAI(prompt, homeStats, awayStats) {
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_API_KEY) return null;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5-20250514",
+        max_tokens: 4096,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const text = data?.content?.[0]?.text || "";
+
+    // Parse JSON — handle markdown wrapping
+    const jsonStr = text.replace(/^```json?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+    try {
+      const parsed = JSON.parse(jsonStr);
+      parsed._model = "claude-sonnet-4-5-20250514";
+      parsed._source = "anthropic-api";
+      return parsed;
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        parsed._model = "claude-sonnet-4-5-20250514";
+        parsed._source = "anthropic-api";
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn("Claude AI error:", err.message);
+  }
+  return null;
+}
+
 // ── Main handler ───────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
@@ -563,9 +610,26 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { homeTeam, awayTeam, homeStats, awayStats, h2hData, oddsData, splitsData, refereeData, fatigueData } = req.body;
+  const { homeTeam, awayTeam, homeStats, awayStats, h2hData, oddsData, splitsData, refereeData, fatigueData, prompt } = req.body;
 
   if (!homeStats || !awayStats) return res.status(400).json({ error: "homeStats y awayStats requeridos" });
+
+  // If prompt is provided, try Claude AI first
+  if (prompt) {
+    const aiResult = await callClaudeAI(prompt, homeStats, awayStats);
+    if (aiResult) {
+      // Enrich with Poisson baseline
+      const poisson = calcPoisson(homeStats, awayStats, analyzeH2H(h2hData), refereeData, fatigueData);
+      if (poisson) {
+        aiResult._poisson = poisson;
+        if (!aiResult.probabilidades) {
+          aiResult.probabilidades = { local: poisson.pHome, empate: poisson.pDraw, visitante: poisson.pAway };
+        }
+      }
+      return res.status(200).json(aiResult);
+    }
+    // Claude failed — fall through to Poisson
+  }
 
   // Parse inputs
   const h2h = analyzeH2H(h2hData);
@@ -607,8 +671,8 @@ export default async function handler(req, res) {
     alertas: alerts,
     tendencias: {
       golesEsperados: poisson.expectedGoals,
-      cornersEsperados: +(homeStats.avgCorners + awayStats.avgCorners).toFixed(1),
-      tarjetasEsperadas: +(homeStats.avgCards + awayStats.avgCards).toFixed(1),
+      cornersEsperados: +((homeStats.avgCorners || 0) + (awayStats.avgCorners || 0)).toFixed(1),
+      tarjetasEsperadas: +((homeStats.avgCards || 0) + (awayStats.avgCards || 0)).toFixed(1),
     },
     contextoExtra: {
       xgHome: poisson.xgHome,
