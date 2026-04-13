@@ -77,6 +77,7 @@ export default function AuthModal({ onClose, onAuth }) {
   // ── LOGIN ──────────────────────────────────────────────
   async function handleLogin(e) {
     e.preventDefault();
+    if (!supabase) return setError("Servicio no disponible. Intenta más tarde.");
     setLoading(true); reset();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
@@ -88,6 +89,7 @@ export default function AuthModal({ onClose, onAuth }) {
   // ── REGISTRO ───────────────────────────────────────────
   async function handleRegister(e) {
     e.preventDefault();
+    if (!supabase) return setError("Servicio no disponible. Intenta más tarde.");
     reset();
     if (password !== confirmPassword) return setError("Las contraseñas no coinciden.");
     if (password.length < 6) return setError("La contraseña debe tener al menos 6 caracteres.");
@@ -105,6 +107,7 @@ export default function AuthModal({ onClose, onAuth }) {
 
   // ── GOOGLE ─────────────────────────────────────────────
   async function handleGoogle() {
+    if (!supabase) return setError("Servicio no disponible. Intenta más tarde.");
     setLoading(true); reset();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -119,6 +122,7 @@ export default function AuthModal({ onClose, onAuth }) {
   // ── RECUPERAR CONTRASEÑA ────────────────────────────────
   async function handleRecover(e) {
     e.preventDefault();
+    if (!supabase) return setError("Servicio no disponible. Intenta más tarde.");
     setLoading(true); reset();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}?reset=true`,

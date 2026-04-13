@@ -8,7 +8,11 @@
     { "source": "/api/webhook", "destination": "/api/webhook" },
     { "source": "/api/create-checkout", "destination": "/api/create-checkout" },
     { "source": "/api/mlb-stats", "destination": "/api/mlb-stats" },
-    { "source": "/api/news", "destination": "/api/news" }
+    { "source": "/api/news", "destination": "/api/news" },
+    { "source": "/api/analyze", "destination": "/api/analyze" },
+    { "source": "/api/ai-analyze", "destination": "/api/ai-analyze" },
+    { "source": "/api/nba-analyze", "destination": "/api/nba-analyze" },
+    { "source": "/api/nba-injuries", "destination": "/api/nba-injuries" }
   ],
   "headers": [
     {

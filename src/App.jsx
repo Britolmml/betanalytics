@@ -123,8 +123,8 @@ function calcStats(matches, teamName) {
   if (!last5.length) return null;
   const gs  = last5.map(m => m.home===teamName ? m.homeGoals   : m.awayGoals);
   const gc  = last5.map(m => m.home===teamName ? m.awayGoals   : m.homeGoals);
-  const cor = last5.map(m => m.home===teamName ? m.homeCorners : m.awayCorners);
-  const yel = last5.map(m => m.home===teamName ? m.homeYellow  : m.awayYellow);
+  const cor = last5.map(m => m.home===teamName ? m.homeCorners : m.awayCorners).filter(v => v !== null && v !== undefined);
+  const yel = last5.map(m => m.home===teamName ? m.homeYellow  : m.awayYellow).filter(v => v !== null && v !== undefined);
   const shotsOn    = last5.map(m => m.home===teamName ? m.homeShotsOn    : m.awayShotsOn).filter(v => v !== null && v !== undefined);
   const shotsTotal = last5.map(m => m.home===teamName ? m.homeShotsTotal : m.awayShotsTotal).filter(v => v !== null && v !== undefined);
   const results = last5.map(m => {
@@ -135,8 +135,8 @@ function calcStats(matches, teamName) {
   return {
     avgScored:      +avg(gs).toFixed(2),
     avgConceded:    +avg(gc).toFixed(2),
-    avgCorners:     +avg(cor).toFixed(1),
-    avgCards:       +avg(yel).toFixed(1),
+    avgCorners:     cor.length ? +avg(cor).toFixed(1) : 0,
+    avgCards:       yel.length ? +avg(yel).toFixed(1) : 0,
     avgShotsOn:     shotsOn.length    ? +avg(shotsOn).toFixed(1)    : null,
     avgShotsTotal:  shotsTotal.length ? +avg(shotsTotal).toFixed(1) : null,
     results,
@@ -506,6 +506,9 @@ export default function App() {
   const [jornadaErr,    setJornadaErr]    = useState("");
   const [odds,          setOdds]          = useState({});
   const [loadingOdds,   setLoadingOdds]   = useState(false);
+
+  // Predicciones guardadas
+  const [savedPreds,    setSavedPreds]    = useState([]);
 
   // Modo comparación rápida
   const [showCompare,   setShowCompare]   = useState(false);
@@ -915,10 +918,10 @@ export default function App() {
           away: f.teams?.away?.name ?? "",
           homeGoals: f.goals?.home ?? 0,
           awayGoals: f.goals?.away ?? 0,
-          homeCorners:  Math.floor(Math.random()*4)+3,
-          awayCorners:  Math.floor(Math.random()*4)+3,
-          homeYellow:   Math.floor(Math.random()*3)+1,
-          awayYellow:   Math.floor(Math.random()*3)+1,
+          homeCorners:  null,
+          awayCorners:  null,
+          homeYellow:   null,
+          awayYellow:   null,
           homeShotsOn:  null,
           awayShotsOn:  null,
           homeShotsTotal: null,
@@ -1033,14 +1036,7 @@ export default function App() {
     if (side==="home") { setHomeTeam(team); await loadMatches(team, setHomeMatches, "home"); }
     else               { setAwayTeam(team); await loadMatches(team, setAwayMatches, "away"); }
     if (newHome && newAway) await loadH2H(newHome.id, newAway.id);
-    // Recalculate Poisson when both teams ready
-    if (newHome && newAway) {
-      const hMatches = side==="home" ? [] : homeMatches;
-      const aMatches = side==="away" ? [] : awayMatches;
-      const hS = calcStats(hMatches, newHome.name);
-      const aS = calcStats(aMatches, newAway.name);
-      if (hS && aS) setPoisson(calcPoisson(hS, aS, hMatches.filter(m=>m.home===newHome.name), aMatches.filter(m=>m.away===newAway.name)));
-    }
+    // Poisson is calculated in predict() with fresh data — no premature calc here
     setLoadingM(false);
   };
 
@@ -1535,43 +1531,73 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
           const key1 = `${homeTeam.name}|${awayTeam.name}`;
           const key2 = `${awayTeam.name}|${homeTeam.name}`;
           let markets = currentOddsMap[key1] || currentOddsMap[key2] || currentOddsMap["__fixture__"];
+          if (!markets) {
+            const oddsKey = Object.keys(currentOddsMap).find(k => {
+              const [h, a] = k.split("|");
+              return (fuzzyMatch(h, homeTeam.name) && fuzzyMatch(a, awayTeam.name)) ||
+                     (fuzzyMatch(h, awayTeam.name) && fuzzyMatch(a, homeTeam.name));
+            });
+            if (oddsKey) markets = currentOddsMap[oddsKey];
+          }
           if (markets?.length > 0) {
+            const h2hMarket = markets.find(m => m.key === "h2h");
+            const totalsMarket = markets.find(m => m.key === "totals");
             rawOddsData = {
               bookmakers: [{ name: "api-sports", bets: [] }],
             };
-            if (h2hM) {
+            if (h2hMarket) {
               rawOddsData.bookmakers[0].bets.push({
                 name: "Match Winner",
-                values: h2hM.outcomes.map(o => ({ value: o.name, odd: String(o.price) })),
+                values: h2hMarket.outcomes.map(o => ({ value: o.name, odd: String(o.price) })),
               });
             }
-            if (totalsM) {
+            if (totalsMarket) {
               rawOddsData.bookmakers[0].bets.push({
                 name: "Goals Over/Under",
-                values: totalsM.outcomes.map(o => ({ value: `${o.name === "Over" ? "Over" : "Under"} ${o.point}`, odd: String(o.price) })),
+                values: totalsMarket.outcomes.map(o => ({ value: `${o.name === "Over" ? "Over" : "Under"} ${o.point}`, odd: String(o.price) })),
               });
             }
           }
         }
       } catch(e) { /* odds not critical */ }
 
-      // Call the statistical model
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          homeTeam: homeTeam.name,
-          awayTeam: awayTeam.name,
-          homeStats: hS,
-          awayStats: aS,
-          h2hData: currentH2H || [],
-          oddsData: rawOddsData,
-          splitsData: footballSplits,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      // Call Claude AI analysis first, fallback to statistical model
+      let data;
+      try {
+        const aiRes = await fetch("/api/ai-analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            homeTeam: homeTeam.name,
+            awayTeam: awayTeam.name,
+            homeStats: hS,
+            awayStats: aS,
+          }),
+        });
+        const aiData = await aiRes.json();
+        if (aiData.error && aiData.fallback) throw new Error("AI unavailable");
+        if (aiData.error) throw new Error(aiData.error);
+        data = aiData;
+      } catch (aiErr) {
+        console.warn("AI analysis unavailable, using statistical model:", aiErr.message);
+        // Fallback to Poisson statistical model
+        const fallbackRes = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            homeTeam: homeTeam.name,
+            awayTeam: awayTeam.name,
+            homeStats: hS,
+            awayStats: aS,
+            h2hData: currentH2H || [],
+            oddsData: rawOddsData,
+            splitsData: footballSplits,
+          }),
+        });
+        data = await fallbackRes.json();
+        if (data.error) throw new Error(data.error);
+      }
 
       const fullAnalysis = {
         ...data,
@@ -1942,9 +1968,9 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
       <div style={{background:"rgba(4,10,22,0.97)",borderBottom:"1px solid rgba(0,212,255,0.15)",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:62}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>⚡</span>
-          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:25,letterSpacing:3,background:"linear-gradient(90deg,#00d4ff,#22c55e)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>BETANALYTICS</div>
+          <div className="header-brand" style={{fontFamily:"'Bebas Neue',cursive",fontSize:25,letterSpacing:3,background:"linear-gradient(90deg,#00d4ff,#22c55e)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>BETANALYTICS</div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <div className="header-nav" style={{display:"flex",gap:8,alignItems:"center"}}>
           {view==="analysis" && (
             <button onClick={()=>{setView("setup");setAnalysis(null);}} style={{background:"rgba(0,212,255,0.06)",border:"1px solid rgba(0,212,255,0.15)",borderRadius:8,padding:"6px 12px",color:"#7dd3e8",cursor:"pointer",fontSize:12}}>
               {lang==="en"?"← New analysis":"← Nuevo análisis"}
@@ -1977,7 +2003,7 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         </div>
       </div>
 
-      <div style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px",display:activeSport==="football"?"block":"none"}}>
+      <div className="main-content" style={{maxWidth:1060,margin:"0 auto",padding:"18px 16px",display:activeSport==="football"?"block":"none"}}>
 
 
 
@@ -2396,15 +2422,37 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
                 )}
                 <div ref={predictRef} style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
                   <button onClick={predict} disabled={loadingAI}
-                    style={{background:loadingAI?"rgba(0,212,255,0.28)":"linear-gradient(135deg,#00d4ff,#0ea5e9)",
-                            border:"none",borderRadius:14,padding:"16px 36px",color:"#fff",
+                    className={loadingAI ? "" : "conf-badge-high"}
+                    style={{background:loadingAI?"rgba(0,212,255,0.15)":"linear-gradient(135deg,#00d4ff,#0ea5e9)",
+                            border:loadingAI?"1px solid rgba(0,212,255,0.3)":"none",borderRadius:14,padding:"16px 36px",color:"#fff",
                             fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:3,
                             cursor:loadingAI?"not-allowed":"pointer",
-                            boxShadow:"0 0 36px rgba(0,212,255,0.22)"}}>
-                    {loadingAI?`⏳ ${lang==="en"?"ANALYZING...":"ANALIZANDO..."}`:`⚡ ${lang==="en"?"AI PREDICTION":"PREDICCIÓN IA"}`}
+                            boxShadow:loadingAI?"none":"0 0 36px rgba(0,212,255,0.22)",
+                            display:"flex",alignItems:"center",gap:12}}>
+                    {loadingAI ? (
+                      <>
+                        <div className="ai-spinner" style={{width:20,height:20,borderWidth:2}} />
+                        <span>{lang==="en"?"CLAUDE AI ANALYZING...":"CLAUDE IA ANALIZANDO..."}</span>
+                      </>
+                    ) : (
+                      <span>{`⚡ ${lang==="en"?"AI PREDICTION":"PREDICCION IA"}`}</span>
+                    )}
                   </button>
                 </div>
-                {aiErr && <div style={{color:"#ef4444",fontSize:12,marginTop:8,maxWidth:480,margin:"8px auto 0"}}>{aiErr}</div>}
+                {loadingAI && (
+                  <div style={{animation:"fadeIn 0.3s ease",marginTop:12,padding:16,borderRadius:12,background:"rgba(0,212,255,0.04)",border:"1px solid rgba(0,212,255,0.1)",maxWidth:480,margin:"12px auto 0"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                      <div className="ai-spinner" style={{width:16,height:16,borderWidth:2,flexShrink:0}} />
+                      <span style={{fontSize:12,color:"#00d4ff",fontWeight:700}}>{lang==="en"?"Analyzing with Claude AI...":"Analizando con Claude IA..."}</span>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      <div className="skeleton" style={{height:12,width:"90%"}} />
+                      <div className="skeleton" style={{height:12,width:"75%"}} />
+                      <div className="skeleton" style={{height:12,width:"60%"}} />
+                    </div>
+                  </div>
+                )}
+                {aiErr && <div style={{color:"#ef4444",fontSize:12,marginTop:8,maxWidth:480,margin:"8px auto 0",animation:"slideDown 0.3s ease"}}>{aiErr}</div>}
                 <div style={{fontSize:11,color:"#444",marginTop:6}}>{homeTeam.name} vs {awayTeam.name} · {league?.name}</div>
               </div>
             )}
@@ -2414,11 +2462,14 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
         {/* Analysis */}
         {view==="analysis" && analysis && (()=>{
           const p=analysis.probabilidades||{};
+          const aiModel = analysis._model || "poisson-kelly";
+          const isClaudeAI = analysis._source === "anthropic-api";
           return (
-            <div ref={analysisRef}>
+            <div ref={analysisRef} style={{animation:"fadeInUp 0.5s ease-out"}}>
               {/* Banner */}
-              <div style={{...C.cardG,textAlign:"center",marginBottom:16,padding:"24px 16px"}}>
-                <div style={{fontSize:9,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{league?.flag} {league?.name} · Predicción IA</div>
+              <div style={{...C.cardG,textAlign:"center",marginBottom:16,padding:"24px 16px",position:"relative",overflow:"hidden"}}>
+                {isClaudeAI && <div style={{position:"absolute",top:8,right:12,background:"linear-gradient(135deg,rgba(168,85,247,0.2),rgba(0,212,255,0.1))",border:"1px solid rgba(168,85,247,0.3)",borderRadius:6,padding:"2px 8px",fontSize:9,fontWeight:800,color:"#c084fc",letterSpacing:0.5}}>CLAUDE AI</div>}
+                <div style={{fontSize:9,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{league?.flag} {league?.name} · {isClaudeAI ? "Analisis IA Claude" : "Modelo Estadistico"}</div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:28,flexWrap:"wrap"}}>
                   <div>
                     <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:22}}>{homeTeam?.name}</div>
@@ -2472,15 +2523,16 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               <div style={{...C.card,marginBottom:14}}>
                 <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>📊 {lang==="en"?"Probabilities":"Probabilidades"}</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                  {[{l:`${lang==="en"?"Win":"Victoria"} ${homeTeam?.name?.split(" ").slice(-1)[0]}`,v:p.local,c:"#00d4ff"},
-                    {l:lang==="en"?"Draw":"Empate",v:p.empate,c:"#f59e0b"},
-                    {l:`${lang==="en"?"Win":"Victoria"} ${awayTeam?.name?.split(" ").slice(-1)[0]}`,v:p.visitante,c:"#3b82f6"}]
-                    .map(({l,v,c})=>(
-                    <div key={l} style={{textAlign:"center",padding:"12px 8px",background:"rgba(255,255,255,0.03)",borderRadius:10}}>
-                      <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:38,color:c,lineHeight:1}}>{v}%</div>
-                      <div style={{fontSize:10,color:"#666",marginTop:4}}>{l}</div>
-                      <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:8,overflow:"hidden"}}>
-                        <div style={{width:`${v}%`,height:"100%",background:c}}/>
+                  {[{l:`${lang==="en"?"Win":"Victoria"} ${homeTeam?.name?.split(" ").slice(-1)[0]}`,v:p.local,c:"#00d4ff",best:p.local>=p.empate&&p.local>=p.visitante},
+                    {l:lang==="en"?"Draw":"Empate",v:p.empate,c:"#f59e0b",best:p.empate>=p.local&&p.empate>=p.visitante},
+                    {l:`${lang==="en"?"Win":"Victoria"} ${awayTeam?.name?.split(" ").slice(-1)[0]}`,v:p.visitante,c:"#3b82f6",best:p.visitante>=p.local&&p.visitante>=p.empate}]
+                    .map(({l,v,c,best},idx)=>(
+                    <div key={l} className="card-animate" style={{textAlign:"center",padding:"14px 8px",background:best?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.02)",borderRadius:12,border:best?`1px solid ${c}33`:"1px solid transparent",position:"relative",animationDelay:`${idx*0.1}s`}}>
+                      {best && <div style={{position:"absolute",top:6,right:6,width:6,height:6,borderRadius:"50%",background:c,boxShadow:`0 0 8px ${c}`}} />}
+                      <div className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:42,color:c,lineHeight:1,animation:"countUp 0.6s ease-out both",animationDelay:`${0.2+idx*0.1}s`}}>{v}<span style={{fontSize:18,opacity:0.7}}>%</span></div>
+                      <div style={{fontSize:10,color:best?"#aaa":"#555",marginTop:6,fontWeight:best?700:400}}>{l}</div>
+                      <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:8,overflow:"hidden"}}>
+                        <div className="stat-bar-fill" style={{width:`${v}%`,height:"100%",background:`linear-gradient(90deg,${c},${c}88)`,borderRadius:2}}/>
                       </div>
                     </div>
                   ))}
@@ -2789,33 +2841,50 @@ ${awayTeam.name} (visitante): Goles prom ${aS.avgScored}/${aS.avgConceded} | For
               {/* Apuestas */}
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:10,color:"#00d4ff",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontWeight:700}}>🎯 {lang==="en"?"Recommended Bets":"Apuestas recomendadas"}</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:9}}>
-                  {(analysis.apuestasDestacadas||[]).map((a,i)=>(
-                    <div key={i} style={{...C.card,borderColor:`${confColor(a.confianza)}2a`,padding:14}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{a.tipo}</div>
-                      <div style={{fontWeight:800,fontSize:14,marginBottom:8}}>{a.pick}</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+                  {(analysis.apuestasDestacadas||[]).map((a,i)=>{
+                    const isValue = a.hasValue || (a.confianza >= 65 && a.odds_sugerido && a.odds_sugerido !== "N/A");
+                    const cColor = confColor(a.confianza);
+                    return (
+                    <div key={i} className="card-animate" style={{
+                      ...C.card,
+                      borderColor:`${cColor}33`,
+                      padding:"16px 14px",
+                      position:"relative",
+                      animationDelay:`${i*0.08}s`,
+                      background: i===0 ? `linear-gradient(135deg,${cColor}08,transparent)` : C.card.background,
+                    }}>
+                      {i===0 && <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${cColor},transparent)`,borderRadius:"16px 16px 0 0"}}/>}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>{a.tipo}</span>
+                          {isValue && <span className="value-badge">VALUE</span>}
+                        </div>
+                        {i===0 && <span style={{fontSize:8,color:cColor,fontWeight:800,background:`${cColor}15`,borderRadius:4,padding:"1px 6px"}}>BEST PICK</span>}
+                      </div>
+                      <div style={{fontWeight:800,fontSize:15,marginBottom:10,color:"#e8eaf0",lineHeight:1.3}}>{a.pick}</div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
                         <div>
-                          <div style={{fontSize:9,color:"#444"}}>{lang==="en"?"Suggested odds":"Cuota sugerida"}</div>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:20,color:"#f59e0b"}}>{a.odds_sugerido}</div>
+                          <div style={{fontSize:9,color:"#444",marginBottom:2}}>{lang==="en"?"Suggested odds":"Cuota sugerida"}</div>
+                          <div className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,color:"#f59e0b",lineHeight:1}}>{a.odds_sugerido}</div>
                         </div>
                         <div style={{textAlign:"right"}}>
-                          <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:24,color:confColor(a.confianza)}}>{a.confianza}%</div>
+                          <div className="num-mono" style={{fontFamily:"'Bebas Neue',cursive",fontSize:28,color:cColor,lineHeight:1}}>{a.confianza}<span style={{fontSize:14,opacity:0.6}}>%</span></div>
                           <Pill rgb={a.confianza>=70?"0,212,255":a.confianza>=58?"245,158,11":"239,68,68"}>{confLabel(a.confianza)}</Pill>
                         </div>
                       </div>
-                      <div style={{height:2,background:"rgba(255,255,255,0.05)",borderRadius:1,marginTop:9,overflow:"hidden"}}>
-                        <div style={{width:`${a.confianza}%`,height:"100%",background:confColor(a.confianza)}}/>
+                      <div style={{height:3,background:"rgba(255,255,255,0.05)",borderRadius:2,marginTop:10,overflow:"hidden"}}>
+                        <div className="stat-bar-fill" style={{width:`${a.confianza}%`,height:"100%",background:`linear-gradient(90deg,${cColor}88,${cColor})`,borderRadius:2}}/>
                       </div>
                       {a.factores?.length>0 && (
                         <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:3}}>
                           {a.factores.map((f,j)=>(
-                            <span key={j} style={{fontSize:9,color:"#555",background:"rgba(255,255,255,0.04)",borderRadius:4,padding:"2px 6px"}}>✓ {f}</span>
+                            <span key={j} style={{fontSize:9,color:"#666",background:"rgba(255,255,255,0.04)",borderRadius:4,padding:"2px 7px",lineHeight:1.4}}>✓ {f}</span>
                           ))}
                         </div>
                       )}
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
 

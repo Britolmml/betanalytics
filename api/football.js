@@ -17,7 +17,9 @@ async function handleUsage(req, res) {
   const sb = getServiceSupabase();
   if (!sb) return res.status(500).json({ error: "Supabase no configurado" });
   const { action, userId } = req.method === "POST" ? req.body : req.query;
-  if (!userId) return res.status(400).json({ error: "userId requerido" });
+  if (!userId || typeof userId !== "string" || userId.length < 10 || userId.length > 128) {
+    return res.status(400).json({ error: "userId invalido" });
+  }
   // Usar fecha en zona horaria México para consistencia con el frontend
   const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   try {
@@ -106,6 +108,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json(data);
   } catch (e) {
-    return res.status(500).json({ error: "Error contactando API-Football: " + e.message });
+    console.error("API-Football error:", e.message);
+    return res.status(500).json({ error: "Error contactando el servicio de datos de futbol" });
   }
 }
