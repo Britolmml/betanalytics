@@ -704,16 +704,56 @@ export default async function handler(req, res) {
   const trendContext = tendenciasDetectadas.length > 0 ? ` Tendencia clave: ${tendenciasDetectadas[0]}.` : '';
   const summary = `Modelo proyecta ${homeTeam} ${poisson.xPtsHome}-${poisson.xPtsAway} ${awayTeam} (total: ${poisson.total}, spread: ${poisson.spread > 0 ? '+' : ''}${poisson.spread}). ${favTeam} tiene ${Math.max(poisson.pHome, poisson.pAway)}% de victoria.${injuryContext}${trendContext} ${poisson.total >= 230 ? 'Alta puntuacion esperable.' : poisson.total <= 205 ? 'Defensas dominantes esperables.' : ''}`;
 
+  // ── Full Poisson detail ──
+  const overLines = [200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250];
+  const poissonDetalle = {
+    xPtsHome: poisson.xPtsHome, xPtsAway: poisson.xPtsAway,
+    total: poisson.total, spread: poisson.spread,
+    hOff: poisson.hOff, hDef: poisson.hDef,
+    aOff: poisson.aOff, aDef: poisson.aDef,
+    pHome: poisson.pHome, pAway: poisson.pAway,
+  };
+  overLines.forEach(l => { poissonDetalle[`pOver${l}`] = poisson[`pOver${l}`] || null; });
+
+  // ── Stats detail ──
+  const statsDetalle = {
+    home: {
+      avgPts: homeStats.avgPts, avgPtsCon: homeStats.avgPtsCon,
+      wins: homeStats.wins, games: homeStats.games,
+      form: homeStats.results || '',
+    },
+    away: {
+      avgPts: awayStats.avgPts, avgPtsCon: awayStats.avgPtsCon,
+      wins: awayStats.wins, games: awayStats.games,
+      form: awayStats.results || '',
+    },
+  };
+
+  // ── H2H detail ──
+  const h2hResumen = (h2hData && h2hData.length > 0) ? (() => {
+    const recent = h2hData.slice(0, 5);
+    const hWins = recent.filter(g => (g.hPts > g.aPts && g.home === homeTeam) || (g.aPts > g.hPts && g.away === homeTeam)).length;
+    const avgTotal = recent.reduce((s, g) => s + (g.hPts || 0) + (g.aPts || 0), 0) / recent.length;
+    return {
+      partidos: recent.length,
+      victorias: { home: hWins, away: recent.length - hWins },
+      promedioTotal: +avgTotal.toFixed(0),
+      dominador: hWins >= 3 ? homeTeam : (recent.length - hWins >= 3) ? awayTeam : null,
+      overRate: Math.round((recent.filter(g => (g.hPts || 0) + (g.aPts || 0) > 220).length / recent.length) * 100),
+      detalle: recent.map(g => ({ date: g.date || '', home: g.home, away: g.away, hPts: g.hPts, aPts: g.aPts })),
+    };
+  })() : null;
+
   return res.status(200).json({
     resumen: summary,
     ganadorProbable: favTeam,
     probabilidades: { home: poisson.pHome, away: poisson.pAway },
     prediccionMarcador: `${Math.round(poisson.xPtsHome)}-${Math.round(poisson.xPtsAway)}`,
     apuestasDestacadas: picks,
-    recomendaciones: picks.slice(0, 3).map(p => ({
+    recomendaciones: picks.slice(0, 5).map(p => ({
       mercado: p.tipo, seleccion: p.pick,
       confianza: Math.round(p.confianza),
-      razonamiento: p.razon || p.factores.join('. '),
+      razonamiento: p.razon || p.factores?.join('. ') || '',
     })),
     alertas: alerts,
     tendencias: {
@@ -726,12 +766,15 @@ export default async function handler(req, res) {
       homeOffense: poisson.hOff, homeDefense: poisson.hDef,
       awayOffense: poisson.aOff, awayDefense: poisson.aDef,
     },
-    edgesDetalle: edges.slice(0, 5),
-    valueBet: valueBet,
-    erroresLinea: lineErrors.length > 0 ? lineErrors : [{ descripcion: "Sin errores de linea detectados — mercado bien calibrado", mercado: "General", contradiccion: "—" }],
-    nivelConfianza: nivelConfianza,
-    razonConfianza: razonConfianza,
+    poissonDetalle,
+    statsDetalle,
+    h2hResumen,
+    edgesDetalle: edges.slice(0, 10),
+    valueBet,
+    erroresLinea: lineErrors.length > 0 ? lineErrors : [],
+    nivelConfianza,
+    razonConfianza,
     _model: 'nba-poisson-normal',
-    _version: '3.0',
+    _version: '4.0',
   });
 }

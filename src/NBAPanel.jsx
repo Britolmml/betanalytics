@@ -1649,6 +1649,77 @@ Responde SOLO JSON sin texto extra: ` + JSON.stringify({
                           </div>
                         )}
 
+                        {/* Full Over/Under Probability Grid */}
+                        {analysis.poissonDetalle && (
+                          <div className="card-animate" style={{ background: "rgba(249,115,22,0.05)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 10, padding: "12px 14px", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "#f97316", fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>📊 {lang==="en"?"OVER/UNDER ALL LINES":"OVER/UNDER TODAS LAS LINEAS"}</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
+                              {[215,220,225,230,235,240,245,250].map(line => {
+                                const v = analysis.poissonDetalle[`pOver${line}`];
+                                if (v == null) return null;
+                                const c = v >= 55 ? "#22c55e" : v >= 45 ? "#f59e0b" : "#ef4444";
+                                return (
+                                  <div key={line} style={{ textAlign: "center", padding: "6px 4px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                                    <div className="num-mono" style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 20, color: c, lineHeight: 1 }}>{v}%</div>
+                                    <div style={{ fontSize: 8, color: "#555", marginTop: 2 }}>O {line}</div>
+                                    <div style={{ height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 1, marginTop: 3, overflow: "hidden" }}>
+                                      <div className="stat-bar-fill" style={{ width: `${v}%`, height: "100%", background: c }} />
+                                    </div>
+                                  </div>
+                                );
+                              }).filter(Boolean)}
+                            </div>
+                            <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: "#555" }}>
+                              Total proyectado: <span className="num-mono" style={{ color: "#f97316", fontWeight: 800, fontSize: 13 }}>{analysis.poissonDetalle.total}</span> pts
+                              <span style={{ margin: "0 8px" }}>|</span>
+                              Spread: <span className="num-mono" style={{ color: "#00d4ff", fontWeight: 700 }}>{analysis.poissonDetalle.spread > 0 ? "+" : ""}{analysis.poissonDetalle.spread}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recomendaciones detalladas */}
+                        {(analysis.recomendaciones||[]).length > 0 && (
+                          <div style={{ background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.15)", borderRadius: 10, padding: "12px 14px", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "#00d4ff", fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>🧠 {lang==="en"?"MARKET ANALYSIS":"ANALISIS POR MERCADO"}</div>
+                            {analysis.recomendaciones.map((r, i) => (
+                              <div key={i} style={{ marginBottom: 10, paddingBottom: 8, borderBottom: i < analysis.recomendaciones.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 12, color: "#e8eaf0" }}>{r.mercado}</span>
+                                  <span style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 16, color: r.confianza >= 65 ? "#00d4ff" : r.confianza >= 55 ? "#f59e0b" : "#ef4444" }}>{r.confianza}%</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: "#60a5fa", marginBottom: 2 }}>→ {r.seleccion}</div>
+                                <div style={{ fontSize: 10, color: "#666", lineHeight: 1.5 }}>{r.razonamiento}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* H2H with match details */}
+                        {analysis.h2hResumen && analysis.h2hResumen.detalle?.length > 0 && (
+                          <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "12px 14px", marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, marginBottom: 8, letterSpacing: 1 }}>⚔️ H2H {lang==="en"?"RECENT MATCHES":"PARTIDOS RECIENTES"}</div>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+                              <span style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#f87171", fontWeight: 700 }}>{homeName} {analysis.h2hResumen.victorias.home}V</span>
+                              <span style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#3b82f6", fontWeight: 700 }}>{awayName} {analysis.h2hResumen.victorias.away}V</span>
+                              <span style={{ fontSize: 10, color: "#888", padding: "2px 8px", background: "rgba(255,255,255,0.04)", borderRadius: 6 }}>Prom: {analysis.h2hResumen.promedioTotal} pts</span>
+                              <span style={{ fontSize: 10, color: "#888", padding: "2px 8px", background: "rgba(255,255,255,0.04)", borderRadius: 6 }}>Over 220: {analysis.h2hResumen.overRate}%</span>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                              {analysis.h2hResumen.detalle.map((g, i) => {
+                                const hW = g.hPts > g.aPts;
+                                return (
+                                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 6, borderLeft: `3px solid ${hW ? "#ef4444" : "#3b82f6"}` }}>
+                                    <span style={{ fontSize: 9, color: "#444", minWidth: 55 }}>{g.date}</span>
+                                    <span style={{ fontSize: 11, fontWeight: hW ? 700 : 400, color: hW ? "#f87171" : "#888", flex: 1, textAlign: "right" }}>{g.home}</span>
+                                    <span className="num-mono" style={{ fontFamily: "'Bebas Neue',cursive", fontSize: 16, color: "#e8eaf0", minWidth: 55, textAlign: "center" }}>{g.hPts}-{g.aPts}</span>
+                                    <span style={{ fontSize: 11, fontWeight: !hW ? 700 : 400, color: !hW ? "#3b82f6" : "#888", flex: 1 }}>{g.away}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Tendencias */}
                         {(analysis.tendenciasDetectadas||[]).length > 0 && (
                           <div style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
