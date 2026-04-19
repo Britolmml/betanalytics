@@ -149,7 +149,7 @@ export async function autoResolveFootball(userId) {
 
   for (const [fixtureId, picks] of Object.entries(byFixture)) {
     try {
-      const res = await fetch(`/api/football?path=/fixtures&id=${fixtureId}`);
+      const res = await fetch(`/api/sports?sport=football&path=/fixtures&id=${fixtureId}`);
       const data = await res.json();
       const fixture = data?.response?.[0];
       if (!fixture) continue;
@@ -353,7 +353,7 @@ export async function getUserPlan(userId) {
 
 export async function checkUsageLimit(userId) {
   try {
-    const res = await fetch(`/api/football?action=check&userId=${userId}&_=${Date.now()}`, {
+    const res = await fetch(`/api/sports?sport=football&action=check&userId=${userId}&_=${Date.now()}`, {
       cache: "no-store",
       headers: { "Cache-Control": "no-cache" }
     });
@@ -367,7 +367,7 @@ export async function checkUsageLimit(userId) {
 
 export async function incrementUsage(userId) {
   try {
-    await fetch(`/api/football?action=increment&userId=${userId}&_=${Date.now()}`, {
+    await fetch(`/api/sports?sport=football&action=increment&userId=${userId}&_=${Date.now()}`, {
       cache: "no-store"
     });
   } catch(e) { console.warn("incrementUsage error:", e.message); }

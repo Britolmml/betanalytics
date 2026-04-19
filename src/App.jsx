@@ -114,7 +114,7 @@ async function fetchFixturesFree(apiFetch, teamId) {
   return allPlayed.slice(0, 10); // últimos 10 partidos máximo
 }
 // Proxy Vercel — en local y en producción usa la misma ruta relativa
-const API_BASE = "/api/football";
+const API_BASE = "/api/sports?sport=football";
 
 function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 
@@ -578,7 +578,7 @@ export default function App() {
   const testAPI = async () => {
     setApiStatus("testing"); setApiMsg("⏳ Probando conexión...");
     try {
-      const res = await fetch(`${API_BASE}?path=/status`);
+      const res = await fetch(`${API_BASE}&path=/status`);
 
       // Si el servidor devuelve un error HTTP (404, 500, etc.)
       if (!res.ok) {
@@ -637,7 +637,7 @@ export default function App() {
     const [basePath, qs] = path.split("?");
     const params = new URLSearchParams(qs || "");
     params.set("path", basePath);
-    const res = await fetch(`${API_BASE}?${params.toString()}`);
+    const res = await fetch(`${API_BASE}&${params.toString()}`);
     if (!res.ok) throw new Error("HTTP " + res.status);
     return res.json();
   }, []);
@@ -1048,15 +1048,15 @@ export default function App() {
       return;
     }
     // Usage check directo sin pasar por supabase.js
-    const _usageRes = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+    const _usageRes = await fetch('/api/sports?sport=football&action=check&userId='+user.id+'&_='+Date.now());
     const usage = await _usageRes.json();
     setUsageInfo(usage);
     if (!usage.allowed) {
       setShowUpgrade(true);
       return;
     }
-    await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
-    const _newRes = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+    await fetch('/api/sports?sport=football&action=increment&userId='+user.id+'&_='+Date.now());
+    const _newRes = await fetch('/api/sports?sport=football&action=check&userId='+user.id+'&_='+Date.now());
     const newUsageCheck = await _newRes.json();
     setUsageInfo(newUsageCheck);
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
@@ -1644,11 +1644,11 @@ Responde SOLO con JSON válido sin texto extra ni backticks markdown:
 
   const predictMulti = async () => {
     if (!user) { setShowAuth(true); return; }
-    const _usageMRes = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+    const _usageMRes = await fetch('/api/sports?sport=football&action=check&userId='+user.id+'&_='+Date.now());
     const usageM = await _usageMRes.json();
     setUsageInfo(usageM);
     if (!usageM.allowed) { setShowUpgrade(true); return; }
-    await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
+    await fetch('/api/sports?sport=football&action=increment&userId='+user.id+'&_='+Date.now());
     setLoadingMulti(true); setMultiResult(null); setShowMulti(true);
     const hS = calcStats(homeMatches, homeTeam.name);
     const aS = calcStats(awayMatches, awayTeam.name);

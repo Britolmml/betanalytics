@@ -6,9 +6,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/football", "destination": "/api/football" },
-    { "source": "/api/basketball", "destination": "/api/basketball" },
-    { "source": "/api/baseball", "destination": "/api/baseball" },
     { "source": "/api/odds", "destination": "/api/odds" },
     { "source": "/api/jornada", "destination": "/api/jornada" },
     { "source": "/api/webhook", "destination": "/api/webhook" },

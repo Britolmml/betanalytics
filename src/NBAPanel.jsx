@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { saveBestPick, supabase } from "./supabase";
 
 /* ─── helpers ─────────────────────────────────────────────── */
-const NBA_PROXY = "/api/basketball";
+const NBA_PROXY = "/api/sports?sport=basketball";
 
 async function nbFetch(path) {
-  const url = NBA_PROXY + "?path=" + encodeURIComponent(path);
+  const url = NBA_PROXY + "&path=" + encodeURIComponent(path);
   const res = await fetch(url);
   const d = await res.json();
   if (d.error) throw new Error(d.error);
@@ -681,10 +681,10 @@ export default function NBAPanel({ onClose, inline = false, lang = "es", user })
     // Check usage limit
     if (user?.id) {
       try {
-        const _r = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+        const _r = await fetch('/api/sports?sport=football&action=check&userId='+user.id+'&_='+Date.now());
         const _u = await _r.json();
         if (!_u.allowed) { setAiErr("Has alcanzado tu límite de análisis diarios. ¡Actualiza tu plan!"); return; }
-        await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
+        await fetch('/api/sports?sport=football&action=increment&userId='+user.id+'&_='+Date.now());
       } catch(e) { console.warn("usage check error", e.message); }
     }
     setLoadingAI(true); setAiErr(""); setAnalysis(null);

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 
-const MLB_PROXY = "/api/baseball";
+const MLB_PROXY = "/api/sports?sport=baseball";
 const MLB_LEAGUE_ID = 1;
 const MLB_SEASON = 2026;
 const SEASON_START = new Date("2026-03-27");
 
 const mlbFetch = async (path) => {
-  const res = await fetch(`${MLB_PROXY}?path=${encodeURIComponent(path)}`);
+  const res = await fetch(`${MLB_PROXY}&path=${encodeURIComponent(path)}`);
   const d = await res.json();
   if (d.error) throw new Error(d.error);
   return d;
@@ -418,10 +418,10 @@ export default function MLBPanel({ inline, lang="es", user }) {
     if (!selectedGame||!preview) return;
     if (user?.id) {
       try {
-        const _r = await fetch('/api/football?action=check&userId='+user.id+'&_='+Date.now());
+        const _r = await fetch('/api/sports?sport=football&action=check&userId='+user.id+'&_='+Date.now());
         const _u = await _r.json();
         if (!_u.allowed) { setAiErr("Has alcanzado tu límite de análisis diarios. ¡Actualiza tu plan!"); return; }
-        await fetch('/api/football?action=increment&userId='+user.id+'&_='+Date.now());
+        await fetch('/api/sports?sport=football&action=increment&userId='+user.id+'&_='+Date.now());
       } catch(e) { console.warn("usage check error", e.message); }
     }
     setLoadingAI(true); setAiErr(""); setAnalysis(null);
