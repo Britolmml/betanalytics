@@ -202,7 +202,8 @@ function calcMLBEdges(poisson, parsedOdds, homeName, awayName) {
     const implied = price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100);
     const edge = ourProb - implied;
     const dec = price > 0 ? (price / 100 + 1) : (100 / Math.abs(price) + 1);
-    const kelly = edge > 0 ? Math.max(0, Math.min(15, parseFloat(((edge / (dec - 1)) * 100).toFixed(1)))) : 0;
+    const fullKelly = edge > 0 ? Math.max(0, (edge / (dec - 1)) * 100) : 0;
+    const kelly = parseFloat((Math.min(fullKelly * 0.25, 5)).toFixed(1)); // 25% Kelly, cap 5%
     edges.push({
       market, pick,
       ourProb: +(ourProb * 100).toFixed(1),
@@ -482,19 +483,21 @@ function buildMLBPicks(poisson, edges, homeName, awayName, pitchers, splitsData,
   }
 
   // ── PICK 2: Total (Over/Under) ──
-  const totalEdge = edges.find(e => e.market === "Total");
-  const marketLine = totalEdge ? parseFloat(totalEdge.pick.replace(/[^0-9.]/g, '')) : poisson.total;
-  const overProb = totalEdge?.ourProb || 50;
-  const overPick = overProb >= 50 ? `Over ${marketLine}` : `Under ${marketLine}`;
+  // Pick the Total side with the best edge (highest model_prob - implied_prob)
+  const totalEdges = edges.filter(e => e.market === "Total");
+  const bestTotalEdge = totalEdges.sort((a, b) => b.edge - a.edge)[0] || null;
+  const marketLine = bestTotalEdge ? parseFloat(bestTotalEdge.pick.replace(/[^0-9.]/g, '')) : poisson.total;
+  const totalPickLabel = bestTotalEdge ? bestTotalEdge.pick : (poisson.total > marketLine ? `Over ${marketLine}` : `Under ${marketLine}`);
+  const totalProb = bestTotalEdge?.ourProb || 50;
   picks.push({
-    tipo: "Total", pick: overPick,
-    confianza: Math.min(68, 45 + Math.abs(overProb - 50) * 1.5),
-    odds_sugerido: totalEdge?.american || "-110",
+    tipo: "Total", pick: totalPickLabel,
+    confianza: Math.min(68, 45 + Math.abs(totalProb - 50) * 1.5),
+    odds_sugerido: bestTotalEdge?.american || "-110",
     categoria: "totales",
-    razon: `Modelo proyecta ${poisson.total} carreras. ${overPick} con ${overProb.toFixed ? overProb.toFixed(1) : overProb}% de probabilidad.`,
+    razon: `Modelo proyecta ${poisson.total} carreras. ${totalPickLabel} con ${typeof totalProb === 'number' ? totalProb.toFixed(1) : totalProb}% (edge: ${bestTotalEdge ? '+' + bestTotalEdge.edge + '%' : 'N/A'}).`,
     factores: [
       `Proyección: ${poisson.total} carreras | Mercado: ${marketLine}`,
-      `${overPick}: ${typeof overProb === 'number' ? overProb.toFixed(1) : overProb}%`,
+      `${totalPickLabel}: ${typeof totalProb === 'number' ? totalProb.toFixed(1) : totalProb}% modelo vs ${bestTotalEdge ? bestTotalEdge.impliedProb + '%' : 'N/A'} implícita`,
       ...pitcherContext.slice(0, 1),
     ],
   });
@@ -702,7 +705,31 @@ function buildMLBPicks(poisson, edges, homeName, awayName, pitchers, splitsData,
     ],
   });
 
-  return picks.sort((a, b) => b.confianza - a.confianza);
+  // Sort by confidence, then filter out negative EV picks for recommendations
+  const sorted = picks.sort((a, b) => b.confianza - a.confianza);
+
+  // Attach EV/edge from edges array to each pick for filtering
+  sorted.forEach(p => {
+    const matchEdge = edges.find(e =>
+      e.pick === p.pick || (p.pick && e.pick && p.pick.includes(e.pick.split(' ')[0]))
+    );
+    p.ev_percent = matchEdge ? +(((matchEdge.ourProb / 100) * matchEdge.decimal - 1) * 100).toFixed(1) : null;
+    p.edge_percent = matchEdge?.edge || null;
+    p.hasValue = matchEdge?.hasValue || false;
+  });
+
+  // Filter: only EV+ picks with meaningful edge pass as recommendations
+  const filtered = sorted.filter(p => {
+    if (p.ev_percent == null || p.edge_percent == null) return false;
+    return p.ev_percent >= 2 && p.edge_percent >= 3;
+  });
+
+  // If no picks pass filter, return top 3 by confidence as fallback (marked as low-value)
+  if (filtered.length === 0) {
+    return sorted.slice(0, 3).map(p => ({ ...p, hasValue: false }));
+  }
+
+  return filtered;
 }
 
 // ── Main handler ──
