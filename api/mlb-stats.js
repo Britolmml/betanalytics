@@ -821,8 +821,10 @@ export default async function handler(req, res) {
     const summary = `Modelo proyecta ${homeTeam} ${poisson.xRunsHome}-${poisson.xRunsAway} ${awayTeam} (total: ${poisson.total}, spread: ${poisson.spread > 0 ? '+' : ''}${poisson.spread}). ${favTeam} tiene ${favPct}% de victoria.${pitcherSummary}${alertas.length ? ' ' + alertas[0] : ''}`;
 
     // ── Paper Trading: save picks with EV data to Supabase ──
+    console.log('[PAPER] Entry check:', { isCalibration, picksCount: picks?.length, homeTeam, awayTeam });
     if (!isCalibration) {
       const sb = getServiceSupabase();
+      console.log('[PAPER] Supabase client:', sb ? 'OK' : 'NULL');
       if (sb) {
         const paperRows = picks.map(pick => {
           // Find matching edge for this pick
@@ -868,12 +870,22 @@ export default async function handler(req, res) {
             model_version: '3.0',
           };
         });
-        // Fire-and-forget — don't block the response
-        sb.from('paper_trades').insert(paperRows).then(({ error }) => {
-          if (error) console.error('Paper trade save error:', error.message);
-          else console.log(`Paper trades saved: ${paperRows.length} picks for ${homeTeam} vs ${awayTeam}`);
+        console.log('[PAPER] paperRows built:', paperRows.length, 'first row sample:', JSON.stringify(paperRows[0]));
+        sb.from('paper_trades').insert(paperRows).then(({ error, data }) => {
+          if (error) {
+            console.error('[PAPER] Insert FAILED:', error.message);
+            console.error('[PAPER] Full error:', JSON.stringify(error));
+          } else {
+            console.log(`[PAPER] Insert SUCCESS: ${paperRows.length} picks for ${homeTeam} vs ${awayTeam}`);
+          }
+        }).catch(err => {
+          console.error('[PAPER] Insert threw exception:', err.message);
         });
+      } else {
+        console.error('[PAPER] Skipped: Supabase client is null');
       }
+    } else {
+      console.log('[PAPER] Skipped: isCalibration=true');
     }
 
     return res.status(200).json({
