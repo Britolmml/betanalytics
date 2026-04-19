@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/paper?action=resolve",
+      "path": "/api/paper",
       "schedule": "0 12 * * *"
     }
   ],
@@ -16,8 +16,7 @@
     { "source": "/api/mlb-stats", "destination": "/api/mlb-stats" },
     { "source": "/api/news", "destination": "/api/news" },
     { "source": "/api/analyze", "destination": "/api/analyze" },
-    { "source": "/api/nba-analyze", "destination": "/api/nba-analyze" },
-    { "source": "/api/paper", "destination": "/api/paper" }
+    { "source": "/api/nba-analyze", "destination": "/api/nba-analyze" }
   ],
   "headers": [
     {

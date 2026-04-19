@@ -2,9 +2,8 @@
 // Merged from cron-resolve.js + paper-stats.js to stay within Vercel 12-function limit
 //
 // Routes:
-//   GET  /api/paper?action=stats   → CLV dashboard (public, CORS)
-//   POST /api/paper?action=resolve → Capture closing odds, resolve games, compute CLV (auth required)
-//   GET  /api/paper?action=resolve → Same (for cron-job.org GET calls)
+//   GET  /api/paper → CLV dashboard (public, CORS)
+//   POST /api/paper → Capture closing odds, resolve games, compute CLV (auth required)
 //
 // Vercel Cron: runs once daily at 12:00 UTC (fallback)
 // Primary hourly trigger via external service (cron-job.org)
@@ -28,17 +27,15 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const action = req.query.action;
-
-  if (action === "stats") {
+  if (req.method === "GET") {
     return handleStats(req, res);
   }
 
-  if (action === "resolve") {
+  if (req.method === "POST") {
     return handleResolve(req, res);
   }
 
-  return res.status(400).json({ error: "Invalid action. Use action=stats or action=resolve" });
+  return res.status(405).json({ error: "Method Not Allowed. GET=stats, POST=resolve" });
 }
 
 // ══════════════════════════════════════════════════════════════
