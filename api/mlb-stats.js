@@ -718,10 +718,23 @@ function buildMLBPicks(poisson, edges, homeName, awayName, pitchers, splitsData,
     p.hasValue = matchEdge?.hasValue || false;
   });
 
-  // Filter: only EV+ picks with meaningful edge pass as recommendations
+  // Log picks with excessive edge (likely model error, not real opportunity)
+  const excessiveEdges = sorted.filter(p => (p.edge_percent || 0) > 15);
+  if (excessiveEdges.length > 0) {
+    console.log('[PICKS] Discarded picks with excessive edge (likely model error):',
+      JSON.stringify(excessiveEdges.map(p => ({
+        market: p.tipo,
+        selection: p.pick,
+        edge: p.edge_percent,
+        ev: p.ev_percent
+      })))
+    );
+  }
+
+  // Filter: only EV+ picks with meaningful edge, cap at 15% (above = model error)
   const filtered = sorted.filter(p => {
     if (p.ev_percent == null || p.edge_percent == null) return false;
-    return p.ev_percent >= 2 && p.edge_percent >= 3;
+    return p.ev_percent >= 2 && p.edge_percent >= 3 && p.edge_percent <= 15;
   });
 
   // If no picks pass filter, return top 3 by confidence as fallback (marked as low-value)
