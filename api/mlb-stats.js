@@ -57,54 +57,469 @@ function erf(x) {
 }
 const normCDF = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
 
-// ── Pitcher Quality Index ──
-// 0.7 = ace, 1.0 = league average, 1.4+ = bad
+// ══════════════════════════════════════════════════════════════
+// MLB League Constants (v4.0)
+// ══════════════════════════════════════════════════════════════
+const MLB_LEAGUE = {
+  RUNS_PER_GAME: 4.52,    // 2024-2025 MLB average
+  ERA: 4.17,
+  WHIP: 1.28,
+  K_PER_9: 8.58,
+  BB_PER_9: 3.22,
+  HOME_ADV: 1.024,        // ~2.4% home win% boost (historical MLB)
+  KBB_RATE: 0.145,        // league avg K%-BB%
+  PRIOR_KBB: 60,          // IP worth of prior for K-BB% shrinkage
+};
+
+// Bayesian shrinkage prior weights
+const SHRINKAGE_PRIORS = {
+  OFFENSE_IP: 200,   // plate appearances worth of prior (~50 games × 4 PA)
+  DEFENSE_IP: 200,
+  PITCHER_IP: 50,    // innings pitched worth of prior
+};
+
+// Market prior weights (how much to trust the market vs model)
+const MARKET_PRIOR_WEIGHTS = {
+  moneyline: 0.35,   // 35% model, 65% market for ML
+};
+
+/**
+ * Bayesian shrinkage: blend observed rating toward league average
+ * based on sample size. More data → trust observed more.
+ * @param {number} observed - raw observed rating
+ * @param {number} sampleSize - games or IP
+ * @param {number} leagueAvg - league average (prior mean)
+ * @param {number} priorWeight - how many units of sample = 50/50 blend
+ * @returns {number} shrunk rating
+ */
+function shrunkRating(observed, sampleSize, leagueAvg, priorWeight) {
+  if (!sampleSize || sampleSize <= 0) return leagueAvg;
+  const weight = sampleSize / (sampleSize + priorWeight);
+  return observed * weight + leagueAvg * (1 - weight);
+}
+
+/**
+ * Cap lambda (expected runs) to realistic MLB range.
+ * 2.5 = elite pitcher + weak offense floor
+ * 7.5 = worst pitcher + elite offense ceiling
+ */
+function capLambda(lambda) {
+  return Math.max(2.5, Math.min(7.5, lambda));
+}
+
+/**
+ * Blend model probability with devigged market implied probability.
+ * @param {number} modelProb - model's P(home) as proportion 0-1
+ * @param {number} homeDecimal - decimal odds for home
+ * @param {number} awayDecimal - decimal odds for away
+ * @param {number} modelWeight - weight for model (0-1), rest goes to market
+ * @returns {number} blended probability 0-1
+ */
+function marketPriorBlend(modelProb, homeDecimal, awayDecimal, modelWeight) {
+  if (!homeDecimal || homeDecimal <= 1 || !awayDecimal || awayDecimal <= 1) return modelProb;
+  // Devig: remove vig using multiplicative method
+  const impliedHome = 1 / homeDecimal;
+  const impliedAway = 1 / awayDecimal;
+  const totalImplied = impliedHome + impliedAway;
+  if (totalImplied <= 0) return modelProb;
+  const deviggedHome = impliedHome / totalImplied;
+  // Blend
+  return modelProb * modelWeight + deviggedHome * (1 - modelWeight);
+}
+
+// ══════════════════════════════════════════════════════════════
+// MLB Park Factors 2024-2026 (5-year regressed)
+// Source: FanGraphs park factors
+// Value > 1.00 = hitter-friendly, < 1.00 = pitcher-friendly
+// ══════════════════════════════════════════════════════════════
+const PARK_FACTORS = {
+  'COL': 1.25, 'CIN': 1.08, 'BOS': 1.09, 'NYY': 1.06, 'TEX': 1.04,
+  'TOR': 1.04, 'PHI': 1.03, 'BAL': 1.02, 'CHC': 1.02, 'HOU': 1.01,
+  'WSN': 1.01, 'ARI': 1.00, 'ATL': 1.00, 'CHW': 1.00, 'MIL': 1.00,
+  'MIN': 1.00, 'STL': 0.99, 'KC':  0.98, 'NYM': 0.97, 'LAA': 0.97,
+  'CLE': 0.97, 'TB':  0.96, 'PIT': 0.95, 'OAK': 0.95, 'DET': 0.95,
+  'MIA': 0.94, 'SD':  0.94, 'SF':  0.93, 'LAD': 0.93, 'SEA': 0.91,
+};
+
+const TEAM_NAME_TO_ABBR = {
+  'Arizona Diamondbacks': 'ARI', 'Atlanta Braves': 'ATL',
+  'Baltimore Orioles': 'BAL', 'Boston Red Sox': 'BOS',
+  'Chicago Cubs': 'CHC', 'Chicago White Sox': 'CHW',
+  'Cincinnati Reds': 'CIN', 'Cleveland Guardians': 'CLE',
+  'Colorado Rockies': 'COL', 'Detroit Tigers': 'DET',
+  'Houston Astros': 'HOU', 'Kansas City Royals': 'KC',
+  'Los Angeles Angels': 'LAA', 'Los Angeles Dodgers': 'LAD',
+  'Miami Marlins': 'MIA', 'Milwaukee Brewers': 'MIL',
+  'Minnesota Twins': 'MIN', 'New York Mets': 'NYM',
+  'New York Yankees': 'NYY', 'Oakland Athletics': 'OAK',
+  'Philadelphia Phillies': 'PHI', 'Pittsburgh Pirates': 'PIT',
+  'San Diego Padres': 'SD', 'San Francisco Giants': 'SF',
+  'Seattle Mariners': 'SEA', 'St. Louis Cardinals': 'STL',
+  'Tampa Bay Rays': 'TB', 'Texas Rangers': 'TEX',
+  'Toronto Blue Jays': 'TOR', 'Washington Nationals': 'WSN',
+};
+
+function getTeamAbbr(teamName) {
+  if (!teamName) return null;
+  // Direct match
+  if (TEAM_NAME_TO_ABBR[teamName]) return TEAM_NAME_TO_ABBR[teamName];
+  // Fuzzy: match by last word (e.g. "Yankees" → NYY)
+  const last = teamName.split(' ').pop().toLowerCase();
+  for (const [name, abbr] of Object.entries(TEAM_NAME_TO_ABBR)) {
+    if (name.toLowerCase().endsWith(last)) return abbr;
+  }
+  return null;
+}
+
+function getParkFactor(homeTeamName) {
+  const abbr = getTeamAbbr(homeTeamName);
+  return abbr ? (PARK_FACTORS[abbr] || 1.00) : 1.00;
+}
+
+/**
+ * Apply half park factor (team plays 50% home, 50% away).
+ * Only applied to total runs, not individual team ratings.
+ */
+function applyParkFactor(expectedTotal, homeTeamName) {
+  const pf = getParkFactor(homeTeamName);
+  const halfPF = 1 + (pf - 1) * 0.5;
+  return expectedTotal * halfPF;
+}
+
+// ══════════════════════════════════════════════════════════════
+// K-BB% Pitcher Model (replaces ERA-primary approach)
+// K-BB% explains 19% of future ERA variance vs ERA's 8%
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Calculate K-BB% from pitcher stats.
+ * More predictive of future ERA than ERA itself (R²=0.19 vs 0.08).
+ */
+function calcKBBRate(pitcher) {
+  if (!pitcher?.stats) return null;
+  const stats = pitcher.stats;
+  const k9 = parseFloat(stats.k9);
+  const bb9 = parseFloat(stats.bb9);
+  if (isNaN(k9)) return null;
+  // Convert per-9 to rate: rate ≈ per_9 / 37 (typical BF per 9 IP)
+  const kRate = k9 / 37;
+  const bbRate = (!isNaN(bb9) && bb9 > 0) ? bb9 / 37 : MLB_LEAGUE.BB_PER_9 / 37;
+  return kRate - bbRate;
+}
+
+/**
+ * Pitcher quality index using K-BB% as primary signal.
+ * Falls back to ERA if K-BB% unavailable.
+ * Returns multiplier: < 1.0 = suppresses runs, > 1.0 = allows more.
+ */
 function pitcherQuality(stats) {
   if (!stats) return 1.0;
+
+  const ip = parseFloat(stats.ip) || 0;
+
+  // Try K-BB% first (more predictive)
+  const k9 = parseFloat(stats.k9);
+  const bb9 = parseFloat(stats.bb9);
   const era = parseFloat(stats.era);
   const whip = parseFloat(stats.whip);
-  const ip = parseFloat(stats.ip);
-  if (isNaN(era) || era <= 0) return 1.0;
-  const leagueERA = 4.3;
-  const leagueWHIP = 1.28;
-  const eraFactor = era / leagueERA;
-  const whipFactor = (!isNaN(whip) && whip > 0) ? whip / leagueWHIP : 1.0;
-  const ipFactor = (!isNaN(ip) && ip > 0) ? (ip > 40 ? 1.0 : 1.08) : 1.05;
-  return Math.max(0.55, Math.min(1.6, 0.50 * eraFactor + 0.30 * whipFactor + 0.20 * ipFactor));
+
+  let kbbFactor = null;
+  if (!isNaN(k9) && k9 > 0) {
+    const kRate = k9 / 37;
+    const bbRate = (!isNaN(bb9) && bb9 > 0) ? bb9 / 37 : MLB_LEAGUE.BB_PER_9 / 37;
+    const kbbRaw = kRate - bbRate;
+    // Shrink toward league avg based on IP
+    const kbbShrunk = shrunkRating(kbbRaw, ip, MLB_LEAGUE.KBB_RATE, MLB_LEAGUE.PRIOR_KBB);
+    // Convert to factor: each +1% K-BB% above avg → ~0.06 ERA reduction → ~0.014 fewer runs/game factor
+    // league avg KBB = 0.145, so delta * 6.9 gives ERA-equivalent delta, then / leagueERA for factor
+    const kbbDelta = kbbShrunk - MLB_LEAGUE.KBB_RATE;
+    kbbFactor = 1.0 - (kbbDelta * 6.9 / MLB_LEAGUE.ERA);
+  }
+
+  // ERA fallback
+  let eraFactor = null;
+  if (!isNaN(era) && era > 0) {
+    eraFactor = era / MLB_LEAGUE.ERA;
+  }
+
+  // WHIP modifier
+  let whipFactor = 1.0;
+  if (!isNaN(whip) && whip > 0) {
+    whipFactor = whip / MLB_LEAGUE.WHIP;
+  }
+
+  // Combine: K-BB% primary (50%), ERA secondary (25%), WHIP tertiary (25%)
+  // If K-BB% unavailable, ERA 60% + WHIP 40%
+  let combined;
+  if (kbbFactor != null && eraFactor != null) {
+    combined = kbbFactor * 0.50 + eraFactor * 0.25 + whipFactor * 0.25;
+  } else if (kbbFactor != null) {
+    combined = kbbFactor * 0.65 + whipFactor * 0.35;
+  } else if (eraFactor != null) {
+    combined = eraFactor * 0.60 + whipFactor * 0.40;
+  } else {
+    return 1.0; // no data
+  }
+
+  // IP reliability: low IP → regress further toward 1.0
+  if (ip > 0 && ip < 40) {
+    const reliability = ip / 40;
+    combined = combined * reliability + 1.0 * (1 - reliability);
+  }
+
+  return Math.max(0.55, Math.min(1.6, combined));
+}
+
+/**
+ * Bullpen fatigue multiplier. Applied to expected runs in late innings.
+ * Returns factor > 1.0 when bullpen is tired (more runs expected).
+ * TODO: integrate when bullpen data is available in request
+ */
+function bullpenFatigueFactor(bullpenData) {
+  if (!bullpenData) return 1.0;
+  const ipLast3Days = bullpenData.ipLast3Days || 0;
+  const closerRested = bullpenData.closerAvailable !== false;
+  let factor = 1.0;
+  if (ipLast3Days > 11) factor += 0.08;
+  else if (ipLast3Days > 9.5) factor += 0.04;
+  if (!closerRested) factor += 0.05;
+  return Math.min(factor, 1.20);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Monte Carlo Engine — Negative Binomial inning-by-inning
+// NB allows variance > mean (MLB real: var ≈ 2× mean)
+// 10,000 simulations per game
+// ══════════════════════════════════════════════════════════════
+const MC_SIMS = 10000;
+
+// Log-gamma via Stirling approximation (accurate to ~1e-8 for x > 5)
+function logGamma(x) {
+  if (x <= 0) return 0;
+  if (x < 7) {
+    // Shift up to avoid inaccuracy for small x
+    let shift = 0;
+    let xx = x;
+    while (xx < 7) { shift += Math.log(xx); xx += 1; }
+    return logGamma(xx) - shift;
+  }
+  return (x - 0.5) * Math.log(x) - x + 0.9189385332046727
+    + 1 / (12 * x) - 1 / (360 * x * x * x);
+}
+
+/**
+ * Sample from Negative Binomial distribution using Gamma-Poisson mixture.
+ * Mean = lambda, Variance = lambda * overdispersion.
+ * For MLB runs: overdispersion ≈ 2.1 (variance ≈ 2.1× mean).
+ */
+function sampleNegBinom(lambda, overdispersion) {
+  if (lambda <= 0.01) return 0;
+  if (overdispersion <= 1.01) {
+    // Fall back to Poisson
+    let L = Math.exp(-lambda), k = 0, p = 1;
+    do { k++; p *= Math.random(); } while (p > L);
+    return k - 1;
+  }
+  // Gamma shape r = lambda / (overdispersion - 1)
+  const r = lambda / (overdispersion - 1);
+  // Sample from Gamma(r, 1) using Marsaglia-Tsang method
+  const gamSample = sampleGamma(r);
+  // Scale: Gamma(r, overdispersion-1)
+  const rate = gamSample * (overdispersion - 1);
+  // Sample from Poisson(rate)
+  if (rate <= 0) return 0;
+  let L = Math.exp(-Math.min(rate, 700)), k = 0, p = 1;
+  do { k++; p *= Math.random(); } while (p > L && k < 30);
+  return k - 1;
+}
+
+// Marsaglia-Tsang Gamma sampler for shape >= 1
+function sampleGamma(shape) {
+  if (shape < 1) {
+    // Boost: Gamma(a) = Gamma(a+1) * U^(1/a)
+    return sampleGamma(shape + 1) * Math.pow(Math.random(), 1 / shape);
+  }
+  const d = shape - 1 / 3;
+  const c = 1 / Math.sqrt(9 * d);
+  while (true) {
+    let x, v;
+    do {
+      x = normalRandom();
+      v = 1 + c * x;
+    } while (v <= 0);
+    v = v * v * v;
+    const u = Math.random();
+    if (u < 1 - 0.0331 * (x * x) * (x * x)) return d * v;
+    if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+  }
+}
+
+// Box-Muller normal random
+function normalRandom() {
+  const u1 = Math.random();
+  const u2 = Math.random();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+/**
+ * Simulate a full MLB game inning-by-inning using Negative Binomial.
+ *
+ * Inning lambdas:
+ *   1: λ × 0.85 (pitcher fresh, batters cold)
+ *   2-5: λ × 1.0 (normal starter innings)
+ *   6: λ × 0.95 (starter tiring or bullpen entry)
+ *   7-9: λ × bullpenFactor (bullpen relief)
+ *
+ * Returns: { homeTotal, awayTotal, homeF5, awayF5, firstInningRuns }
+ */
+function simulateGame(homeLambda, awayLambda, overdispersion, bpFactorHome, bpFactorAway) {
+  const INNING_MULTIPLIERS = [0.85, 1.0, 1.0, 1.0, 1.0, 0.95];
+  // Per-inning lambda = game lambda / 9
+  const hPerInning = homeLambda / 9;
+  const aPerInning = awayLambda / 9;
+  let homeTotal = 0, awayTotal = 0, homeF5 = 0, awayF5 = 0;
+
+  for (let inn = 0; inn < 9; inn++) {
+    let hMult, aMult;
+    if (inn < 6) {
+      hMult = INNING_MULTIPLIERS[inn];
+      aMult = INNING_MULTIPLIERS[inn];
+    } else {
+      // Bullpen innings: opposing bullpen faces this team
+      hMult = bpFactorAway;  // home team hits vs away bullpen
+      aMult = bpFactorHome;  // away team hits vs home bullpen
+    }
+    const hRuns = sampleNegBinom(hPerInning * hMult, overdispersion);
+    const aRuns = sampleNegBinom(aPerInning * aMult, overdispersion);
+    homeTotal += hRuns;
+    awayTotal += aRuns;
+    if (inn < 5) { homeF5 += hRuns; awayF5 += aRuns; }
+  }
+
+  return {
+    homeTotal, awayTotal,
+    homeF5, awayF5,
+    firstInningRuns: sampleNegBinom(hPerInning * 0.85, overdispersion)
+                   + sampleNegBinom(aPerInning * 0.85, overdispersion),
+  };
+}
+
+/**
+ * Run N Monte Carlo simulations of a game.
+ * Returns empirical probability distributions for all markets.
+ */
+function monteCarloSim(homeLambda, awayLambda, n = MC_SIMS) {
+  const OD = 2.1; // overdispersion: MLB variance ≈ 2.1× mean
+  const BP_HOME = 1.0; // TODO: use bullpenFatigueFactor when data available
+  const BP_AWAY = 1.0;
+
+  const totalCounts = new Array(30).fill(0);     // index = total runs
+  const f5TotalCounts = new Array(20).fill(0);
+  let homeWins = 0, awayWins = 0, ties = 0;
+  let nrfiCount = 0;
+  let f5HomeWins = 0;
+
+  for (let i = 0; i < n; i++) {
+    const g = simulateGame(homeLambda, awayLambda, OD, BP_HOME, BP_AWAY);
+    const total = g.homeTotal + g.awayTotal;
+    if (total < totalCounts.length) totalCounts[total]++;
+    const f5Total = g.homeF5 + g.awayF5;
+    if (f5Total < f5TotalCounts.length) f5TotalCounts[f5Total]++;
+    if (g.homeTotal > g.awayTotal) homeWins++;
+    else if (g.awayTotal > g.homeTotal) awayWins++;
+    else ties++;
+    if (g.firstInningRuns === 0) nrfiCount++;
+    if (g.homeF5 > g.awayF5) f5HomeWins++;
+  }
+
+  // Over probabilities for common lines
+  const overProbs = {};
+  for (let line = 6; line <= 13; line += 0.5) {
+    let over = 0;
+    for (let t = Math.ceil(line + 0.01); t < totalCounts.length; t++) {
+      over += totalCounts[t];
+    }
+    // If line is integer (e.g. 9), runs === line is a push, not over
+    overProbs[`pOver${line}`] = Math.round((over / n) * 100);
+  }
+
+  // F5 over probs
+  const f5OverProbs = {};
+  for (let line = 3; line <= 8; line += 0.5) {
+    let over = 0;
+    for (let t = Math.ceil(line + 0.01); t < f5TotalCounts.length; t++) {
+      over += f5TotalCounts[t];
+    }
+    f5OverProbs[`pF5Over${line}`] = Math.round((over / n) * 100);
+  }
+
+  return {
+    overProbs,
+    f5OverProbs,
+    mcHomeWinPct: Math.round(((homeWins + ties * 0.5) / n) * 100),
+    mcNrfiPct: Math.round((nrfiCount / n) * 100),
+    mcF5HomeWinPct: Math.round((f5HomeWins / n) * 100),
+    mcExpectedTotal: +(totalCounts.reduce((s, c, i) => s + c * i, 0) / n).toFixed(2),
+  };
 }
 
 // ── MLB Poisson Model (Enhanced) ──
-function calcMLBPoisson(hStats, aStats, marketTotal = null, pitchers = null) {
+function calcMLBPoisson(hStats, aStats, marketTotal = null, pitchers = null, homeTeamName = null) {
   if (!hStats || !aStats) return null;
 
-  const leagueAvg = 4.7;
-  const homeAdv = 1.02;
+  const leagueAvg = MLB_LEAGUE.RUNS_PER_GAME;
+  const homeAdv = MLB_LEAGUE.HOME_ADV;
+  const hGames = parseInt(hStats.games) || 10;
+  const aGames = parseInt(aStats.games) || 10;
 
-  const hOff = parseFloat(hStats.runsPerGame || hStats.avgRuns || leagueAvg) / leagueAvg;
-  const hDef = parseFloat(hStats.runsAgainstPerGame || hStats.avgRunsAgainst || leagueAvg) / leagueAvg;
-  const aOff = parseFloat(aStats.runsPerGame || aStats.avgRuns || leagueAvg) / leagueAvg;
-  const aDef = parseFloat(aStats.runsAgainstPerGame || aStats.avgRunsAgainst || leagueAvg) / leagueAvg;
+  // Raw offensive/defensive ratings
+  const rawHomeOff = parseFloat(hStats.runsPerGame || hStats.avgRuns || leagueAvg) / leagueAvg;
+  const rawHomeDef = parseFloat(hStats.runsAgainstPerGame || hStats.avgRunsAgainst || leagueAvg) / leagueAvg;
+  const rawAwayOff = parseFloat(aStats.runsPerGame || aStats.avgRuns || leagueAvg) / leagueAvg;
+  const rawAwayDef = parseFloat(aStats.runsAgainstPerGame || aStats.avgRunsAgainst || leagueAvg) / leagueAvg;
 
-  let xRunsHome = leagueAvg * hOff * aDef * homeAdv;
-  let xRunsAway = leagueAvg * aOff * hDef;
+  // Shrink toward league average based on sample size
+  const shrunkHomeOff = shrunkRating(rawHomeOff, hGames, 1.0, SHRINKAGE_PRIORS.OFFENSE_IP / 4);
+  const shrunkHomeDef = shrunkRating(rawHomeDef, hGames, 1.0, SHRINKAGE_PRIORS.DEFENSE_IP / 4);
+  const shrunkAwayOff = shrunkRating(rawAwayOff, aGames, 1.0, SHRINKAGE_PRIORS.OFFENSE_IP / 4);
+  const shrunkAwayDef = shrunkRating(rawAwayDef, aGames, 1.0, SHRINKAGE_PRIORS.DEFENSE_IP / 4);
+
+  // Expose both raw and shrunk for downstream (backwards compat)
+  const hOff = shrunkHomeOff;
+  const hDef = shrunkHomeDef;
+  const aOff = shrunkAwayOff;
+  const aDef = shrunkAwayDef;
+
+  const xRunsHomeRaw = leagueAvg * hOff * aDef * homeAdv;
+  const xRunsAwayRaw = leagueAvg * aOff * hDef;
 
   // Pitcher quality adjustment (home pitcher suppresses away runs, vice versa)
   const homePQ = pitcherQuality(pitchers?.home?.stats);
   const awayPQ = pitcherQuality(pitchers?.away?.stats);
-  xRunsAway *= (0.5 + 0.5 * homePQ); // good home pitcher -> fewer away runs
-  xRunsHome *= (0.5 + 0.5 * awayPQ);
+  let xRunsHome = xRunsHomeRaw * (0.5 + 0.5 * awayPQ);
+  let xRunsAway = xRunsAwayRaw * (0.5 + 0.5 * homePQ);
 
   // Form adjustment
-  const hWinRate = (hStats.wins || 0) / (hStats.games || 10);
-  const aWinRate = (aStats.wins || 0) / (aStats.games || 10);
+  const hWinRate = (hStats.wins || 0) / (hGames || 10);
+  const aWinRate = (aStats.wins || 0) / (aGames || 10);
   xRunsHome *= (0.99 + 0.02 * hWinRate);
   xRunsAway *= (0.99 + 0.02 * aWinRate);
 
-  // Bounds
-  xRunsHome = Math.max(1.5, Math.min(11, xRunsHome));
-  xRunsAway = Math.max(1.5, Math.min(11, xRunsAway));
+  // Cap lambda to realistic range
+  xRunsHome = capLambda(xRunsHome);
+  xRunsAway = capLambda(xRunsAway);
 
   let total = xRunsHome + xRunsAway;
+
+  // Park factor adjustment (applied to total, preserving home/away ratio)
+  const parkFactor = getParkFactor(homeTeamName);
+  if (parkFactor !== 1.0) {
+    const halfPF = 1 + (parkFactor - 1) * 0.5;
+    const ratio = xRunsHome / total;
+    total *= halfPF;
+    xRunsHome = total * ratio;
+    xRunsAway = total * (1 - ratio);
+  }
 
   // Market anchor
   if (marketTotal && marketTotal > 5) {
@@ -116,41 +531,68 @@ function calcMLBPoisson(hStats, aStats, marketTotal = null, pitchers = null) {
 
   const spread = xRunsHome - xRunsAway;
   const stdDevSpread = 1.75;
-  const stdDevTotal = 2.3;
 
   const zSpread = spread / stdDevSpread;
   const pHome = Math.min(80, Math.max(20, Math.round(normCDF(zSpread) * 100)));
 
-  const calcOverProb = (line) => {
-    const z = (total - line) / stdDevTotal;
-    return Math.min(70, Math.max(30, Math.round(normCDF(z) * 100)));
-  };
+  // ── Monte Carlo simulation (10K games, Negative Binomial, inning-by-inning) ──
+  const mcStart = Date.now();
+  const mc = monteCarloSim(xRunsHome, xRunsAway, MC_SIMS);
+  const mcMs = Date.now() - mcStart;
 
-  // Over probs for common lines
-  const overProbs = {};
-  for (let line = 6; line <= 13; line += 0.5) {
-    overProbs[`pOver${line}`] = calcOverProb(line);
-  }
+  // Over probs from MC (replaces Normal CDF approximation)
+  const overProbs = mc.overProbs;
 
-  // F5 model (first 5 innings ~ 55% of game)
+  // F5 model — MC-derived
   const xRunsHomeF5 = +(xRunsHome * 0.55).toFixed(2);
   const xRunsAwayF5 = +(xRunsAway * 0.55).toFixed(2);
   const totalF5 = +(xRunsHomeF5 + xRunsAwayF5).toFixed(2);
   const spreadF5 = xRunsHomeF5 - xRunsAwayF5;
   const zSpreadF5 = spreadF5 / (stdDevSpread * 0.7);
-  const pHomeF5 = Math.min(78, Math.max(22, Math.round(normCDF(zSpreadF5) * 100)));
+  const pHomeF5 = Math.min(78, Math.max(22, mc.mcF5HomeWinPct || Math.round(normCDF(zSpreadF5) * 100)));
 
-  // NRFI model
+  // NRFI model — blend analytical + MC
   const homeNrfiPct = parseFloat(hStats.nrfiPct || 50);
   const awayNrfiPct = parseFloat(aStats.nrfiPct || 50);
-  let nrfiBase = (homeNrfiPct + awayNrfiPct) / 200; // 0-1
-  // Good pitchers (low ERA, high K/9) increase NRFI probability
+  let nrfiBase = (homeNrfiPct + awayNrfiPct) / 200;
   const homeK9 = parseFloat(pitchers?.home?.stats?.k9 || 8);
   const awayK9 = parseFloat(pitchers?.away?.stats?.k9 || 8);
   const pitcherNrfiAdj = ((homeK9 / 9) + (awayK9 / 9)) / 2;
-  // Lower quality index = better pitcher = higher NRFI
   const pitcherEraAdj = ((2 - homePQ) + (2 - awayPQ)) / 2;
-  const nrfiProb = Math.min(0.78, Math.max(0.30, nrfiBase * 0.5 + pitcherNrfiAdj * 0.2 + pitcherEraAdj * 0.3));
+  const analyticalNRFI = Math.min(0.78, Math.max(0.30, nrfiBase * 0.5 + pitcherNrfiAdj * 0.2 + pitcherEraAdj * 0.3));
+  // Zero-inflation + MC blend: 40% analytical (with zero-inflation), 60% MC
+  const ZERO_INFLATION_ADJUSTMENT = 0.08;
+  const adjustedAnalytical = Math.min(analyticalNRFI + ZERO_INFLATION_ADJUSTMENT, 0.85);
+  const mcNrfi = mc.mcNrfiPct / 100;
+  const nrfiProb = Math.min(0.85, Math.max(0.25, adjustedAnalytical * 0.4 + mcNrfi * 0.6));
+  const poissonNRFI = analyticalNRFI; // for logging
+
+  // Save raw Poisson pHome before any market blend (applied in handler)
+  const poissonPHome = pHome;
+
+  console.log('[POISSON-V4] Calibrated calc:', {
+    home_team_games: hGames,
+    raw_home_off: +rawHomeOff.toFixed(3),
+    shrunk_home_off: +shrunkHomeOff.toFixed(3),
+    raw_away_off: +rawAwayOff.toFixed(3),
+    shrunk_away_off: +shrunkAwayOff.toFixed(3),
+    lambda_home_raw: +xRunsHomeRaw.toFixed(3),
+    lambda_home_capped: +xRunsHome.toFixed(3),
+    lambda_away_raw: +xRunsAwayRaw.toFixed(3),
+    lambda_away_capped: +xRunsAway.toFixed(3),
+    park_factor: parkFactor,
+    home_pitcher_kbb: calcKBBRate(pitchers?.home) != null ? +(calcKBBRate(pitchers.home) * 100).toFixed(1) + '%' : 'N/A',
+    away_pitcher_kbb: calcKBBRate(pitchers?.away) != null ? +(calcKBBRate(pitchers.away) * 100).toFixed(1) + '%' : 'N/A',
+    home_pq: +homePQ.toFixed(3),
+    away_pq: +awayPQ.toFixed(3),
+    poisson_pHome: +poissonPHome.toFixed(1),
+    mc_sims: MC_SIMS,
+    mc_time_ms: mcMs,
+    mc_expected_total: mc.mcExpectedTotal,
+    mc_nrfi_pct: mc.mcNrfiPct,
+    final_nrfi: +(nrfiProb * 100).toFixed(1),
+    analytical_nrfi: +(poissonNRFI * 100).toFixed(1),
+  });
 
   return {
     xRunsHome: +xRunsHome.toFixed(2),
@@ -162,6 +604,7 @@ function calcMLBPoisson(hStats, aStats, marketTotal = null, pitchers = null) {
     aOff: +aOff.toFixed(2),
     aDef: +aDef.toFixed(2),
     pHome, pAway: 100 - pHome,
+    poissonPHome, // raw Poisson pHome before market blend
     ...overProbs,
     // F5
     xRunsHomeF5, xRunsAwayF5, totalF5, pHomeF5, pAwayF5: 100 - pHomeF5,
@@ -773,8 +1216,32 @@ export default async function handler(req, res) {
     }
 
     const parsedOdds = parseMLBOdds(oddsData);
-    const poisson = calcMLBPoisson(homeStats, awayStats, parsedOdds?.marketTotal, pitchers);
+    const poisson = calcMLBPoisson(homeStats, awayStats, parsedOdds?.marketTotal, pitchers, homeTeam);
     if (!poisson) return res.status(500).json({ error: "Error calculando modelo MLB" });
+
+    // Market prior blend for moneyline ONLY (totals/NRFI markets are less efficient)
+    if (parsedOdds?.mlOutcomes?.length >= 2) {
+      const homePrice = parsedOdds.mlOutcomes[0]?.price;
+      const awayPrice = parsedOdds.mlOutcomes[1]?.price;
+      if (homePrice && awayPrice) {
+        const homeDec = homePrice > 0 ? (homePrice / 100 + 1) : (100 / Math.abs(homePrice) + 1);
+        const awayDec = awayPrice > 0 ? (awayPrice / 100 + 1) : (100 / Math.abs(awayPrice) + 1);
+        const blended = marketPriorBlend(
+          poisson.poissonPHome / 100,
+          homeDec,
+          awayDec,
+          MARKET_PRIOR_WEIGHTS.moneyline
+        );
+        poisson.pHome = Math.min(80, Math.max(20, Math.round(blended * 100)));
+        poisson.pAway = 100 - poisson.pHome;
+        console.log('[POISSON-V4] Market blend:', {
+          poissonPHome: poisson.poissonPHome,
+          marketHomeDec: +homeDec.toFixed(3),
+          marketAwayDec: +awayDec.toFixed(3),
+          blendedPHome: poisson.pHome,
+        });
+      }
+    }
 
     const edges = calcMLBEdges(poisson, parsedOdds, homeTeam, awayTeam);
     const picks = buildMLBPicks(poisson, edges, homeTeam, awayTeam, pitchers, splitsData, h2hData);
@@ -907,7 +1374,7 @@ export default async function handler(req, res) {
             x_runs_away: poisson.xRunsAway,
             model_total: poisson.total,
             model_spread: poisson.spread,
-            model_version: '3.0',
+            model_version: '4.0-fase3',
           };
         });
         console.log('[PAPER] paperRows built:', paperRows.length, 'first row sample:', JSON.stringify(paperRows[0]));
@@ -961,8 +1428,8 @@ export default async function handler(req, res) {
       erroresLinea,
       nivelConfianza,
       razonConfianza,
-      _model: 'mlb-poisson-advanced',
-      _version: '3.0',
+      _model: 'mlb-poisson-montecarlo',
+      _version: '4.0-fase3',
     });
   }
 
