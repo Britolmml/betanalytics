@@ -725,7 +725,7 @@ export default async function handler(req, res) {
     const {
       homeTeam, awayTeam, homeStats, awayStats,
       oddsData, splitsData, h2hData, isCalibration,
-      pitchers,
+      pitchers, gameId, gameDate,
     } = req.body;
 
     if (!homeStats || !awayStats) {
@@ -819,6 +819,62 @@ export default async function handler(req, res) {
       ? ` Pitchers: ${pitchers.home.name} (ERA ${pitchers.home.stats?.era || 'N/A'}) vs ${pitchers.away.name} (ERA ${pitchers.away.stats?.era || 'N/A'}).`
       : '';
     const summary = `Modelo proyecta ${homeTeam} ${poisson.xRunsHome}-${poisson.xRunsAway} ${awayTeam} (total: ${poisson.total}, spread: ${poisson.spread > 0 ? '+' : ''}${poisson.spread}). ${favTeam} tiene ${favPct}% de victoria.${pitcherSummary}${alertas.length ? ' ' + alertas[0] : ''}`;
+
+    // ── Paper Trading: save picks with EV data to Supabase ──
+    if (!isCalibration) {
+      const sb = getServiceSupabase();
+      if (sb) {
+        const paperRows = picks.map(pick => {
+          // Find matching edge for this pick
+          const matchEdge = edges.find(e =>
+            e.pick === pick.pick || (pick.pick && e.pick && pick.pick.includes(e.pick.split(' ')[0]))
+          );
+          const oddsStr = pick.odds_sugerido || (matchEdge?.american) || null;
+          let decOdds = matchEdge?.decimal || null;
+          if (!decOdds && oddsStr) {
+            const am = parseInt(String(oddsStr).replace('+',''));
+            if (!isNaN(am)) decOdds = am > 0 ? (am/100+1) : (100/Math.abs(am)+1);
+          }
+          const impliedP = decOdds && decOdds > 1 ? 1/decOdds : null;
+          const modelP = matchEdge ? matchEdge.ourProb/100 : (pick.confianza || 50)/100;
+          const ev = (decOdds && modelP) ? (modelP * decOdds - 1) : null;
+          return {
+            game_id: gameId ? String(gameId) : null,
+            sport: 'mlb',
+            home_team: homeTeam,
+            away_team: awayTeam,
+            game_date: gameDate || null,
+            market: pick.tipo,
+            selection: pick.pick,
+            pick_type: pick.categoria || 'principal',
+            odds_at_pick: oddsStr,
+            odds_decimal: decOdds ? +decOdds.toFixed(4) : null,
+            implied_prob: impliedP ? +impliedP.toFixed(4) : null,
+            model_prob: +modelP.toFixed(4),
+            ev: ev != null ? +ev.toFixed(4) : null,
+            ev_percent: ev != null ? +(ev*100).toFixed(2) : null,
+            edge: matchEdge ? +(matchEdge.edge/100).toFixed(4) : null,
+            edge_percent: matchEdge?.edge || null,
+            kelly: matchEdge?.kelly || null,
+            confidence: pick.confianza || null,
+            home_pitcher: pitchers?.home?.name || null,
+            away_pitcher: pitchers?.away?.name || null,
+            home_pq: poisson.homePQ,
+            away_pq: poisson.awayPQ,
+            x_runs_home: poisson.xRunsHome,
+            x_runs_away: poisson.xRunsAway,
+            model_total: poisson.total,
+            model_spread: poisson.spread,
+            model_version: '3.0',
+          };
+        });
+        // Fire-and-forget — don't block the response
+        sb.from('paper_trades').insert(paperRows).then(({ error }) => {
+          if (error) console.error('Paper trade save error:', error.message);
+          else console.log(`Paper trades saved: ${paperRows.length} picks for ${homeTeam} vs ${awayTeam}`);
+        });
+      }
+    }
 
     return res.status(200).json({
       resumen: summary,

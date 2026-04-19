@@ -1,0 +1,117 @@
+## ──────────────────────────────────────────────
+## BetAnalytics Cloud — Local Development
+## docker-compose up --build
+## ──────────────────────────────────────────────
+
+services:
+  # ── Infrastructure ──
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: betanalytics
+      POSTGRES_USER: betadmin
+      POSTGRES_PASSWORD: localdev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U betadmin -d betanalytics"]
+      interval: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3.0
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: kinesis,sns,sqs,secretsmanager
+      DEFAULT_REGION: us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./infra/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+
+  # ── Application Services ──
+
+  scraper:
+    build: ./services/scraper
+    environment:
+      KINESIS_STREAM: betanalytics-production-lines
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
+      REDIS_URL: redis://redis:6379
+      SCRAPE_INTERVAL: "60"
+      SECRETS_ARN: ""
+    depends_on:
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: services/pipeline/Dockerfile
+    environment:
+      KINESIS_STREAM: betanalytics-production-lines
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://betadmin:localdev@postgres:5432/betanalytics
+      SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:betanalytics-alerts
+      EV_THRESHOLD: "3.0"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+
+  alerts:
+    build: ./services/alerts
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
+      ALERTS_SQS_QUEUE_URL: http://localstack:4566/000000000000/betanalytics-alerts-queue
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+    depends_on:
+      localstack:
+        condition: service_started
+
+  tracker:
+    build: ./services/tracker
+    environment:
+      DATABASE_URL: postgresql://betadmin:localdev@postgres:5432/betanalytics
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+  pg_data:
+  localstack_data:

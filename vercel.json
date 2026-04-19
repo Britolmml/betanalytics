@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron-resolve",
+      "schedule": "0 * * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/api/football", "destination": "/api/football" },
     { "source": "/api/basketball", "destination": "/api/basketball" },
@@ -10,7 +16,9 @@
     { "source": "/api/mlb-stats", "destination": "/api/mlb-stats" },
     { "source": "/api/news", "destination": "/api/news" },
     { "source": "/api/analyze", "destination": "/api/analyze" },
-    { "source": "/api/nba-analyze", "destination": "/api/nba-analyze" }
+    { "source": "/api/nba-analyze", "destination": "/api/nba-analyze" },
+    { "source": "/api/cron-resolve", "destination": "/api/cron-resolve" },
+    { "source": "/api/paper-stats", "destination": "/api/paper-stats" }
   ],
   "headers": [
     {

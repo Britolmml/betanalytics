@@ -476,6 +476,8 @@ export default function MLBPanel({ inline, lang="es", user }) {
             home: pitchers?.home,
             away: pitchers?.away,
           },
+          gameId: selectedGame?.id || null,
+          gameDate: selectedDate || null,
           isCalibration,
           lang,
         }),
