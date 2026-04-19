@@ -871,16 +871,17 @@ export default async function handler(req, res) {
           };
         });
         console.log('[PAPER] paperRows built:', paperRows.length, 'first row sample:', JSON.stringify(paperRows[0]));
-        sb.from('paper_trades').insert(paperRows).then(({ error, data }) => {
+        try {
+          const { error } = await sb.from('paper_trades').insert(paperRows);
           if (error) {
             console.error('[PAPER] Insert FAILED:', error.message);
             console.error('[PAPER] Full error:', JSON.stringify(error));
           } else {
             console.log(`[PAPER] Insert SUCCESS: ${paperRows.length} picks for ${homeTeam} vs ${awayTeam}`);
           }
-        }).catch(err => {
+        } catch (err) {
           console.error('[PAPER] Insert threw exception:', err.message);
-        });
+        }
       } else {
         console.error('[PAPER] Skipped: Supabase client is null');
       }
